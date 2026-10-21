@@ -37,7 +37,7 @@ export function Detalhe({ l }: { l: Linha }) {
           <dt>Posição</dt>
           <dd>{l.posicao == null ? "sem posição" : `${n(l.posicao)}º`}</dd>
           <dt>Prêmio</dt>
-          <dd>{l.prize ? reais(l.prize) : "sem prêmio"}</dd>
+          <dd>{l.premioInferido ? "—" : l.prize ? reais(l.prize) : "sem prêmio"}</dd>
           <dt>Inscritos</dt>
           <dd>
             {n(l.field)}

@@ -165,7 +165,7 @@ function linhasCalculos(linhas: LinhaAud[]): Linha[] {
   return linhas.map((l) => ({
     classe: l.classe,
     v: [
-      l.jogador, l.torneio, l.posicao, l.prize, l.buyIn, l.field, l.premiados,
+      l.jogador, l.torneio, l.posicao, l.premioInferido ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
       aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.hipotese?.texto ?? "",
     ],
@@ -230,7 +230,7 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
   }
   mesclar(1, 8, 2, NCOL, "Auditoria do Ranking", { size: 24, bold: true, cor: C.branco, fundo: TOPO, wrap: false });
   mesclar(3, 8, 3, NCOL, ETAPAS[stage] ?? stage, { size: 13, cor: C.pessego, fundo: BASE, wrap: false });
-  mesclar(4, 8, 4, NCOL, `Dados do site de ${dataBrasilia(r.updatedAt.ranking)} (Brasília) · Identificador ${idCurto}`, { size: 10, cor: C.branco, fundo: BASE, wrap: false });
+  mesclar(4, 8, 4, NCOL, `${r.origem.tipo === "planilha" ? `Dados da planilha ${r.origem.arquivo ?? "enviada"} enviada em ${dataBrasilia(r.updatedAt.ranking)}` : `Dados do site de ${dataBrasilia(r.updatedAt.ranking)}`} (Brasília) · Identificador ${idCurto}`, { size: 10, cor: C.branco, fundo: BASE, wrap: false });
   mesclar(5, 8, 5, NCOL, "✓ Conta conferida por dois cálculos independentes", { size: 10, bold: true, cor: C.laranja, fundo: BASE, wrap: false });
   try {
     const logo = wb.addImage({ buffer: readFileSync(join(process.cwd(), "public", "logo-spt.png")) as unknown as ExcelJS.Buffer, extension: "png" });
@@ -239,7 +239,10 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
     /* sem a logo, o cabeçalho segue com o título */
   }
 
-  ws.getRow(6).height = 8;
+  if (r.origem.tipo === "planilha" && r.origem.premiadosInferidos) {
+    ws.getRow(6).height = 22;
+    mesclar(6, 1, 6, NCOL, "Premiados inferidos pelos pontos da planilha", { size: 10, cor: C.tinta });
+  } else ws.getRow(6).height = 8;
   ws.getRow(7).height = 26;
   ws.getRow(8).height = 26;
   mesclar(7, 1, 8, NCOL, r.painel.veredito, { size: 15, bold: true });
@@ -349,8 +352,9 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
         rules: [{ type: "colorScale", cfvo: [{ type: "min" }, { type: "max" }], color: [{ argb: C.branco }, { argb: cor }], priority: 1 } as ExcelJS.ColorScaleRuleType],
       });
   }
+  mesclar(rt + 1, 1, rt + 1, NCOL, "Satélites não pontuam", { size: 10, wrap: false });
   impressao(ws, rodape, true);
-  ws.pageSetup.printArea = `A1:X${rt}`;
+  ws.pageSetup.printArea = `A1:X${rt + 1}`;
 }
 
 // ---------- demais abas ----------
@@ -568,7 +572,13 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
   const wi = wb.addWorksheet("Identificação");
   const info: [string, string][] = [
     ["Etapa", ETAPAS[dados.stage] ?? dados.stage],
-    ["Data dos dados do site", `${dataBrasilia(r.updatedAt.ranking)} (Brasília)`],
+    ...(r.origem.tipo === "planilha"
+      ? ([
+          ["Origem dos dados", `Planilha ${r.origem.arquivo ?? "enviada"}, enviada em ${dataBrasilia(r.updatedAt.ranking)} (Brasília)`],
+          ["Inscritos do Dia Final", r.origem.inscritosDiaFinal?.texto ?? "valor da planilha"],
+          ["Premiados", "Inferidos pelos pontos da planilha"],
+        ] as [string, string][])
+      : ([["Data dos dados do site", `${dataBrasilia(r.updatedAt.ranking)} (Brasília)`]] as [string, string][])),
     ["Identificador", id.sha256.slice(0, 8)],
     ["Identificador completo", id.sha256],
     ["Resultados", String(r.linhas.length)],

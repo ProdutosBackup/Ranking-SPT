@@ -43,7 +43,7 @@ export type Divergencia = { jogador: string; torneio: string; posicao: number | 
 
 type Bruta = {
   jogador: string; torneioId: string; pos: number | null; np: number; field: number; buyIn: number; f100: number;
-  base: number; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
+  base: number; satelite: boolean; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
 };
 
 export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneiosMotor: TorneioMotor[]): Divergencia[] {
@@ -65,22 +65,23 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const flight = t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
       // Motivo da pendência, na mesma ordem de precedência da regra (reescrita aqui, de forma independente).
       let motivo: string | null = null;
+      let satelite = false;
       if (/^cancel/i.test(t.status ?? "")) motivo = "CANCELADO";
       else if (t.status !== "FINISHED") motivo = "NAO_FINALIZADO";
-      else if (/sat[eé]lite/i.test(t.name) && !regras.satelitesPontuam) motivo = "SATELITE";
+      else if (/sat[eé]lite/i.test(t.name)) satelite = true;
       else if (flight) motivo = "FLIGHT";
       else if (final && pos == null) motivo = "FINAL_SEM_POSICAO";
       else if (!(buyIn > 0)) motivo = "SEM_BUYIN";
       const pendente = motivo != null;
       const itm = !pendente && pos != null && pos <= np && r.prize != null && r.prize > 0;
-      const base = itm ? (pos! <= 18 ? TABELA[pos!] : regras.aposDecimoOitavo === "base10" ? 10 : 100) : 10;
+      const base = satelite ? 0 : itm ? (pos! <= 18 ? TABELA[pos!] : regras.aposDecimoOitavo === "base10" ? 10 : 100) : 10;
       let f100 = Math.round(regras.fatorBuyInAbaixo500 * 100);
       for (const [min, f] of FAIXAS) if (buyIn >= min) { f100 = f; break; }
       const comPremio = r.prize != null && r.prize > 0;
-      const suspeito = (pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio);
+      const suspeito = !satelite && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
-        jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, pendente, motivo, itm, suspeito,
-        fixo: !pendente && !itm && regras.foraDoItm === "10fixos", reg: Math.round(r.points * 100), prize: r.prize,
+        jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, satelite, pendente, motivo, itm, suspeito,
+        fixo: satelite || (!pendente && !itm && regras.foraDoItm === "10fixos"), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }
 
@@ -127,7 +128,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     const site = achados.get(b.torneioId);
     const explicada = site != null && !b.pendente && !b.fixo;
     const field = explicada ? site : b.field;
-    const cent = b.fixo ? 1000 : centavos(b.base, field, b.f100);
+    const cent = b.satelite ? 0 : b.fixo ? 1000 : centavos(b.base, field, b.f100);
     const dif = b.reg - cent;
     const tol = Math.round(regras.toleranciaArredondamento * 100);
     const situacao = b.pendente
@@ -136,7 +137,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
         ? "SUSPEITO"
         : dif === 0
           ? explicada ? "CORRETO_SITE" : "CORRETO"
-          : Math.abs(dif) <= tol ? "ARREDONDAMENTO" : "ERRO";
+          : !b.satelite && Math.abs(dif) <= tol ? "ARREDONDAMENTO" : "ERRO";
     const esperado: Record<string, unknown> = {
       jogador: b.jogador, torneioId: b.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
       fatorParticipantes: field * 100 + 5000, fatorBuyIn: b.f100, esperadoCent: cent, registradoCent: b.reg,

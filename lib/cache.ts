@@ -6,6 +6,8 @@ import type { Regras } from "./regras";
 const VALIDADE_MS = 10 * 60 * 1000;
 export type Entrada = {
   stage: string;
+  /** De onde vieram os dados: "site" ou "planilha:<sha256 da planilha guardada>". Entra na chave do cache. */
+  origem: string;
   regras: Regras;
   dados: DadosSpt;
   aud: ReturnType<typeof auditar>;
@@ -16,7 +18,7 @@ export type Entrada = {
 // globalThis: sobrevive ao recarregamento de módulos do `next dev`.
 const g = globalThis as unknown as { __cacheAuditoria?: Map<string, Entrada> };
 const mapa = (g.__cacheAuditoria ??= new Map());
-const chave = (stage: string, sha: string, r: Regras) => `${stage}|${sha}|${JSON.stringify(r)}`;
+const chave = (stage: string, origem: string, sha: string, r: Regras) => `${stage}|${origem}|${sha}|${JSON.stringify(r)}`;
 
 // Leituras em andamento: duas auditorias simultâneas da mesma etapa compartilham a mesma leitura.
 type Leitura = { promessa: Promise<DadosSpt>; ouvintes: Set<(feito: number, total: number) => void>; ultimo: [number, number] | null };
@@ -44,10 +46,10 @@ export function lerCompartilhado(stage: string, onProgresso?: (feito: number, to
 export function guardar(e: Omit<Entrada, "em">) {
   const agora = Date.now();
   for (const [k, v] of mapa) if (agora - v.em > VALIDADE_MS) mapa.delete(k);
-  mapa.set(chave(e.stage, e.id.sha256, e.regras), { ...e, em: agora });
+  mapa.set(chave(e.stage, e.origem, e.id.sha256, e.regras), { ...e, em: agora });
 }
 
-export function buscar(stage: string, sha: string, r: Regras): Entrada | null {
-  const e = mapa.get(chave(stage, sha, r));
+export function buscar(stage: string, sha: string, r: Regras, origem = "site"): Entrada | null {
+  const e = mapa.get(chave(stage, origem, sha, r));
   return e && Date.now() - e.em <= VALIDADE_MS ? e : null;
 }

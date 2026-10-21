@@ -16,13 +16,33 @@ export const ABAS = [
 /** Itens da barra superior fixa, na ordem. */
 export const BARRA = {
   etapa: "Etapa",
-  satelites: "Satélites contam pontos?",
   auditar: "Auditar etapa",
+  enviar: "Enviar planilha",
   baixar: "Baixar relatório",
   exportar: "Exportar dados",
   confianca: "Faixa de confiança",
 } as const;
 export const BARRA_ITENS = Object.values(BARRA);
+
+/**
+ * Envio de planilha (itens acrescentados com autorização do usuário em 21/10/2026): o botão "Enviar planilha" fica em BARRA,
+ * ao lado de "Auditar etapa"; aqui estão a marca com o X, a confirmação, o bloco de resumo e os textos de origem.
+ */
+export const PLANILHA = {
+  marca: "Planilha carregada",
+  remover: "Remover planilha",
+  confirmar: "Remover a planilha para todos?",
+  sim: "Sim",
+  nao: "Não",
+  lido: "O que foi lido",
+  premiadosInferidos: "Premiados inferidos pelos pontos da planilha",
+} as const;
+export const PLANILHA_ITENS = Object.values(PLANILHA);
+/** Textos que mudam quando a origem dos dados é uma planilha. */
+export const TEXTOS_PLANILHA = {
+  faixa: (arquivo: string, data: string) => `Dados da planilha ${arquivo}, enviada em ${data} (Brasília)`,
+  mudou: "A planilha foi trocada ou removida depois desta auditoria. Audite de novo.",
+} as const;
 
 /** Seções da aba Resumo, na ordem. */
 export const SECOES_RESUMO = [
@@ -61,8 +81,8 @@ export const ENDERECO = {
   ordem: "ordem",
   item: "ver",
 } as const;
-/** Parâmetros que já existiam além dos acima (satélites e filtro "só com erro"). */
-export const ENDERECO_EXTRA = { satelites: "sat", soErro: "soerro" } as const;
+/** Parâmetro que já existia além dos acima (filtro "só com erro"). O antigo `sat` (satélites) foi removido em 21/10/2026 e é ignorado. */
+export const ENDERECO_EXTRA = { soErro: "soerro" } as const;
 
 /** Atalhos de teclado do painel lateral. */
 export const ATALHOS = {

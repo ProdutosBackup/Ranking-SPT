@@ -44,7 +44,7 @@ Requisitos definidos pelo usuário **[CONFIRMADO]**:
 2. **Cálculo normal:** a partir dos dados de entrada (buy-in, field, posição, nº de premiados), calcular a pontuação esperada e comparar com a pontuação registrada.
 3. **Cálculo inverso:** destrinchar os dados registrados e devolver um documento em tabela, com destaque, mostrando onde o cálculo quebrou, para saber a partir de onde está errado.
 4. Ser uma ferramenta simples, mas muito funcional.
-5. **Perguntar se satélites pontuam**, com opções para o usuário escolher. Opção temporária, removida depois da confirmação do responsável (seção 6.6).
+5. [CONFIRMADO 21/10/2026] Satélites não pontuam. O esperado de uma linha de satélite é 0; registrado maior que 0 é Erro (causa: Satélite com pontos registrados, hipótese).
 6. **Relatório de revisão para download (requisito central) [CONFIRMADO].** Um relatório em Excel que o usuário baixa para revisar a etapa (prioridade: etapa 2). Ele precisa:
    - detalhar **cálculo por cálculo**: cada resultado de cada jogador em cada torneio, com a conta feita passo a passo;
    - **mostrar onde está errado**, com destaque visual nas linhas divergentes;
@@ -252,13 +252,13 @@ A calculadora do site dá base 100 a todos os premiados depois do 18º. No Dia F
 - Etapa 2: só aparece quem pontuou, então não dá para contar participantes pelos resultados; o ITM sai de `prize > 0`. **[OBSERVADO]**
 - A estimativa de 20% do field da calculadora não é necessária enquanto `prize` estiver disponível. Se foi usada no ranking real continua **[PENDENTE]**.
 
-### 6.6 Satélites [PENDENTE]
+### 6.6 Satélites [CONFIRMADO 21/10/2026]
 
 - A etapa 2 tem satélites com buy-in de R$ 300 ("Satélite PLO 200K", 15 inscritos; "SATELITE CHAMPIONSHIP", 15 inscritos). A etapa 1 não tem. **[OBSERVADO]**
 - Na API, os satélites da etapa 2 **não têm nenhum resultado**, ou seja, hoje não pontuam no site. O mesmo acontece com "EV #7 LADIES ESPECIAL" (R$ 300, 29 inscritos) e "EV #4 HORSE" (R$ 500, 12 inscritos). **[OBSERVADO]**
 - O regulamento não define fator buy-in abaixo de R$ 500.
-- Não está definido se satélites contam para o ranking. O usuário aguarda a resposta do responsável.
-- **Requisito da ferramenta [CONFIRMADO]:** a ferramenta deve perguntar ao usuário se satélites pontuam ou não, com as opções para ele escolher, e calcular conforme a escolha. É uma opção **temporária**.
+- Satélites não contam para o ranking: regra confirmada pelo usuário em 21/10/2026 (linha abaixo).
+- [CONFIRMADO 21/10/2026] Satélites não pontuam. O esperado de uma linha de satélite é 0; registrado maior que 0 é Erro (causa: Satélite com pontos registrados, hipótese).
 - **[PENDENTE]** Por que Ladies e HORSE não têm resultado na API.
 
 ### 6.7 Pontos fixos de 10 na etapa 2 [OBSERVADO]
@@ -451,7 +451,7 @@ Comportamento confirmado na inspeção de 18/10/2026 **[OBSERVADO]**:
 - **[PENDENTE]** Field: `players` ou soma dos flights / deduzido (seções 6.2 e 7.6).
 - **[PENDENTE]** Flights pontuam? Verificar (seção 6.4). Usuário pode fornecer a grade de torneios do site.
 - **[PENDENTE]** Fator buy-in abaixo de R$ 500 (seção 6.8).
-- **[PENDENTE]** Satélites pontuam? Aguardando o responsável (seção 6.6).
+- **[CONFIRMADO 21/10/2026]** Satélites não pontuam (seção 6.6).
 - **[PENDENTE]** Regra de arredondamento exibida no site (seção 6.1).
 - Pontos 6.3 e 6.5. **[PENDENTE]**
 

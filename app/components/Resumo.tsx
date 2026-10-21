@@ -15,6 +15,13 @@ export function Resumo({ d, navegar }: { d: Resposta; navegar: Navegar }) {
     { id: "revisar", rotulo: "Revisar", qtd: c.revisar },
     { id: "aguardando", rotulo: "Aguardando regra", qtd: c.aguardando },
   ];
+  // Porcentagem só para exibição: maiores restos, em décimos, para as cinco linhas somarem 100,0%.
+  const decimos = partes.map((p) => (total > 0 ? (p.qtd * 1000) / total : 0));
+  const pctD = decimos.map(Math.floor);
+  let falta = (total > 0 ? 1000 : 0) - pctD.reduce((a, b) => a + b, 0);
+  [...decimos.keys()].sort((i, j) => decimos[j] - pctD[j] - (decimos[i] - pctD[i])).forEach((i) => { if (falta-- > 0) pctD[i]++; });
+  const pct = pctD.map((x) => x / 10);
+  const pc = (x: number) => x.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const comProblema = torneios.filter((t) => t.erros > 0 || t.achado);
 
   const cartoes = [
@@ -46,19 +53,22 @@ export function Resumo({ d, navegar }: { d: Resposta; navegar: Navegar }) {
 
       <section data-secao={SECOES_RESUMO[2].id} aria-labelledby="t-comp">
         <h2 id="t-comp">Como ficaram os {n(total)} resultados</h2>
-        <div className="composicao" role="img" aria-label={partes.map((p) => `${p.rotulo}: ${n(p.qtd)}`).join("; ")}>
-          {partes.filter((p) => p.qtd > 0).map((p) => (
-            <div key={p.id} className={`seg ${p.id}`} style={{ flexGrow: p.qtd }} title={`${p.rotulo}: ${n(p.qtd)}`} />
-          ))}
-        </div>
-        <ul className="legenda">
-          {partes.map((p) => (
-            <li key={p.id}>
-              <span className={`amostra ${p.id}`} aria-hidden="true" />
-              {p.rotulo}: <b>{n(p.qtd)}</b>
+        <ul className="situacoes">
+          {partes.map((p, i) => (
+            <li key={p.id} className={`${p.id}${p.qtd === 0 ? " zero" : ""}`}>
+              <span className="vh">{`${p.rotulo}: ${n(p.qtd)}, ${pc(pct[i])}%`}</span>
+              <span className="amostra" aria-hidden="true" />
+              <span aria-hidden="true">{p.rotulo}</span>
+              <span className="barra" aria-hidden="true">
+                <span style={{ transform: `scaleX(${total > 0 ? p.qtd / total : 0})` }} />
+              </span>
+              <b className="qtd" aria-hidden="true">{n(p.qtd)}</b>
+              <span className="pct" aria-hidden="true">{pc(pct[i])}%</span>
             </li>
           ))}
         </ul>
+        <p className="muted small">Porcentagens sobre os {n(total)} resultados da etapa.</p>
+        <p className="muted small">Satélites não pontuam</p>
       </section>
 
       {grupos.length > 0 && (

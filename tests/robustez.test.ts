@@ -197,6 +197,21 @@ describe("torneio não finalizado, cancelado, sem buy-in e prêmio fora dos prem
     expect(r.painel.avisos).toContain("Há torneios sem buy-in informado.");
   });
 
+  it("satélite nunca pontua: pontos registrados são Erro; zero é Correto", async () => {
+    const d = structuredClone(await carregar(E2));
+    por(d, "EV #3").name = "Satélite EV #3";
+    const { aud } = painel(d);
+    const ls = aud.linhas.filter((l) => l.torneio === "Satélite EV #3");
+    expect(ls).toHaveLength(9);
+    expect(ls.every((l) => l.situacao === "ERRO" && l.esperado === 0 && l.causaProvavel === "Satélite com pontos registrados")).toBe(true);
+    expect(aud.resumo).toMatchObject({ ERRO: 10 + 9, PENDENTE_REGRA: 126, CORRETO: 134 - 9 });
+    // com pontos zerados a linha fecha como Correto, e o verificador concorda
+    for (const j of d.jogadores) for (const r of j.resultados) if (r.tournamentId === por(d, "Satélite EV #3").id) r.points = 0;
+    const zero = auditar(d, REGRAS_PADRAO);
+    expect(zero.linhas.filter((l) => l.torneio === "Satélite EV #3").every((l) => l.situacao === "CORRETO")).toBe(true);
+    expect(verificar(d, REGRAS_PADRAO, zero.linhas, zero.torneios)).toEqual([]);
+  });
+
   it("buy-in 0 no Dia Final continua usando o valor da regra", async () => {
     const d = await carregar(E2);
     expect(por(d, "Main Event SPT — Dia Final").buyIn).toBe(0);
@@ -223,14 +238,13 @@ describe("lerRegras", () => {
   const q = (s: string) => new URLSearchParams(s);
   it("sem parâmetros: padrões", () => expect(lerRegras(q(""))).toEqual(REGRAS_PADRAO));
   it("parâmetros válidos", () => {
-    expect(lerRegras(q("satelitesPontuam=true&foraDoItm=10fixos&aposDecimoOitavo=base10&tolerancia=0,5"))).toMatchObject({
-      satelitesPontuam: true, foraDoItm: "10fixos", aposDecimoOitavo: "base10", toleranciaArredondamento: 0.5,
+    expect(lerRegras(q("foraDoItm=10fixos&aposDecimoOitavo=base10&tolerancia=0,5"))).toMatchObject({
+      foraDoItm: "10fixos", aposDecimoOitavo: "base10", toleranciaArredondamento: 0.5,
     });
     expect(lerRegras(q("tolerancia=1.25")).toleranciaArredondamento).toBe(1.25);
-    expect(lerRegras(q("satelitesPontuam=false")).satelitesPontuam).toBe(false);
+    expect(lerRegras(q("satelitesPontuam=true"))).toEqual(REGRAS_PADRAO); // parâmetro antigo é ignorado
   });
   it.each([
-    ["satelitesPontuam=talvez", /satelitesPontuam inválido/],
     ["foraDoItm=nada", /foraDoItm inválido/],
     ["aposDecimoOitavo=x", /aposDecimoOitavo inválido/],
     ["tolerancia=abc", /tolerancia inválida/],

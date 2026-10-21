@@ -5,7 +5,9 @@
 Esta é a estrutura da tela de auditoria. Ela está registrada em `app/components/estrutura.ts` (constantes que os componentes importam) e protegida por `tests/interface.test.ts`. Cores, espaçamento e acabamento visual podem ser ajustados; nomes, ordem, abas, seções, blocos, parâmetros do endereço e atalhos, não.
 
 ## Barra superior fixa
-Itens, nesta ordem: **Etapa** (seletor com os nomes por extenso) · **Satélites contam pontos?** (Sim/Não) · **Auditar etapa** · **Baixar relatório** · **Exportar dados** · **faixa de confiança** (data dos dados em horário de Brasília, identificador curto e o selo "Conta conferida por dois cálculos independentes"). O progresso da leitura aparece nesta barra.
+Itens, nesta ordem: **Etapa** (seletor com os nomes por extenso) · **Auditar etapa** · **Enviar planilha** (botão secundário; abre o seletor de arquivo .xlsx) · **Baixar relatório** · **Exportar dados** · **faixa de confiança** (data dos dados em horário de Brasília, identificador curto e o selo "Conta conferida por dois cálculos independentes"). O progresso da leitura aparece nesta barra.
+
+**Planilha carregada** (autorizado em 21/10/2026): quando há planilha guardada no servidor, a barra mostra a marca "Planilha carregada: arquivo · enviada em data (Brasília)" com o botão **X** ("Remover planilha"), que pede confirmação ("Remover a planilha para todos? Sim / Não"). Quando a origem dos dados é a planilha, a faixa de confiança diz "Dados da planilha arquivo, enviada em data (Brasília)" e o aviso de dados trocados diz "A planilha foi trocada ou removida depois desta auditoria. Audite de novo." Acima das abas aparece o bloco **O que foi lido** (torneios, jogadores e resultados; origem dos inscritos do Dia Final; "Premiados inferidos pelos pontos da planilha"; avisos recolhidos), que pode ser fechado e reabre pela marca. Nas telas e nos arquivos Excel o prêmio de um resultado vindo de planilha aparece como "—".
 
 ## Abas (botões segmentados, nesta ordem)
 1. **Resumo**: visão geral em 10 segundos.
@@ -32,7 +34,7 @@ Itens, nesta ordem: **Etapa** (seletor com os nomes por extenso) · **Satélites
 O painel também abre para um jogador (todos os resultados dele) e para um torneio (todas as linhas).
 
 ## Endereço da página
-Parâmetros: `etapa`, `aba`, `causa`, `torneio`, `busca`, `ordem` e `ver` (o item aberto no painel). Existem ainda `sat` (satélites) e `soerro` (filtro "Só com erro"). Um link com `?aba=erros&causa=...` abre direto na aba filtrada.
+Parâmetros: `etapa`, `aba`, `causa`, `torneio`, `busca`, `ordem` e `ver` (o item aberto no painel). Existe ainda `soerro` (filtro "Só com erro"). O antigo `sat` foi removido e, se vier num link antigo, é ignorado. Um link com `?aba=erros&causa=...` abre direto na aba filtrada.
 
 ## Atalhos de teclado (painel lateral)
 ← item anterior · → próximo item · Esc fecha o painel.

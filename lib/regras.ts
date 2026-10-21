@@ -11,14 +11,12 @@ export type Regras = {
   fatorBuyInAbaixo500: number;
   /** Premiados depois do 18º: base 100 para todos (seção 6.3, como a calculadora) ou base 10. */
   aposDecimoOitavo: "base100TodosItm" | "base10";
-  /** Satélites pontuam? (seção 6.6) */
-  satelitesPontuam: boolean;
   /** Diferença (em pontos) até a qual o desvio é tratado como arredondamento (seção 2). */
   toleranciaArredondamento: number;
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "1.1";
+export const VERSAO_REGRAS = "1.2";
 
 export const REGRAS_PADRAO: Regras = {
   foraDoItm: "base10xFatores",
@@ -26,21 +24,15 @@ export const REGRAS_PADRAO: Regras = {
   buyInDiaFinalZero: 1000,
   fatorBuyInAbaixo500: 1.0,
   aposDecimoOitavo: "base100TodosItm",
-  satelitesPontuam: false,
   toleranciaArredondamento: 0.01,
 };
 
 /**
  * Sobrescreve os padrões com parâmetros de URL. Só aceita valores válidos; valor inválido é erro explícito.
- * Parâmetros: satelitesPontuam=true|false, foraDoItm, aposDecimoOitavo, tolerancia (aceita vírgula decimal).
+ * Parâmetros: foraDoItm, aposDecimoOitavo, tolerancia (aceita vírgula decimal).
  */
 export function lerRegras(q: URLSearchParams): Regras {
   const r: Regras = { ...REGRAS_PADRAO };
-  const sat = q.get("satelitesPontuam");
-  if (sat != null) {
-    if (sat !== "true" && sat !== "false") throw new Error(`satelitesPontuam inválido: "${sat}"`);
-    r.satelitesPontuam = sat === "true";
-  }
   const fora = q.get("foraDoItm");
   if (fora != null) {
     if (fora !== "base10xFatores" && fora !== "10fixos") throw new Error(`foraDoItm inválido: "${fora}"`);

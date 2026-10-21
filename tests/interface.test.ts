@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABAS, ATALHOS, BARRA_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, SECOES_RESUMO,
+  ABAS, ATALHOS, BARRA_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -18,7 +18,16 @@ describe("estrutura da tela travada", () => {
   });
 
   it("barra superior: itens e ordem", () => {
-    expect(BARRA_ITENS, TRAVADA).toEqual(["Etapa", "Satélites contam pontos?", "Auditar etapa", "Baixar relatório", "Exportar dados", "Faixa de confiança"]);
+    expect(BARRA_ITENS, TRAVADA).toEqual(["Etapa", "Auditar etapa", "Enviar planilha", "Baixar relatório", "Exportar dados", "Faixa de confiança"]);
+  });
+
+  // Itens acrescentados com autorização do usuário em 21/10/2026 (envio de planilha).
+  it("envio de planilha: marca, confirmação, bloco de resumo e textos de origem", () => {
+    expect(PLANILHA_ITENS, TRAVADA).toEqual([
+      "Planilha carregada", "Remover planilha", "Remover a planilha para todos?", "Sim", "Não", "O que foi lido", "Premiados inferidos pelos pontos da planilha",
+    ]);
+    expect(TEXTOS_PLANILHA.faixa("a.xlsx", "21/10/2026 14:00"), TRAVADA).toBe("Dados da planilha a.xlsx, enviada em 21/10/2026 14:00 (Brasília)");
+    expect(TEXTOS_PLANILHA.mudou, TRAVADA).toBe("A planilha foi trocada ou removida depois desta auditoria. Audite de novo.");
   });
 
   it("aba Resumo: seções e ordem", () => {
@@ -35,7 +44,7 @@ describe("estrutura da tela travada", () => {
 
   it("endereço: parâmetros", () => {
     expect({ ...ENDERECO }, TRAVADA).toEqual({ etapa: "etapa", aba: "aba", causa: "causa", torneio: "torneio", busca: "busca", ordem: "ordem", item: "ver" });
-    expect({ ...ENDERECO_EXTRA }, TRAVADA).toEqual({ satelites: "sat", soErro: "soerro" });
+    expect({ ...ENDERECO_EXTRA }, TRAVADA).toEqual({ soErro: "soerro" });
   });
 
   it("atalhos de teclado do painel", () => {
@@ -46,7 +55,7 @@ describe("estrutura da tela travada", () => {
   });
 
   it("os componentes continuam importando a estrutura (sem nomes duplicados à mão)", () => {
-    for (const arq of ["page.tsx", "components/Barra.tsx", "components/Erros.tsx", "components/Outras.tsx", "components/Painel.tsx", "components/Resumo.tsx", "components/Detalhe.tsx"])
+    for (const arq of ["page.tsx", "components/Barra.tsx", "components/Erros.tsx", "components/Outras.tsx", "components/Painel.tsx", "components/Planilha.tsx", "components/Resumo.tsx", "components/Detalhe.tsx"])
       expect(readFileSync(`app/${arq}`, "utf8"), `${TRAVADA} (${arq} deve importar app/components/estrutura.ts)`).toMatch(/from "(\.\/|\.\/components\/)estrutura"/);
     const page = readFileSync("app/page.tsx", "utf8");
     for (const nome of ["Divergências de inscritos", "Aguardando regra"]) expect(page, `${TRAVADA} ("${nome}" deve vir de estrutura.ts)`).not.toContain(`"${nome}"`);

@@ -5,6 +5,8 @@ export type Linha = {
   torneio: string;
   posicao: number | null;
   prize: number | null;
+  /** Planilha: o prêmio não existe, foi deduzido dos pontos; a tela mostra "—". */
+  premioInferido: boolean;
   buyIn: number;
   field: number;
   fieldApi: number;
@@ -42,8 +44,23 @@ export type TorneioPainel = {
 export type Grupo = { codigo: string; titulo: string; explicacao: string; pontos: number; indices: number[] };
 export type JogadorPainel = { nome: string; resultados: number; pontosSite: number; pontosCorretos: number; diferenca: number; erros: number };
 
+/** De onde vieram os dados. */
+export type Origem = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosInferidos?: boolean; inscritosDiaFinal?: { texto: string } };
+
+/** Estado da planilha guardada (GET /api/planilha). */
+export type PlanilhaGuardada = {
+  carregada: true;
+  arquivo: string;
+  enviadoEm: string;
+  tamanho: number;
+  sha256: string;
+  resumo: { torneios: number; jogadores: number; linhas: number; inscritosDiaFinal?: { texto: string } | null };
+  avisos: string[];
+};
+
 export type Resposta = {
   stage: string;
+  origem: Origem;
   updatedAt: { ranking: string; tournaments: string };
   identificador: { sha256: string };
   linhas: Linha[];

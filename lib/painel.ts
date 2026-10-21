@@ -34,6 +34,7 @@ const EXPLICACAO: Record<string, string> = {
   CAMPO: "É uma hipótese: os pontos registrados batem com um número de inscritos diferente do usado na conta.",
   BASE: "É uma hipótese: os pontos registrados batem com o valor de outra posição, e a causa real não é conhecida.",
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
+  SATELITE: "Satélites não pontuam, mas este resultado tem pontos registrados.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
 };
 
@@ -59,11 +60,6 @@ const PENDENCIA: Record<string, { titulo: string; pendente: string; decisao: str
     pendente: "Estes resultados são de dias classificatórios, e a regra de pontuação deles ainda não foi definida.",
     decisao: "Definir se os dias classificatórios pontuam e como.",
   },
-  SATELITE: {
-    titulo: "Satélites",
-    pendente: "Estes resultados são de satélites, e ainda não foi decidido se satélites contam pontos.",
-    decisao: "Decidir se satélites contam pontos (a pergunta no topo da tela).",
-  },
   NAO_FINALIZADO: {
     titulo: "Torneios não finalizados",
     pendente: "Estes torneios ainda não terminaram, então os resultados podem mudar.",
@@ -82,6 +78,9 @@ const PENDENCIA: Record<string, { titulo: string; pendente: string; decisao: str
 };
 
 type Achado = { fieldApi: number; fieldSite: number; diferenca: number; linhasExplicadas: number };
+
+/** De onde vieram os dados: o site ou uma planilha enviada (com o arquivo, a data de envio e a fonte dos inscritos do Dia Final). */
+export type OrigemDados = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosInferidos?: boolean; inscritosDiaFinal?: { texto: string } };
 
 export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, aud: Aud, id: ReturnType<typeof identificador>) {
   const ROTULO_PENDENCIA: Record<string, string> = {
@@ -102,6 +101,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       }
       case "FIXOS10":
         return { texto: "10 pontos fixos, sem multiplicar pelos fatores", conta: "10 pontos fixos = 10" };
+      case "SATELITE":
+        return { texto: "Satélite com pontos registrados", conta: null };
       case "SUSPEITO":
         return { texto: "Posição e prêmio não concordam", conta: null };
       case "SEM_CAUSA":
@@ -112,9 +113,12 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
         return null;
     }
   };
+  // Planilha: o prêmio é só um marcador interno (1 = premiado, deduzido dos pontos). Não vai para a tela nem para os arquivos.
+  const origem = (dados as { origem?: OrigemDados }).origem;
+  const premioInferido = origem?.tipo === "planilha" && origem.premiadosInferidos === true;
   const linhas = aud.linhas.map((l) => {
     const r = ROTULO[l.situacao];
-    return { ...l, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyIn) };
+    return { ...l, prize: premioInferido ? null : l.prize, premioInferido, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyIn) };
   });
 
   // Erros agrupados pela causa.
@@ -131,6 +135,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       const explicacao = EXPLICACAO[primeira.causaCodigo ?? "SEM_CAUSA"];
       if (primeira.causaCodigo === "FIXOS10") titulo = "10 pontos fixos em vez de 10 × fatores";
       else if (primeira.causaCodigo === "CAMPO") titulo = "Valor compatível com outro número de inscritos";
+      else if (primeira.causaCodigo === "SATELITE") titulo = "Satélite com pontos registrados";
       else if (primeira.causaCodigo === "SUSPEITO") titulo = "Posição e prêmio não concordam";
       else if (primeira.causaCodigo === "BASE") {
         const igual = indices.every((i) => linhas[i].posicao === primeira.posicao);
@@ -174,8 +179,6 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
         ? `${q} ${q === 1 ? "jogador" : "jogadores"} do ${torneio} sem posição registrada`
         : motivo in MOTIVO_TEXTO
           ? `${q} ${q === 1 ? "resultado" : "resultados"} de ${torneio}: ${MOTIVO_TEXTO[motivo]}`
-          : motivo === "SATELITE"
-          ? `${q} ${q === 1 ? "resultado" : "resultados"} de ${torneio}: ainda não foi decidido se satélites contam pontos`
           : `${q} ${q === 1 ? "resultado" : "resultados"} de ${torneio} (dia classificatório): a regra de pontuação ainda não foi definida`;
     return { texto, indices };
   });
@@ -247,7 +250,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
 
   const sn = (b: boolean) => (b ? "Sim" : "Não");
   const regrasTexto = [
-    { titulo: "Satélites contam pontos?", valor: sn(regras.satelitesPontuam) },
+    { titulo: "Satélites", valor: "Satélites não pontuam" },
     {
       titulo: "Quem fica fora da premiação",
       valor: regras.foraDoItm === "10fixos" ? "10 pontos fixos (como na calculadora do site)" : "10 pontos × os fatores (como no regulamento)",
@@ -294,6 +297,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   return {
     stage,
     updatedAt: dados.updatedAt,
+    origem: origem ?? ({ tipo: "site" } as OrigemDados),
     identificador: id,
     regras,
     resumo: aud.resumo,

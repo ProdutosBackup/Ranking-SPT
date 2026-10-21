@@ -1,8 +1,10 @@
 "use client";
 
-import { BARRA } from "./estrutura";
+import { useRef } from "react";
+import { BARRA, TEXTOS_PLANILHA } from "./estrutura";
 import { dataBr } from "./formato";
-import type { Resposta } from "./tipos";
+import { MarcaPlanilha } from "./Planilha";
+import type { PlanilhaGuardada, Resposta } from "./tipos";
 
 export const ETAPAS = [
   { v: "taua-2026", t: "Etapa 1 — Tauá Resort Atibaia (referência)" },
@@ -15,22 +17,32 @@ const DISPONIVEL_DEPOIS = "Disponível depois de auditar a etapa.";
 type Props = {
   stage: string;
   onEtapa: (v: string) => void;
-  satelites: boolean;
-  onSatelites: (v: boolean) => void;
   carregando: boolean;
   progresso: [number, number] | null;
   onAuditar: () => void;
   onBaixar: (tipo: "relatorio" | "exportacao") => void;
   baixando: string | null;
   d: Resposta | undefined;
+  planilha: PlanilhaGuardada | null;
+  enviando: boolean;
+  removendo: boolean;
+  erroEnvio: string | null;
+  onEnviar: (arquivo: File) => void;
+  onRemover: () => void;
+  lidoFechado: boolean;
+  onAbrirLido: () => void;
 };
 
 function Confianca({ d, classe }: { d: Resposta; classe: string }) {
   return (
     <div className={`confianca ${classe}`}>
-      <span>
-        Dados do site de <b>{dataBr(d.updatedAt.ranking)}</b> (Brasília)
-      </span>
+      {d.origem?.tipo === "planilha" ? (
+        <span>{TEXTOS_PLANILHA.faixa(d.origem.arquivo ?? "enviada", dataBr(d.updatedAt.ranking))}</span>
+      ) : (
+        <span>
+          Dados do site de <b>{dataBr(d.updatedAt.ranking)}</b> (Brasília)
+        </span>
+      )}
       <span>
         Identificador <b className="cod">{d.identificador.sha256.slice(0, 8)}</b>
       </span>
@@ -40,6 +52,7 @@ function Confianca({ d, classe }: { d: Resposta; classe: string }) {
 }
 
 export function Barra(p: Props) {
+  const seletor = useRef<HTMLInputElement>(null);
   const texto = !p.carregando
     ? null
     : !p.progresso
@@ -67,22 +80,23 @@ export function Barra(p: Props) {
               ))}
             </select>
           </div>
-          <fieldset className="campo">
-            <legend>{BARRA.satelites}</legend>
-            <div className="opcoes">
-              <label className="opcao">
-                <input type="radio" name="sat" checked={p.satelites} onChange={() => p.onSatelites(true)} />
-                <span>Sim</span>
-              </label>
-              <label className="opcao">
-                <input type="radio" name="sat" checked={!p.satelites} onChange={() => p.onSatelites(false)} />
-                <span>Não</span>
-              </label>
-            </div>
-          </fieldset>
           <button className="btn" type="submit" disabled={p.carregando}>
             {p.carregando ? "Auditando…" : BARRA.auditar}
           </button>
+          <button className="btn sec" type="button" disabled={p.enviando} onClick={() => seletor.current?.click()}>
+            {p.enviando ? "Enviando…" : BARRA.enviar}
+          </button>
+          <input
+            ref={seletor}
+            type="file"
+            hidden
+            accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = ""; // permite escolher o mesmo arquivo de novo
+              if (f) p.onEnviar(f);
+            }}
+          />
           <button className="btn sec" type="button" disabled={!p.d || p.baixando !== null} title={p.d ? undefined : DISPONIVEL_DEPOIS} onClick={() => p.onBaixar("relatorio")}>
             {p.baixando === "relatorio" ? "Gerando…" : BARRA.baixar}
           </button>
@@ -90,6 +104,14 @@ export function Barra(p: Props) {
             {p.baixando === "exportacao" ? "Gerando…" : BARRA.exportar}
           </button>
         </form>
+        {p.erroEnvio && (
+          <p className="erro-envio" role="alert">
+            {p.erroEnvio}
+          </p>
+        )}
+        {p.planilha && (
+          <MarcaPlanilha p={p.planilha} removendo={p.removendo} onRemover={p.onRemover} podeAbrirLido={p.lidoFechado && p.d?.origem?.tipo === "planilha"} onAbrirLido={p.onAbrirLido} />
+        )}
         {p.d && <Confianca d={p.d} classe="na-barra" />}
         {texto && (
           <div className="progresso" role="status" aria-live="polite">

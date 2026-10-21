@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
-import { ABAS, ENDERECO, ENDERECO_EXTRA } from "./components/estrutura";
+import { ABAS, ENDERECO, TEXTOS_PLANILHA } from "./components/estrutura";
 import { Barra, ETAPAS } from "./components/Barra";
 import { Erros, filtrarErros } from "./components/Erros";
 import { Aguardando, Divergencias, Jogadores, Regras, Torneios } from "./components/Outras";
 import { Painel } from "./components/Painel";
+import { BlocoLido } from "./components/Planilha";
 import { Resumo } from "./components/Resumo";
-import type { Bloqueio, Guardada } from "./components/tipos";
+import type { Bloqueio, Guardada, PlanilhaGuardada } from "./components/tipos";
 import { useUrl } from "./components/url";
 
 // Nomes amigáveis dos campos que o verificador pode apontar numa divergência.
@@ -23,11 +24,12 @@ const CAMPOS: Record<string, string> = {
 };
 
 const ABAS_VALIDAS: string[] = ABAS.map((a) => a.id);
+// A planilha só vale para a Etapa 3.
+const ETAPA_PLANILHA = ETAPAS[2].v;
 
 export default function Home() {
   const { q, pronto, navegar } = useUrl();
   const [stage, setStage] = useState(ETAPAS[1].v);
-  const [satelites, setSatelites] = useState(false);
   const [foraPremiacao, setForaPremiacao] = useState("base10xFatores");
   const [apos18, setApos18] = useState("base100TodosItm");
   const [tolerancia, setTolerancia] = useState("0,01");
@@ -39,6 +41,11 @@ export default function Home() {
   const [aviso, setAviso] = useState<string | null>(null);
   const [baixando, setBaixando] = useState<string | null>(null);
   const [revisados, setRevisados] = useState<Set<string>>(new Set());
+  const [planilha, setPlanilha] = useState<PlanilhaGuardada | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [removendo, setRemovendo] = useState(false);
+  const [erroEnvio, setErroEnvio] = useState<string | null>(null);
+  const [lidoAberto, setLidoAberto] = useState(false);
 
   const atual = guardadas[stage];
   const d = atual?.dados;
@@ -46,11 +53,11 @@ export default function Home() {
   const aba = ABAS_VALIDAS.includes(abaUrl) ? abaUrl : "resumo";
   const ver = d ? q.get(ENDERECO.item) : null;
 
-  const parametros = (etapa: string, sat: boolean) =>
-    new URLSearchParams({ stage: etapa, satelitesPontuam: String(sat), foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia }).toString();
+  const parametros = (etapa: string) =>
+    new URLSearchParams({ stage: etapa, foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia }).toString();
 
-  async function auditar(etapa = stage, sat = satelites) {
-    const p = parametros(etapa, sat);
+  async function auditar(etapa = stage) {
+    const p = parametros(etapa);
     setCarregando(true);
     setProgresso(null);
     setFalha(null);
@@ -83,7 +90,7 @@ export default function Home() {
         }
         fim = done;
       }
-      navegar({ [ENDERECO.etapa]: etapa, [ENDERECO_EXTRA.satelites]: sat ? "1" : null, [ENDERECO.aba]: new URLSearchParams(window.location.search).get(ENDERECO.aba) ?? ABAS[0].id }, "replace");
+      navegar({ [ENDERECO.etapa]: etapa, [ENDERECO.aba]: new URLSearchParams(window.location.search).get(ENDERECO.aba) ?? ABAS[0].id }, "replace");
     } catch {
       setFalha("Não foi possível falar com o servidor. Verifique a conexão e tente novamente.");
     } finally {
@@ -99,12 +106,68 @@ export default function Home() {
     partiu.current = true;
     const e = q.get(ENDERECO.etapa);
     const etapa = ETAPAS.some((x) => x.v === e) ? (e as string) : stage;
-    const sat = q.get(ENDERECO_EXTRA.satelites) === "1";
     setStage(etapa);
-    setSatelites(sat);
-    if (q.has(ENDERECO.aba) || q.has(ENDERECO.item)) void auditar(etapa, sat);
+    if (q.has(ENDERECO.aba) || q.has(ENDERECO.item)) void auditar(etapa);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pronto]);
+
+  // Planilha guardada no servidor (vale para todos os visitantes).
+  async function carregarPlanilha() {
+    try {
+      const j = await (await fetch("/api/planilha", { cache: "no-store" })).json();
+      setPlanilha(j?.carregada ? (j as PlanilhaGuardada) : null);
+    } catch {
+      setPlanilha(null);
+    }
+  }
+  useEffect(() => {
+    void carregarPlanilha();
+  }, []);
+
+  async function enviarPlanilha(arquivo: File) {
+    setEnviando(true);
+    setErroEnvio(null);
+    try {
+      const f = new FormData();
+      f.set("arquivo", arquivo);
+      const r = await fetch("/api/planilha", { method: "POST", body: f });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        setErroEnvio(j?.erro ?? "Não foi possível enviar a planilha. Tente novamente.");
+        return;
+      }
+      await carregarPlanilha();
+      setStage(ETAPA_PLANILHA);
+      navegar({ [ENDERECO.etapa]: ETAPA_PLANILHA, [ENDERECO.item]: null }, "replace");
+      setLidoAberto(true);
+      await auditar(ETAPA_PLANILHA);
+    } catch {
+      setErroEnvio("Não foi possível falar com o servidor. Verifique a conexão e tente novamente.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function removerPlanilha() {
+    setRemovendo(true);
+    setErroEnvio(null);
+    try {
+      const r = await fetch("/api/planilha", { method: "DELETE" });
+      if (!r.ok) throw new Error("falhou");
+      setPlanilha(null);
+      if (guardadas[ETAPA_PLANILHA]?.dados.origem?.tipo === "planilha") {
+        setGuardadas((g) => {
+          const { [ETAPA_PLANILHA]: _, ...outras } = g;
+          return outras;
+        });
+        if (stage === ETAPA_PLANILHA) await auditar(ETAPA_PLANILHA); // sem planilha, o servidor responde que a etapa ainda não tem ranking
+      }
+    } catch {
+      setErroEnvio("Não foi possível remover a planilha. Tente novamente.");
+    } finally {
+      setRemovendo(false);
+    }
+  }
 
   async function baixar(tipo: "relatorio" | "exportacao") {
     if (!atual) return;
@@ -119,7 +182,11 @@ export default function Home() {
         throw new Error(j?.erro ?? "Não foi possível gerar o arquivo.");
       }
       if (r.headers.get("X-Dados-Mudaram") === "1")
-        setAviso("Os dados do site mudaram depois desta auditoria. O arquivo baixado usa os dados mais recentes e pode não bater com a tela. Clique em “Auditar etapa” para atualizar a tela.");
+        setAviso(
+          atual.dados.origem?.tipo === "planilha"
+            ? TEXTOS_PLANILHA.mudou
+            : "Os dados do site mudaram depois desta auditoria. O arquivo baixado usa os dados mais recentes e pode não bater com a tela. Clique em “Auditar etapa” para atualizar a tela.",
+        );
       const nome = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") ?? "")?.[1] ?? `${tipo}.xlsx`;
       const url = URL.createObjectURL(await r.blob());
       const a = document.createElement("a");
@@ -186,14 +253,20 @@ export default function Home() {
             setStage(v);
             navegar({ [ENDERECO.etapa]: v, [ENDERECO.item]: null }, "replace");
           }}
-          satelites={satelites}
-          onSatelites={setSatelites}
           carregando={carregando}
           progresso={progresso}
           onAuditar={() => auditar()}
           onBaixar={baixar}
           baixando={baixando}
           d={d}
+          planilha={planilha}
+          enviando={enviando}
+          removendo={removendo}
+          erroEnvio={erroEnvio}
+          onEnviar={enviarPlanilha}
+          onRemover={removerPlanilha}
+          lidoFechado={!lidoAberto}
+          onAbrirLido={() => setLidoAberto(true)}
         />
 
         <main className="wrap">
@@ -261,6 +334,8 @@ export default function Home() {
                   {a}
                 </div>
               ))}
+
+              {planilha && lidoAberto && d.origem?.tipo === "planilha" && <BlocoLido p={planilha} d={d} onFechar={() => setLidoAberto(false)} />}
 
               <Abas abas={abas} atual={aba} onMudar={(id) => navegar({ [ENDERECO.aba]: id, [ENDERECO.item]: null })} />
 

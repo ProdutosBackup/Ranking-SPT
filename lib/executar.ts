@@ -1,7 +1,9 @@
 import { ErroExtracao } from "./api-spt";
+import { armazenamento, ETAPA_PLANILHA } from "./armazenamento-planilha";
 import { buscar, guardar, lerCompartilhado } from "./cache";
 import { auditar } from "./auditoria";
 import { conferir, ErroAuditoria, identificador } from "./integridade";
+import { dadosDaPlanilha, lerRegistro } from "./planilha-guardada";
 import { lerRegras } from "./regras";
 
 class ErroParametro extends Error {}
@@ -18,14 +20,24 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
     throw new ErroParametro((e as Error).message);
   }
   // `id` = hash dos dados que o usuário viu na tela; se ainda estiver no cache, o arquivo sai do mesmo resultado.
+  // A Etapa 3 usa a planilha guardada, enquanto ela existir. A chave do cache inclui a origem e o SHA-256 da planilha,
+  // então um novo envio ou uma remoção nunca devolve dados antigos.
   const idPedido = q.get("id");
-  const guardado = idPedido ? buscar(stage, idPedido, regras) : null;
+  const registro = stage === ETAPA_PLANILHA ? await lerRegistro() : null;
+  const guardado = idPedido ? buscar(stage, idPedido, regras, registro ? `planilha:${registro.sha256}` : "site") : null;
   if (guardado) return { ...guardado, mudou: false };
-  const dados = await lerCompartilhado(stage, onProgresso);
+  let dados;
+  let origem = "site";
+  const planilha = registro ? await armazenamento().ler() : null;
+  if (planilha) {
+    dados = await dadosDaPlanilha(planilha.bytes, planilha.registro);
+    origem = `planilha:${planilha.registro.sha256}`;
+    onProgresso?.(dados.jogadores.length, dados.jogadores.length);
+  } else dados = await lerCompartilhado(stage, onProgresso);
   const aud = auditar(dados, regras);
   conferir(dados, regras, aud);
   const id = identificador(dados);
-  guardar({ stage, regras, dados, aud, id });
+  guardar({ stage, origem, regras, dados, aud, id });
   return { stage, regras, dados, aud, id, mudou: idPedido != null && idPedido !== id.sha256 };
 }
 

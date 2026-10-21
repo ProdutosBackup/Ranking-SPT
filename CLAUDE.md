@@ -38,3 +38,7 @@ Gotchas:
 ## Interface travada
 
 A estrutura descrita em docs/interface.md e em app/components/estrutura.ts não pode ser alterada (nomes, ordem, abas, seções, blocos, parâmetros do endereço, atalhos) sem autorização explícita do usuário na conversa. Ajustes de cores, espaçamento e acabamento visual são permitidos desde que a estrutura e o teste tests/interface.test.ts continuem iguais. Se uma tarefa exigir mudar a estrutura, pare e pergunte antes.
+
+Alteração autorizada em 21/10/2026 (autorização do usuário: "Satélites não contam pontos, então pode tirar aquela opção."): removidos da estrutura o controle "Satélites contam pontos?" da barra superior e o parâmetro `sat` do endereço (um `?sat=` antigo é ignorado). Satélites são fixos como "não pontua" (`VERSAO_REGRAS` 1.2). A autorização vale só para esse item.
+
+Alteração autorizada em 21/10/2026 (autorização do usuário para o envio de planilha): acrescentados à estrutura (a) o botão "Enviar planilha" na barra superior, ao lado de "Auditar etapa", em estilo secundário; (b) a marca "Planilha carregada" com o botão X ("Remover planilha") e a confirmação "Remover a planilha para todos? Sim / Não"; (c) o texto da faixa de confiança quando a origem for planilha; (d) o texto do aviso de "dados mudaram" quando a origem for planilha; (e) o bloco "O que foi lido" com o resumo da planilha. Estão em `PLANILHA`, `TEXTOS_PLANILHA` e `BARRA` (estrutura.ts) e no tests/interface.test.ts. A autorização vale só para esses itens.
