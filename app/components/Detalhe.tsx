@@ -1,6 +1,6 @@
 "use client";
 
-import { CONTA_BLOCOS, PAINEL_BLOCOS } from "./estrutura";
+import { CONTA_BLOCOS, PAINEL_BLOCOS, PARTICIPACAO } from "./estrutura";
 import { classeDif, n, nSinal, nomePosicao, reais } from "./formato";
 import type { Linha } from "./tipos";
 
@@ -36,6 +36,15 @@ export function Detalhe({ l }: { l: Linha }) {
           <dd>{l.torneio}</dd>
           <dt>Posição</dt>
           <dd>{l.posicao == null ? "sem posição" : `${n(l.posicao)}º`}</dd>
+          {l.participacao && (
+            <>
+              <dt>Categoria</dt>
+              <dd>
+                {PARTICIPACAO.rotulo}
+                <span className="muted small"> · {PARTICIPACAO.explicacao}</span>
+              </dd>
+            </>
+          )}
           <dt>Prêmio</dt>
           <dd>{l.premioInferido ? "—" : l.prize ? reais(l.prize) : "sem prêmio"}</dd>
           <dt>Inscritos</dt>

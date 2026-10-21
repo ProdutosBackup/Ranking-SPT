@@ -15,6 +15,9 @@ export type Torneio = {
   role: string;
   flightLabel: string | null;
   status: string;
+  /** Só vêm da planilha (bloco lateral BUY IN / REENTRY). O site não informa quantas entradas e re-entries cada torneio teve. */
+  buyIns?: number | null;
+  reentries?: number | null;
 };
 export type Resultado = {
   tournamentId: string;
@@ -23,7 +26,8 @@ export type Resultado = {
   points: number;
   prize: number | null;
 };
-export type Jogador = { name: string; rank: number; rankingPoints: number; resultados: Resultado[] };
+/** `id`: identificador do jogador quando o site o revela (o avatar tem a forma .../users/<id>/avatar); a planilha traz sempre. */
+export type Jogador = { name: string; rank: number; rankingPoints: number; resultados: Resultado[]; id?: string };
 export type DadosSpt = {
   stage: string;
   updatedAt: { ranking: string; tournaments: string };
@@ -71,7 +75,8 @@ async function getJson<T>(url: string, parar: AbortSignal): Promise<T> {
   throw new ErroExtracao(MSG_FORA);
 }
 
-type Rk = { updatedAt: string; ranking: { rank: number; name: string; points: number }[] };
+type Rk = { updatedAt: string; ranking: { rank: number; name: string; points: number; avatarUrl?: string | null }[] };
+const idDoAvatar = (url?: string | null) => /\/users\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//i.exec(url ?? "")?.[1].toLowerCase();
 type Tn = { updatedAt: string; tournaments: Torneio[] };
 
 const porTexto = (a: unknown, b: unknown) => {
@@ -126,7 +131,8 @@ async function lerUmaVez(stage: string, onProgresso?: (feito: number, total: num
         if (soma !== centDe(p.points)) throw new ErroExtracao(`Os resultados de ${p.name} não somam os pontos do ranking.`);
         for (const r of s.results)
           if (!ids.has(r.tournamentId)) throw new ErroExtracao(`Um resultado de ${p.name} aponta para um torneio que o site não lista.`);
-        jogadores[i] = { name: p.name, rank: p.rank, rankingPoints: p.points, resultados: s.results };
+        const id = idDoAvatar(p.avatarUrl);
+        jogadores[i] = { name: p.name, rank: p.rank, rankingPoints: p.points, resultados: s.results, ...(id ? { id } : {}) };
         onProgresso?.(++feitos, rk.ranking.length);
       }
     } catch (e) {

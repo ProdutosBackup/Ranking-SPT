@@ -216,14 +216,14 @@ describe("Etapas 1 e 2 não mudam", () => {
     const { stage, dados, aud, regras, id } = await auditoria("vale-suico-2026");
     const r = montarResposta(stage, dados, regras, aud, id);
     const ind = r.painel.indicadores;
-    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([10, 3155.65, 10, 126]);
+    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([10, 3155.65, 10, 0]);
     expect(r.origem).toEqual({ tipo: "site" });
   });
 
   it("Etapa 1: 0 erros, sem tocar na planilha", async () => {
     trocarArmazenamento(semArmazenamento);
     const { aud } = await auditoria("taua-2026");
-    expect(aud.resumo).toMatchObject({ ERRO: 0, SUSPEITO: 0 });
+    expect(aud.resumo).toMatchObject({ ERRO: 202, SUSPEITO: 0, PENDENTE_REGRA: 0 }); // os 202 flights têm outro valor que não 10
   });
 });
 

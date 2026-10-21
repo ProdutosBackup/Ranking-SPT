@@ -184,7 +184,7 @@ Na etapa 2, a API mostra **10 pontos fixos** para jogadores sem prêmio em vári
 | Total do jogador | Soma simples de todos os torneios | [OFICIAL] e [CONFIRMADO] |
 | Bounty / KO | Não entra na pontuação; vale só a posição final | [CONFIRMADO] |
 | Critério de ITM | "Ambos": posição dentro do nº de premiados **e** premiação maior que zero | [CONFIRMADO] |
-| Flights do Main Event | Regra informada: **flight não conta ponto**; só o dia final pontua. O usuário acredita que flights não pontuam, mas pediu verificação, porque a etapa 1 mostra pontos em flights (seção 6.4) | [CONFIRMADO], em verificação |
+| Flights do Main Event | Regra informada: **flight não conta ponto**; só o dia final pontua. O usuário acredita que flights não pontuam, mas pediu verificação, porque a etapa 1 mostra pontos em flights (seção 6.4) | [CONFIRMADO], em verificação. **Atualizado em 21/10/2026:** flights geram só 10 pontos fixos de participação [CONFIRMADO] (seção 6.4) |
 | Field | O site conta **só buy-ins**, não ações [CONFIRMADO em 18/10]. Qual campo da API corresponde a isso está em aberto (seção 6.2) | [CONFIRMADO] |
 | Referência de verdade | Etapa 1 é o tira-teima. Em qualquer dúvida de regra, vale a variante que reproduz a etapa 1 | [CONFIRMADO em 18/10] |
 | Arredondamento na tela | O site exibe pontos como número inteiro; a API guarda com decimais | [CONFIRMADO em 18/10] e [OBSERVADO] |
@@ -236,12 +236,15 @@ O regulamento dá base 100 aos "próximos 10% premiados" e base 10 aos "demais p
 
 A calculadora do site dá base 100 a todos os premiados depois do 18º. No Dia Final da etapa 2, as posições 19 a 63 têm todas 381 pontos (100 × 3,81), coerente com a calculadora. **[OBSERVADO / INFERIDO]**
 
-### 6.4 Flights do Main Event [PENDENTE: verificar]
+### 6.4 Flights do Main Event [CONFIRMADO 21/10/2026]
+
+- **[CONFIRMADO 21/10/2026]** Os flights geram **apenas 10 pontos de participação**: 10 pontos fixos, sem fatores e sem tabela de posição (decisão do usuário, confirmada com o responsável do ranking). O esperado de uma linha de flight é 10,00; valor registrado diferente de 10,00 é Erro. A ferramenta mostra essas linhas como "Participação de flight". Flights nunca entram no ITM de outros torneios. Isto substitui a regra provisória "flight não conta ponto" e o estado "aguardando regra" das observações abaixo, que ficam como histórico.
 
 - Regra informada: **flight não conta ponto**. O usuário acredita que não pontuam, mas pediu verificação varrendo o site. **[CONFIRMADO em 18/10]**
 - Etapa 1: os flights (Dia 1A, 1C, 1D, 1E) aparecem nos resultados de **todos** os participantes, com prize 0. Exemplo: Anderson De Carvalho Costa, Dia 1D, posição 1, **12,1 pontos**. **[OBSERVADO]** Pela regra, deveria ser 0.
 - 12,1 pontos equivalem a base 10 × fator 1,21; com buy-in 1.000, o field seria 71, mas a API traz 55 jogadores no Dia 1D. **[INFERIDO]**
 - Etapa 1 não tem Dia 1B na API (só 1A, 1C, 1D, 1E). **[OBSERVADO]**
+- Com a regra de 21/10/2026, os 202 resultados de flights da etapa 1 ficam como Erro (valores registrados 11,1, 12,1, 15 e 17,6; nenhum é 10), com 883 pontos de diferença no total. **[OBSERVADO]**
 - Etapa 2: a API **não traz nenhum resultado** dos flights (Dia 1A a 1E). **[OBSERVADO]**
 - O usuário pode fornecer a página do site com a grade completa dos torneios, para conferência. **[CONFIRMADO]**
 
@@ -263,6 +266,8 @@ A calculadora do site dá base 100 a todos os premiados depois do 18º. No Dia F
 
 ### 6.7 Pontos fixos de 10 na etapa 2 [OBSERVADO]
 
+**[CONFIRMADO pelo usuário em 21/10/2026]** Linha do Dia Final (role FINAL) **sem posição** é participação nos flights: 10 pontos fixos, igual aos flights, e **não** é resultado do Dia Final (não entra na contagem de posições). **[INFERIDO]** Quem aparece sem posição no Dia Final jogou só os flights. Evidência: na etapa 3 as posições do Dia Final vão de 1 a 79, contínuas, e os inscritos são 79; os "—" são 135. Na etapa 2 há 64 posições e 126 linhas sem posição.
+
 Na etapa 2, a API mostra 10 pontos sem multiplicador nestes casos:
 
 | Torneio | Jogadores | position | prize | points |
@@ -274,7 +279,7 @@ Na etapa 2, a API mostra 10 pontos sem multiplicador nestes casos:
 
 Pela regra da seção 5 (base 10 × fatores), esses jogadores deveriam ter 10 × fator do torneio (ex.: 33 no EV #8, com fator total 3,3). São candidatos fortes a erro. **[INFERIDO]**
 
-**[PENDENTE: responder em 19/10]** Os 126 jogadores sem posição do Dia Final entram na conferência como "fora do ITM" (base 10 × fatores), ou ficam de fora?
+~~[PENDENTE: responder em 19/10]~~ **[RESOLVIDO 21/10/2026]** Os 126 jogadores sem posição do Dia Final entram na conferência como participação de flight (10 pontos fixos), conforme a decisão acima.
 
 ### 6.8 Buy-in abaixo de R$ 500 [OBSERVADO]
 
@@ -446,10 +451,10 @@ Comportamento confirmado na inspeção de 18/10/2026 **[OBSERVADO]**:
 - **CORS [OBSERVADO]:** resolvido com rota de servidor.
 - **Entrada da ferramenta [CONFIRMADO em 18/10/2026]:** fase 1 = leitura direta do site pela API; fase 2 = upload de arquivo, depois que a fase 1 funcionar. Formato do arquivo: **[PENDENTE]**.
 - **Prazo [CONFIRMADO em 18/10/2026]:** fase 1 até 18/10/2026, para verificar a etapa 2.
-- **[PENDENTE, responder em 19/10]** Os 126 jogadores sem posição do Dia Final da etapa 2 entram na conferência? (seção 6.7)
+- **[CONFIRMADO 21/10/2026]** Os 126 jogadores sem posição do Dia Final da etapa 2 entram na conferência como participação de flight, 10 pontos fixos (seção 6.7).
 - **[PENDENTE]** Buy-in do Dia Final da etapa 2 (seção 7.6).
 - **[PENDENTE]** Field: `players` ou soma dos flights / deduzido (seções 6.2 e 7.6).
-- **[PENDENTE]** Flights pontuam? Verificar (seção 6.4). Usuário pode fornecer a grade de torneios do site.
+- **[CONFIRMADO 21/10/2026]** Flights geram só 10 pontos de participação (seção 6.4).
 - **[PENDENTE]** Fator buy-in abaixo de R$ 500 (seção 6.8).
 - **[CONFIRMADO 21/10/2026]** Satélites não pontuam (seção 6.6).
 - **[PENDENTE]** Regra de arredondamento exibida no site (seção 6.1).

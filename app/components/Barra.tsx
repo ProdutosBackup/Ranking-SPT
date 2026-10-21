@@ -31,6 +31,8 @@ type Props = {
   onRemover: () => void;
   lidoFechado: boolean;
   onAbrirLido: () => void;
+  consolidadoAtivo: boolean;
+  onConsolidado: () => void;
 };
 
 function Confianca({ d, classe }: { d: Resposta; classe: string }) {
@@ -102,6 +104,9 @@ export function Barra(p: Props) {
           </button>
           <button className="btn sec" type="button" disabled={!p.d || p.baixando !== null} title={p.d ? undefined : DISPONIVEL_DEPOIS} onClick={() => p.onBaixar("exportacao")}>
             {p.baixando === "exportacao" ? "Gerando…" : BARRA.exportar}
+          </button>
+          <button id="btn-consolidado" className="btn sec" type="button" aria-pressed={p.consolidadoAtivo} onClick={p.onConsolidado}>
+            {BARRA.consolidado}
           </button>
         </form>
         {p.erroEnvio && (

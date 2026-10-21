@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
-import { ABAS, ENDERECO, TEXTOS_PLANILHA } from "./components/estrutura";
+import { ABAS, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
+import { consolidar, type EtapaConsolidado } from "../lib/consolidado";
 import { Barra, ETAPAS } from "./components/Barra";
+import { Consolidado, type EtapaOpcao } from "./components/Consolidado";
+import { lerAuditoria } from "./components/lerAuditoria";
 import { Erros, filtrarErros } from "./components/Erros";
 import { Aguardando, Divergencias, Jogadores, Regras, Torneios } from "./components/Outras";
 import { Painel } from "./components/Painel";
@@ -26,6 +29,7 @@ const CAMPOS: Record<string, string> = {
 const ABAS_VALIDAS: string[] = ABAS.map((a) => a.id);
 // A planilha só vale para a Etapa 3.
 const ETAPA_PLANILHA = ETAPAS[2].v;
+const MSG_SEM_RANKING = "Esta etapa ainda não tem ranking publicado.";
 
 export default function Home() {
   const { q, pronto, navegar } = useUrl();
@@ -46,6 +50,13 @@ export default function Home() {
   const [removendo, setRemovendo] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
   const [lidoAberto, setLidoAberto] = useState(false);
+
+  // Consolidado: ranking correto acumulado, montado só com etapas já auditadas (a mesma rota /api/auditoria).
+  const [semRanking3, setSemRanking3] = useState<boolean | null>(null); // null = ainda não sei se o site tem a Etapa 3
+  const [carregandoCons, setCarregandoCons] = useState<string | null>(null);
+  const [erroCons, setErroCons] = useState<string | null>(null);
+  const guardadasRef = useRef(guardadas);
+  guardadasRef.current = guardadas;
 
   const atual = guardadas[stage];
   const d = atual?.dados;
@@ -123,6 +134,91 @@ export default function Home() {
   useEffect(() => {
     void carregarPlanilha();
   }, []);
+
+  // ---------- Consolidado ----------
+  const visaoCons = q.get(ENDERECO_EXTRA.visao) === CONSOLIDADO.visao;
+  const ateUrl = ETAPAS.findIndex((e) => e.v === q.get(ENDERECO.etapa)) + 1;
+  const ate = ateUrl === 3 && semRanking3 === true && !planilha ? 2 : ateUrl || (planilha ? 3 : 2);
+  // A leitura serve só se foi feita com as mesmas regras de agora e, na Etapa 3, com a mesma origem (planilha ou site).
+  const fresca = (g: Record<string, Guardada>, k: number) => {
+    const slug = ETAPAS[k - 1].v;
+    const x = g[slug];
+    if (!x || x.params !== parametros(slug)) return false;
+    return slug !== ETAPA_PLANILHA || (x.dados.origem?.tipo === "planilha") === (planilha != null);
+  };
+
+  useEffect(() => setSemRanking3(null), [planilha?.sha256]);
+  useEffect(() => {
+    if (!visaoCons || !pronto) return;
+    let cancelado = false;
+    (async () => {
+      setErroCons(null);
+      for (const k of [1, 2, 3].filter((x) => x <= ate || (x === 3 && !planilha && semRanking3 === null))) {
+        if (fresca(guardadasRef.current, k)) continue;
+        const slug = ETAPAS[k - 1].v;
+        setCarregandoCons(`Lendo a Etapa ${k}…`);
+        const r = await lerAuditoria(parametros(slug), (f, t) => !cancelado && setCarregandoCons(`Lendo a Etapa ${k}: jogadores ${f} de ${t}`));
+        if (cancelado) return;
+        if (r.resultado) {
+          setGuardadas((g) => ({ ...g, [slug]: { dados: r.resultado!, params: parametros(slug) } }));
+          if (k === 3) setSemRanking3(false);
+        } else if (k === 3 && (r.erro?.erro === MSG_SEM_RANKING || k > ate)) {
+          setSemRanking3(true); // sem planilha e sem ranking no site
+          setGuardadas((g) => {
+            const { [slug]: _, ...outras } = g;
+            return outras;
+          });
+        } else {
+          setErroCons(r.semServidor ? "Não foi possível falar com o servidor. Verifique a conexão e tente novamente." : (r.erro?.erro ?? "Ocorreu um erro inesperado."));
+          break;
+        }
+      }
+      if (!cancelado) setCarregandoCons(null);
+    })();
+    return () => {
+      cancelado = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, foraPremiacao, apos18, tolerancia]);
+
+  const consolidado = useMemo(() => {
+    if (!visaoCons) return null;
+    const etapas: EtapaConsolidado[] = [];
+    for (let k = 1; k <= ate; k++) {
+      if (!fresca(guardadas, k)) return null;
+      const d3 = guardadas[ETAPAS[k - 1].v].dados;
+      etapas.push({
+        numero: k,
+        jogadores: d3.painel.jogadores.map((j) => ({ nome: j.nome, id: j.id })),
+        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicao, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao })),
+      });
+    }
+    return consolidar(etapas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visaoCons, ate, guardadas, planilha, foraPremiacao, apos18, tolerancia]);
+  const regraCons = guardadas[ETAPAS[ate - 1].v]?.dados.painel.regrasTexto.find((r) => r.titulo === "Quem fica fora da premiação")?.valor ?? null;
+  const opcoesEtapa: EtapaOpcao[] = ETAPAS.map((_, i) => ({
+    numero: i + 1,
+    rotulo: `Etapa ${i + 1}`,
+    estado: i < 2 || planilha || semRanking3 === false ? "ok" : semRanking3 === true ? "sem-dados" : "verificando",
+  }));
+  function sairConsolidado() {
+    navegar({ [ENDERECO_EXTRA.visao]: null });
+    setTimeout(() => document.getElementById("btn-consolidado")?.focus(), 0);
+  }
+  function alternarConsolidado() {
+    if (visaoCons) sairConsolidado();
+    else navegar({ [ENDERECO_EXTRA.visao]: CONSOLIDADO.visao, [ENDERECO.etapa]: ETAPAS[ate - 1].v, [ENDERECO.item]: null });
+  }
+  useEffect(() => {
+    if (!visaoCons) return;
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) sairConsolidado();
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visaoCons]);
 
   async function enviarPlanilha(arquivo: File) {
     setEnviando(true);
@@ -267,9 +363,24 @@ export default function Home() {
           onRemover={removerPlanilha}
           lidoFechado={!lidoAberto}
           onAbrirLido={() => setLidoAberto(true)}
+          consolidadoAtivo={visaoCons}
+          onConsolidado={alternarConsolidado}
         />
 
         <main className="wrap">
+          {visaoCons ? (
+            <Consolidado
+              ate={ate}
+              etapas={opcoesEtapa}
+              onAte={(k) => navegar({ [ENDERECO.etapa]: ETAPAS[k - 1].v }, "replace")}
+              dados={consolidado}
+              carregando={carregandoCons}
+              erro={erroCons}
+              regra={regraCons}
+              onSair={sairConsolidado}
+            />
+          ) : (
+            <>
           {falha && (
             <div className="aviso bloqueio" role="alert">
               <b>Não foi possível concluir.</b> {falha}
@@ -348,6 +459,8 @@ export default function Home() {
                 {aba === "aguardando" && <Aguardando d={d} />}
                 {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia }} />}
               </div>
+            </>
+          )}
             </>
           )}
         </main>

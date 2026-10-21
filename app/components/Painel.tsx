@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { Detalhe } from "./Detalhe";
-import { ATALHOS, ENDERECO } from "./estrutura";
+import { ATALHOS, ENDERECO, PARTICIPACAO } from "./estrutura";
 import { chaveLinha, classeDif, n, nSinal } from "./formato";
 import { LinhaExpandivel } from "./Outras";
 import { Paginada } from "./Paginada";
@@ -132,7 +132,7 @@ export function Painel({ d, ver, navegar, lista, revisados, alternarRevisado, re
             <h2 id="painel-titulo">{linha ? linha.jogador : (conteudo?.titulo ?? "Detalhe")}</h2>
             {linha && (
               <p className="muted">
-                {linha.torneio} · {linha.posicao == null ? "sem posição" : `${n(linha.posicao)}º`} · <span className={`etiqueta ${linha.classe}`}>{linha.rotulo}</span>
+                {linha.torneio} · {linha.posicao == null ? "sem posição" : `${n(linha.posicao)}º`} · {linha.participacao && <><span className="etiqueta categoria">{PARTICIPACAO.rotulo}</span>{" "}</>}<span className={`etiqueta ${linha.classe}`}>{linha.rotulo}</span>
               </p>
             )}
           </div>

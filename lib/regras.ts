@@ -16,7 +16,7 @@ export type Regras = {
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "1.2";
+export const VERSAO_REGRAS = "1.3";
 
 export const REGRAS_PADRAO: Regras = {
   foraDoItm: "base10xFatores",

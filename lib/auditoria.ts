@@ -1,5 +1,6 @@
 import type { DadosSpt, Torneio } from "./api-spt";
 import { BASES_TABELA, calcular, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
+import { PARTICIPACAO } from "./participacao";
 import type { Regras } from "./regras";
 
 export type Situacao = "CORRETO" | "CORRETO_SITE" | "ARREDONDAMENTO" | "ERRO" | "SUSPEITO" | "PENDENTE_REGRA";
@@ -25,7 +26,7 @@ const DESCRICAO_BASE: Record<number, string> = {
 };
 export const descreverBase = (b: number) => DESCRICAO_BASE[b] ?? `base ${b}`;
 
-export type Pendencia = "NAO_FINALIZADO" | "CANCELADO" | "FLIGHT" | "FINAL_SEM_POSICAO" | "SEM_BUYIN";
+export type Pendencia = "NAO_FINALIZADO" | "CANCELADO" | "SEM_BUYIN";
 
 // Flight: role=FLIGHT (etapa 2) ou, sem marcação, nome com "Dia 1" (etapa 1).
 const ehFlight = (t: Torneio) => t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
@@ -55,6 +56,7 @@ export function auditar(d: DadosSpt, regras: Regras) {
       let motivoPendente: string | null = null;
       let pendencia: Pendencia | null = null;
       let sat = false;
+      let part = false; // participação de flight: 10 pontos fixos
       if (/^cancel/i.test(t.status ?? "")) {
         motivoPendente = "torneio cancelado com resultados";
         pendencia = "CANCELADO";
@@ -64,11 +66,9 @@ export function auditar(d: DadosSpt, regras: Regras) {
       } else if (ehSatelite(t)) {
         sat = true; // satélite nunca pontua: o esperado é 0
       } else if (ehFlight(t)) {
-        motivoPendente = "flight: regra pendente (seção 6.4); esperado é só referência 10 × fatores";
-        pendencia = "FLIGHT";
+        part = true; // flights geram só 10 pontos de participação (seção 6.4)
       } else if (t.role === "FINAL" && r.position == null) {
-        motivoPendente = "Dia Final sem posição: regra pendente (seção 6.7); esperado é só referência 10 × fatores";
-        pendencia = "FINAL_SEM_POSICAO";
+        part = true; // sem posição no Dia Final = participação nos flights (seção 6.7)
       } else if (!(ctx.buyIn > 0)) {
         motivoPendente = "buy-in não informado: sem o buy-in não há como calcular o fator";
         pendencia = "SEM_BUYIN";
@@ -76,16 +76,20 @@ export function auditar(d: DadosSpt, regras: Regras) {
       const c0 = motivoPendente
         ? calcular({ ...entrada, posicao: null }, { ...regras, foraDoItm: "base10xFatores" })
         : calcular(entrada, regras);
-      const c = sat ? { ...c0, itm: false, base: 0, conta: "Satélite não pontua", esperado: 0, esperadoCent: 0 } : c0;
+      const c = sat
+        ? { ...c0, itm: false, base: 0, conta: "Satélite não pontua", esperado: 0, esperadoCent: 0 }
+        : part
+          ? { ...c0, itm: false, base: 10, conta: PARTICIPACAO.conta, esperado: 10, esperadoCent: 1000 }
+          : c0;
       // 10 pontos fixos (opção da calculadora do site): não depende dos inscritos, então não entra na dedução.
-      const fixo = sat || (!motivoPendente && !c.itm && regras.foraDoItm === "10fixos");
+      const fixo = sat || part || (!motivoPendente && !c.itm && regras.foraDoItm === "10fixos");
       const suspeito =
-        !sat && (
+        !sat && !part && (
         (r.position != null && r.position <= ctx.premiados && !(r.prize != null && r.prize > 0)) ||
         (r.position == null && r.prize != null && r.prize > 0) ||
         // prêmio em posição além do número de premiados: a posição ou o prêmio estão errados
         (r.position != null && r.position > ctx.premiados && r.prize != null && r.prize > 0));
-      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat };
+      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, part };
     }),
   );
 
@@ -111,7 +115,7 @@ export function auditar(d: DadosSpt, regras: Regras) {
 
   // Passo 3: classificação final. Linhas explicadas por um achado são recalculadas com os inscritos do site.
   const linhas = pre.map((p) => {
-    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat } = p;
+    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, part } = p;
     const achado = deducao.get(t.id)!.achado;
     const explicada = achado != null && !motivoPendente && !fixo;
     const field = explicada ? achado.fieldSite : ctx.field;
@@ -124,19 +128,19 @@ export function auditar(d: DadosSpt, regras: Regras) {
     if (motivoPendente) situacao = "PENDENTE_REGRA";
     else if (suspeito) situacao = "SUSPEITO";
     else if (abs === 0) situacao = explicada ? "CORRETO_SITE" : "CORRETO";
-    else if (!sat && abs <= centDe(regras.toleranciaArredondamento)) situacao = "ARREDONDAMENTO";
+    else if (!sat && !part && abs <= centDe(regras.toleranciaArredondamento)) situacao = "ARREDONDAMENTO";
     else situacao = "ERRO";
 
     let inverso: Inverso | null = null;
     let causa = motivoPendente ?? "";
     // Código estruturado da causa (hipótese), usado pelo painel para agrupar; `causa` é só texto para leitura.
-    let causaCodigo: "FIXOS10" | "CAMPO" | "BASE" | "SEM_CAUSA" | "SUSPEITO" | "INSCRITOS_SITE" | "SATELITE" | null = null;
+    let causaCodigo: "FIXOS10" | "CAMPO" | "BASE" | "SEM_CAUSA" | "SUSPEITO" | "INSCRITOS_SITE" | "SATELITE" | "PARTICIPACAO" | null = null;
     let baseUsada: number | null = null;
     if (situacao === "ERRO" || situacao === "SUSPEITO" || situacao === "CORRETO_SITE") {
       const fb = fb100(ctx.buyIn, regras);
       const fixos10 = situacao === "ERRO" && r.points === 10 && c.esperado !== 10;
       // 10 pontos fixos não permitem deduzir inscritos nem comparar bases.
-      inverso = sat
+      inverso = sat || part
         ? null
         : fixos10
         ? { fatorTotal: arred(r.points / c.base), fieldImplicito: null, candidatos: [] }
@@ -151,6 +155,9 @@ export function auditar(d: DadosSpt, regras: Regras) {
       } else if (situacao === "SUSPEITO") {
         causaCodigo = "SUSPEITO";
         causa = "Posição e prêmio não concordam";
+      } else if (part) {
+        causaCodigo = "PARTICIPACAO";
+        causa = PARTICIPACAO.causa;
       } else if (sat) {
         causaCodigo = "SATELITE";
         causa = "Satélite com pontos registrados";
@@ -198,6 +205,7 @@ export function auditar(d: DadosSpt, regras: Regras) {
       causaCodigo,
       baseUsada,
       pendencia,
+      participacao: part,
       inverso,
     };
   });
@@ -215,12 +223,16 @@ export function auditar(d: DadosSpt, regras: Regras) {
       field: ctx.field,
       buyIn: ctx.buyIn,
       premiados: ctx.premiados,
+      buyIns: t.buyIns ?? null,
+      reentries: t.reentries ?? null,
       fatorTotalEsperado: arred(fatorParticipantes(ctx.field) * fatorBuyIn(ctx.buyIn, regras)),
       fieldDeduzido: melhor?.field ?? null,
       fieldBateu: melhor ? melhor.field === ctx.field : null,
       melhorCandidato: melhor,
       achado,
       total: ls.length,
+      comPosicao: ls.filter((l) => l.posicao != null && !l.participacao).length,
+      participacao: ls.filter((l) => l.participacao).length,
       ...contagem,
     };
   });

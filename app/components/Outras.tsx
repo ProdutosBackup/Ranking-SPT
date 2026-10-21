@@ -1,7 +1,7 @@
 "use client";
 
 import { Detalhe, Comparativo } from "./Detalhe";
-import { ENDERECO, ENDERECO_EXTRA } from "./estrutura";
+import { ACOES, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
 import { chaveLinha, classeDif, n, nSinal, semAcento } from "./formato";
 import { Paginada } from "./Paginada";
 import type { Navegar, Opcoes, Resposta } from "./tipos";
@@ -98,6 +98,24 @@ const ESTADO: Record<string, { icone: string; texto: string }> = {
   aguardando: { icone: "…", texto: "Aguardando regra" },
 };
 
+const acao = (v: number | null) => (v == null ? "—" : n(v));
+/** Buy-ins, re-entries e ações do torneio (só a planilha informa); marca discreta quando buy-ins ≠ inscritos. */
+function LinhaAcoes({ t, origem }: { t: Resposta["painel"]["torneios"][number]; origem: Resposta["origem"] }) {
+  const diferente = t.buyIns != null && t.buyIns !== t.inscritos;
+  const semInfo = t.buyIns == null && t.reentries == null;
+  return (
+    <span className="muted small linha-extra">
+      {ACOES.buyIns} {acao(t.buyIns)} · {ACOES.reentries} {acao(t.reentries)} · {ACOES.acoes} {acao(t.acoes)}
+      {diferente && (
+        <span className="marca-dif" title={ACOES.diferente}>
+          {" "}· ≠ inscritos ({n(t.inscritos)})
+        </span>
+      )}
+      {semInfo && <> · {origem.tipo === "site" || t.resultados === 0 ? ACOES.naoInformado : "não informado na planilha"}</>}
+    </span>
+  );
+}
+
 export function Torneios({ d, navegar }: { d: Resposta; navegar: Navegar }) {
   const lista = [...d.painel.torneios].sort((a, b) => Number(a.estado === "vazio") - Number(b.estado === "vazio"));
   return (
@@ -118,6 +136,13 @@ export function Torneios({ d, navegar }: { d: Resposta; navegar: Navegar }) {
                 {t.resultados === 0
                   ? "nenhum resultado no site"
                   : `${n(t.inscritos)} inscritos · ${n(t.premiados)} premiados · ${n(t.resultados)} resultados · ${n(t.corretos)} corretos${t.erros ? ` · ${n(t.erros)} ${t.erros === 1 ? "erro" : "erros"}` : ""}`}
+                {t.participacao > 0 && (
+                  <span className="muted small linha-extra">
+                    {t.comPosicao > 0 ? `${PARTICIPACAO.comPosicao}: ${n(t.comPosicao)} · ` : ""}
+                    {PARTICIPACAO.rotulo}: {n(t.participacao)}
+                  </span>
+                )}
+                <LinhaAcoes t={t} origem={d.origem} />
               </span>
             </button>
           </li>
@@ -130,7 +155,7 @@ export function Torneios({ d, navegar }: { d: Resposta; navegar: Navegar }) {
 /* ---------- Aguardando regra ---------- */
 export function Aguardando({ d }: { d: Resposta }) {
   const grupos = d.painel.aguardandoGrupos;
-  if (!grupos.length) return <div className="aviso">Nenhum resultado aguardando definição de regra.</div>;
+  if (!grupos.length) return <div className="aviso">{PARTICIPACAO.vazioAguardando}</div>;
   return (
     <div>
       {grupos.map((g) => (
@@ -185,6 +210,13 @@ export function Regras({ d, opcoes }: { d: Resposta; opcoes: Opcoes }) {
         </p>
         <p className="muted">
           O fator de participantes é inscritos ÷ 100 + 0,5. Quem fica fora da premiação recebe a base de 10 pontos: {t.foraDaPremiacao}.
+        </p>
+      </section>
+      <section>
+        <h3>{PARTICIPACAO.bloco}</h3>
+        <p>{PARTICIPACAO.regra}</p>
+        <p className="muted small">
+          {PARTICIPACAO.fonte} {PARTICIPACAO.hipotese}
         </p>
       </section>
       <div className="duas-colunas">
@@ -275,7 +307,10 @@ export function LinhaExpandivel({ l }: { l: Resposta["linhas"][number] }) {
           <b>{l.torneio}</b> · {l.posicao == null ? "sem posição" : `${n(l.posicao)}º`}
         </span>
         <Comparativo l={l} />
-        <span className={`etiqueta ${l.classe}`}>{l.rotulo}</span>
+        <span>
+          {l.participacao && <span className="etiqueta categoria" title={PARTICIPACAO.explicacao}>{PARTICIPACAO.rotulo}</span>}
+          <span className={`etiqueta ${l.classe}`}>{l.rotulo}</span>
+        </span>
       </summary>
       <Detalhe l={l} />
     </details>

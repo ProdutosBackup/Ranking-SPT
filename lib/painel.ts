@@ -4,6 +4,7 @@ import type { DadosSpt } from "./api-spt";
 import { descreverBase, type auditar } from "./auditoria";
 import { baseDaPosicao, fb100 } from "./calculo";
 import type { identificador } from "./integridade";
+import { PARTICIPACAO } from "./participacao";
 import type { Regras } from "./regras";
 
 type Aud = ReturnType<typeof auditar>;
@@ -35,6 +36,7 @@ const EXPLICACAO: Record<string, string> = {
   BASE: "É uma hipótese: os pontos registrados batem com o valor de outra posição, e a causa real não é conhecida.",
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
   SATELITE: "Satélites não pontuam, mas este resultado tem pontos registrados.",
+  PARTICIPACAO: "Participação de flight vale 10 pontos fixos, mas o valor registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
 };
 
@@ -50,16 +52,6 @@ const faixaDe = (buyIn: number) => (FAIXAS_BUYIN.find((f) => buyIn >= f.min) ?? 
 const ETAPA: Record<string, number> = { "taua-2026": 1, "vale-suico-2026": 2, "bendito-cacao-2026": 3 };
 
 const PENDENCIA: Record<string, { titulo: string; pendente: string; decisao: string }> = {
-  FINAL_SEM_POSICAO: {
-    titulo: "Dia Final sem posição registrada",
-    pendente: "O site não registra a posição destes jogadores no Dia Final; eles aparecem só com 10 pontos.",
-    decisao: "Definir quantos pontos recebe quem jogou o Dia Final e não tem posição.",
-  },
-  FLIGHT: {
-    titulo: "Dias classificatórios (Dia 1)",
-    pendente: "Estes resultados são de dias classificatórios, e a regra de pontuação deles ainda não foi definida.",
-    decisao: "Definir se os dias classificatórios pontuam e como.",
-  },
   NAO_FINALIZADO: {
     titulo: "Torneios não finalizados",
     pendente: "Estes torneios ainda não terminaram, então os resultados podem mudar.",
@@ -103,6 +95,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
         return { texto: "10 pontos fixos, sem multiplicar pelos fatores", conta: "10 pontos fixos = 10" };
       case "SATELITE":
         return { texto: "Satélite com pontos registrados", conta: null };
+      case "PARTICIPACAO":
+        return { texto: PARTICIPACAO.causa, conta: "10 pontos fixos = 10" };
       case "SUSPEITO":
         return { texto: "Posição e prêmio não concordam", conta: null };
       case "SEM_CAUSA":
@@ -136,6 +130,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       if (primeira.causaCodigo === "FIXOS10") titulo = "10 pontos fixos em vez de 10 × fatores";
       else if (primeira.causaCodigo === "CAMPO") titulo = "Valor compatível com outro número de inscritos";
       else if (primeira.causaCodigo === "SATELITE") titulo = "Satélite com pontos registrados";
+      else if (primeira.causaCodigo === "PARTICIPACAO") titulo = PARTICIPACAO.causa;
       else if (primeira.causaCodigo === "SUSPEITO") titulo = "Posição e prêmio não concordam";
       else if (primeira.causaCodigo === "BASE") {
         const igual = indices.every((i) => linhas[i].posicao === primeira.posicao);
@@ -174,12 +169,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   const aguardando = [...porPend.entries()].map(([k, indices]) => {
     const [motivo, torneio] = k.split("|");
     const q = indices.length;
-    const texto =
-      motivo === "FINAL_SEM_POSICAO"
-        ? `${q} ${q === 1 ? "jogador" : "jogadores"} do ${torneio} sem posição registrada`
-        : motivo in MOTIVO_TEXTO
-          ? `${q} ${q === 1 ? "resultado" : "resultados"} de ${torneio}: ${MOTIVO_TEXTO[motivo]}`
-          : `${q} ${q === 1 ? "resultado" : "resultados"} de ${torneio} (dia classificatório): a regra de pontuação ainda não foi definida`;
+    const texto = `${q} ${q === 1 ? "resultado" : "resultados"} de ${torneio}: ${MOTIVO_TEXTO[motivo]}`;
     return { texto, indices };
   });
 
@@ -196,6 +186,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     const dif = a?.difCent ?? 0;
     return {
       nome: j.name,
+      id: j.id ?? null,
       resultados: j.resultados.length,
       pontosSite: j.rankingPoints,
       pontosCorretos: Math.round(j.rankingPoints * 100 + dif) / 100,
@@ -211,6 +202,11 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     inscritos: x.players as number,
     premiados: x.premiados as number,
     resultados: x.total as number,
+    buyIns: (x.buyIns as number | null) ?? null,
+    reentries: (x.reentries as number | null) ?? null,
+    acoes: x.buyIns != null && x.reentries != null ? (x.buyIns as number) + (x.reentries as number) : null,
+    comPosicao: x.comPosicao as number,
+    participacao: x.participacao as number,
     corretos: (x.CORRETO as number) + (x.CORRETO_SITE as number),
     inscritosApi: x.players as number,
     inscritosUsados: x.field as number,

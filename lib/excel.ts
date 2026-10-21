@@ -9,6 +9,7 @@ import type { auditar } from "./auditoria";
 import { gerarGraficos } from "./graficos-excel";
 import type { identificador } from "./integridade";
 import { montarResposta } from "./painel";
+import { ACOES, PARTICIPACAO } from "./participacao";
 import { REGRAS_PADRAO, type Regras } from "./regras";
 
 type Aud = ReturnType<typeof auditar>;
@@ -159,7 +160,7 @@ const COLS_CALCULOS: Col[] = [
   { h: "Jogador", t: "texto" }, { h: "Torneio", t: "texto" }, { h: "Posição", t: "pos" }, { h: "Prêmio (R$)", t: "ponto" },
   { h: "Buy-in (R$)", t: "ponto" }, { h: "Inscritos usados", t: "int" }, { h: "Premiados", t: "int" }, { h: "Base da posição", t: "int" },
   { h: "Fator de participantes", t: "fator" }, { h: "Fator de buy-in", t: "fator" }, { h: "Conta correta", t: "texto" },
-  { h: "Pontos corretos", t: "ponto" }, { h: "Pontos no site", t: "ponto" }, { h: "Diferença", t: "dif" }, { h: "Situação", t: "situacao" }, { h: "Causa (hipótese)", t: "longo" },
+  { h: "Pontos corretos", t: "ponto" }, { h: "Pontos no site", t: "ponto" }, { h: "Diferença", t: "dif" }, { h: "Situação", t: "situacao" }, { h: "Categoria", t: "texto" }, { h: "Causa (hipótese)", t: "longo" },
 ];
 function linhasCalculos(linhas: LinhaAud[]): Linha[] {
   return linhas.map((l) => ({
@@ -167,7 +168,7 @@ function linhasCalculos(linhas: LinhaAud[]): Linha[] {
     v: [
       l.jogador, l.torneio, l.posicao, l.premioInferido ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
-      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.hipotese?.texto ?? "",
+      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.hipotese?.texto ?? "",
     ],
   }));
 }
@@ -407,13 +408,16 @@ function jogadores(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
   tabela(ws, cols, linhas, rodape, { zebra: true, barraDif: 5 });
 }
 
+const observacaoAcoes = (t: Resp["painel"]["torneios"][number], origem: string) =>
+  t.buyIns != null && t.buyIns !== t.inscritosApi ? `${ACOES.diferente} (${t.inscritosApi})` : t.buyIns == null && t.reentries == null ? (origem === "site" || t.resultados === 0 ? ACOES.naoInformado : "não informado na planilha") : "";
 const ESTADO: Record<string, string> = { ok: "Sem problema", erro: "Com erro", divergencia: "Inscritos diferentes da API", vazio: "Sem resultados", aguardando: "Aguardando regra" };
 function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
   const ws = wb.addWorksheet("Torneios");
   const cols: Col[] = [
     { h: "Torneio", t: "texto" }, { h: "Situação", t: "situacao" }, { h: "Inscritos na API", t: "int" }, { h: "Inscritos usados na conta", t: "int" },
-    { h: "Premiados", t: "int" }, { h: "Resultados", t: "int" }, { h: "Corretos", t: "int" }, { h: "Corretos com inscritos do site", t: "int" },
+    { h: "Premiados", t: "int" }, { h: "Resultados", t: "int" }, { h: PARTICIPACAO.comPosicao, t: "int" }, { h: PARTICIPACAO.rotulo, t: "int" }, { h: "Corretos", t: "int" }, { h: "Corretos com inscritos do site", t: "int" },
     { h: "Erros", t: "int" }, { h: "Revisar", t: "int" }, { h: "Aguardando regra", t: "int" }, { h: "Pontos em discordância", t: "ponto" },
+    { h: ACOES.buyIns, t: "int" }, { h: ACOES.reentries, t: "int" }, { h: ACOES.acoes, t: "int" }, { h: "Observação", t: "longo" },
   ];
   const porT = new Map<string, { ok: number; site: number; erro: number; revisar: number; ag: number; pts: number }>();
   for (const l of r.linhas) {
@@ -431,10 +435,10 @@ function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     const v = porT.get(t.id) ?? { ok: 0, site: 0, erro: 0, revisar: 0, ag: 0, pts: 0 };
     return {
       classe: CLASSE[t.estado],
-      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100],
+      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo)],
     };
   });
-  tabela(ws, cols, linhas, rodape, { semCor: false, barraDif: 11 });
+  tabela(ws, cols, linhas, rodape, { semCor: false, barraDif: 13 });
 }
 
 function aguardando(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
@@ -452,7 +456,7 @@ function aguardando(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
         linhas.push({ classe: "aguarda", v: [g.titulo, it.texto, g.decisao, l.jogador, l.torneio, l.posicao, l.registrado] });
       }
   }
-  if (!linhas.length) linhas.push({ v: ["Nenhum resultado aguardando definição de regra.", "", "", "", "", null, null] });
+  if (!linhas.length) linhas.push({ v: [PARTICIPACAO.vazioAguardando, "", "", "", "", null, null] });
   tabela(ws, cols, linhas, rodape, { zebra: false });
 }
 
@@ -518,6 +522,16 @@ function regras(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     a.alignment = { wrapText: true, vertical: "top" };
     b.alignment = { wrapText: true, vertical: "top" };
     [a, b].forEach((c) => (c.border = { bottom: { style: "thin", color: { argb: C.linha } } }));
+  });
+  const fimRegras = inicio + 2 + r.painel.regrasTexto.length;
+  titulo(fimRegras, PARTICIPACAO.bloco);
+  [PARTICIPACAO.regra, PARTICIPACAO.fonte, PARTICIPACAO.hipotese].forEach((texto, i) => {
+    ws.mergeCells(fimRegras + 1 + i, 1, fimRegras + 1 + i, 5);
+    const c = ws.getCell(fimRegras + 1 + i, 1);
+    c.value = texto;
+    c.font = { name: FONTE, size: 10, color: { argb: i === 0 ? C.tinta : C.apoio } };
+    c.alignment = { wrapText: true, vertical: "top" };
+    ws.getRow(fimRegras + 1 + i).height = 32;
   });
   impressao(ws, rodape);
 }

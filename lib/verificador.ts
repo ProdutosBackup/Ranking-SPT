@@ -32,6 +32,7 @@ type Linha = {
   diferenca: number;
   situacao: string;
   pendencia: string | null;
+  participacao: boolean;
 };
 type TorneioMotor = {
   torneioId: string;
@@ -43,7 +44,7 @@ export type Divergencia = { jogador: string; torneio: string; posicao: number | 
 
 type Bruta = {
   jogador: string; torneioId: string; pos: number | null; np: number; field: number; buyIn: number; f100: number;
-  base: number; satelite: boolean; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
+  base: number; satelite: boolean; particip: boolean; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
 };
 
 export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneiosMotor: TorneioMotor[]): Divergencia[] {
@@ -66,11 +67,11 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       // Motivo da pendência, na mesma ordem de precedência da regra (reescrita aqui, de forma independente).
       let motivo: string | null = null;
       let satelite = false;
+      let particip = false; // participação de flight: 10 pontos fixos
       if (/^cancel/i.test(t.status ?? "")) motivo = "CANCELADO";
       else if (t.status !== "FINISHED") motivo = "NAO_FINALIZADO";
       else if (/sat[eé]lite/i.test(t.name)) satelite = true;
-      else if (flight) motivo = "FLIGHT";
-      else if (final && pos == null) motivo = "FINAL_SEM_POSICAO";
+      else if (flight || (final && pos == null)) particip = true; // flights e Dia Final sem posição
       else if (!(buyIn > 0)) motivo = "SEM_BUYIN";
       const pendente = motivo != null;
       const itm = !pendente && pos != null && pos <= np && r.prize != null && r.prize > 0;
@@ -78,10 +79,10 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       let f100 = Math.round(regras.fatorBuyInAbaixo500 * 100);
       for (const [min, f] of FAIXAS) if (buyIn >= min) { f100 = f; break; }
       const comPremio = r.prize != null && r.prize > 0;
-      const suspeito = !satelite && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
+      const suspeito = !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
-        jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, satelite, pendente, motivo, itm, suspeito,
-        fixo: satelite || (!pendente && !itm && regras.foraDoItm === "10fixos"), reg: Math.round(r.points * 100), prize: r.prize,
+        jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, satelite, particip, pendente, motivo, itm, suspeito,
+        fixo: satelite || particip || (!pendente && !itm && regras.foraDoItm === "10fixos"), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }
 
@@ -128,7 +129,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     const site = achados.get(b.torneioId);
     const explicada = site != null && !b.pendente && !b.fixo;
     const field = explicada ? site : b.field;
-    const cent = b.satelite ? 0 : b.fixo ? 1000 : centavos(b.base, field, b.f100);
+    const cent = b.satelite ? 0 : b.particip ? 1000 : b.fixo ? 1000 : centavos(b.base, field, b.f100);
     const dif = b.reg - cent;
     const tol = Math.round(regras.toleranciaArredondamento * 100);
     const situacao = b.pendente
@@ -137,16 +138,16 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
         ? "SUSPEITO"
         : dif === 0
           ? explicada ? "CORRETO_SITE" : "CORRETO"
-          : !b.satelite && Math.abs(dif) <= tol ? "ARREDONDAMENTO" : "ERRO";
+          : !b.satelite && !b.particip && Math.abs(dif) <= tol ? "ARREDONDAMENTO" : "ERRO";
     const esperado: Record<string, unknown> = {
       jogador: b.jogador, torneioId: b.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
       fatorParticipantes: field * 100 + 5000, fatorBuyIn: b.f100, esperadoCent: cent, registradoCent: b.reg,
-      diferenca: dif, situacao, pendencia: b.motivo,
+      diferenca: dif, situacao, pendencia: b.motivo, participacao: b.particip,
     };
     const motor: Record<string, unknown> = {
       jogador: l.jogador, torneioId: l.torneioId, field: l.field, buyIn: l.buyIn, premiados: l.premiados, base: l.base,
       fatorParticipantes: Math.round(l.fatorParticipantes * 10000), fatorBuyIn: Math.round(l.fatorBuyIn * 100),
-      esperadoCent: l.esperadoCent, registradoCent: l.registradoCent, diferenca: Math.round(l.diferenca * 100), situacao: l.situacao, pendencia: l.pendencia,
+      esperadoCent: l.esperadoCent, registradoCent: l.registradoCent, diferenca: Math.round(l.diferenca * 100), situacao: l.situacao, pendencia: l.pendencia, participacao: l.participacao,
     };
     for (const campo of Object.keys(esperado))
       if (motor[campo] !== esperado[campo]) div.push({ jogador: b.jogador, torneio: nome(b.torneioId), posicao: b.pos, campo, motor: motor[campo], verificador: esperado[campo] });

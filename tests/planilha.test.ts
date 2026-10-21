@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { beforeAll, describe, expect, it } from "vitest";
 import { auditar } from "../lib/auditoria";
 import { conferir, identificador } from "../lib/integridade";
+import { montarResposta } from "../lib/painel";
 import { lerPlanilha, LIMITE_BYTES, MSG_GRANDE, MSG_NAO_XLSX, type DadosPlanilha } from "../lib/planilha";
 import { REGRAS_PADRAO } from "../lib/regras";
 
@@ -243,7 +244,7 @@ describe("integração com o motor", () => {
 
   it('10 fixos, Dia Final com 328: só os três campeões erram', () => {
     const aud = rodar(CAMPO_FINAL(base, 328), "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 416, CORRETO_SITE: 0, ERRO: 3, SUSPEITO: 0, PENDENTE_REGRA: 135 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 551, CORRETO_SITE: 0, ERRO: 3, SUSPEITO: 0, PENDENTE_REGRA: 0 });
     const erros = aud.linhas.filter((l) => l.situacao === "ERRO").map((l) => [l.torneio, l.posicao, l.registrado, l.esperado]);
     expect(erros.sort()).toEqual([
       ["CHAMPIONSHIP HIGH ROLLER 200K", 1, 2300, 2875],
@@ -254,22 +255,98 @@ describe("integração com o motor", () => {
 
   it("10 fixos, Dia Final com os 79 da planilha: o motor aponta sozinho os 328", () => {
     const aud = rodar(base, "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 352, CORRETO_SITE: 64, ERRO: 3, PENDENTE_REGRA: 135 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 487, CORRETO_SITE: 64, ERRO: 3, PENDENTE_REGRA: 0 });
     const final = aud.torneios.find((t) => t.torneio.includes("Dia Final")) as unknown as { achado: { fieldApi: number; fieldSite: number; linhasExplicadas: number } };
     expect(final.achado).toMatchObject({ fieldApi: 79, fieldSite: 328, linhasExplicadas: 64 });
   });
 
   it("regra padrão (10 × fatores), Dia Final com 328: 276 erros (3 campeões + 273 linhas de 10 fixos)", () => {
     const aud = rodar(CAMPO_FINAL(base, 328), "base10xFatores");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 143, ERRO: 276, PENDENTE_REGRA: 135 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 278, ERRO: 276, PENDENTE_REGRA: 0 });
     expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273);
   });
 
   it("regra padrão com os inscritos da planilha (79): as 64 linhas premiadas do Dia Final também erram", () => {
     const aud = rodar(base, "base10xFatores");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 79, CORRETO_SITE: 0, ERRO: 340, PENDENTE_REGRA: 135 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 214, CORRETO_SITE: 0, ERRO: 340, PENDENTE_REGRA: 0 });
     const final = aud.linhas.filter((l) => l.torneio.includes("Dia Final") && l.situacao === "ERRO" && l.registrado !== 10);
     expect(final).toHaveLength(64);
     expect(final.every((l) => /328 inscritos/.test(l.causaProvavel ?? ""))).toBe(true);
+  });
+});
+
+describe("buy-ins, re-entries e ações (bloco lateral)", () => {
+  let dados: DadosPlanilha;
+  beforeAll(async () => {
+    const r = await lerPlanilha(new Uint8Array(ARQUIVO), ENVIO);
+    if (!r.ok) throw new Error(r.erros.join(" | "));
+    dados = r.dados;
+  });
+  const painel = (d: DadosPlanilha) => {
+    const aud = auditar(d, REGRAS_PADRAO);
+    return montarResposta("bendito-cacao-2026", d, REGRAS_PADRAO, aud, identificador(d)).painel.torneios;
+  };
+
+  it("HIGH ROLLER 50K: buy-ins 31, re-entries 30, ações 61", () => {
+    const t = painel(dados).find((x) => x.nome === "HIGH ROLLER 50K")!;
+    expect([t.inscritos, t.buyIns, t.reentries, t.acoes]).toEqual([31, 31, 30, 61]);
+  });
+
+  it("as 11 abas: ações = buy-ins + re-entries; REENTRADA (PIJAMA) também é lido; o Dia Final não tem re-entries", () => {
+    const por = Object.fromEntries(painel(dados).map((t) => [t.nome, [t.buyIns, t.reentries, t.acoes]]));
+    expect(por).toEqual({
+      "200K OMAHA 5 K.O": [30, 36, 66],
+      HORSE: [19, 4, 23],
+      "SUPER K.O": [34, 9, 43],
+      "8 GAME": [14, 4, 18],
+      "100K OMAHA MYSTERY BOUNTY": [25, 43, 68],
+      "CHAMPIONSHIP HIGH ROLLER 200K": [65, 20, 85],
+      "PLO-NLH DEALER´S CHOICE PIJAMA": [20, 12, 32],
+      "Main Event SPT - Dia Final": [79, null, null],
+      "SECOND CHANCE": [79, 94, 173],
+      "HIGH ROLLER 50K": [31, 30, 61],
+      "OMAHA DEALER´S CHOICE": [23, 31, 54],
+    });
+  });
+
+  it("nenhum torneio do exemplar tem buy-ins diferente de inscritos", () => {
+    expect(painel(dados).filter((t) => t.buyIns != null && t.buyIns !== t.inscritos)).toEqual([]);
+  });
+
+  it("o field do cálculo continua sendo só os inscritos (buy-ins), nunca as ações", () => {
+    const aud = auditar(dados, REGRAS_PADRAO);
+    const t = aud.linhas.find((l) => l.torneio === "HIGH ROLLER 50K")!;
+    expect(t.field).toBe(31);
+  });
+
+  it("ler o bloco lateral em outra posição também traz re-entries", async () => {
+    const r = await lerPlanilha(
+      await variante((wb) => {
+        const ws = aba(wb, "HORSE");
+        for (const e of ["E3", "F2", "F3", "G2", "G3"]) ws.getCell(e).value = null;
+        ws.getCell("J12").value = "BUY IN";
+        ws.getCell("J13").value = 19;
+        ws.getCell("K12").value = "REENTRY";
+        ws.getCell("K13").value = 4;
+      }),
+      ENVIO,
+    );
+    if (!r.ok) throw new Error(r.erros.join(" | "));
+    expect(painel(r.dados).find((x) => x.nome === "HORSE")).toMatchObject({ buyIns: 19, reentries: 4, acoes: 23 });
+  });
+
+  it("buy-ins diferente de inscritos fica visível nos dados", async () => {
+    const r = await lerPlanilha(await variante((wb) => (aba(wb, "HORSE").getCell("G3").value = 4) && (aba(wb, "HORSE").getCell("F3").value = 18)), ENVIO);
+    if (!r.ok) throw new Error(r.erros.join(" | "));
+    const t = painel(r.dados).find((x) => x.nome === "HORSE")!;
+    expect([t.inscritos, t.buyIns, t.buyIns !== t.inscritos]).toEqual([19, 18, true]);
+  });
+
+  it("etapas do site: o site não informa re-entries, então tudo fica nulo (a tela mostra — e \"não informado pelo site\")", async () => {
+    const fx = JSON.parse(readFileSync("tests/fixtures/vale-suico-2026.json", "utf8"));
+    const chaves = new Set<string>(fx.tournaments.tournaments.flatMap((t: object) => Object.keys(t)));
+    expect([...chaves].filter((k) => /entr|reent|acoes|buyins/i.test(k))).toEqual([]); // a API não tem contagem de entradas
+    const t = auditar({ stage: "x", updatedAt: { ranking: "", tournaments: "" }, torneios: fx.tournaments.tournaments, jogadores: [] }, REGRAS_PADRAO).torneios;
+    expect(t.every((x) => x.buyIns === null && x.reentries === null)).toBe(true);
   });
 });

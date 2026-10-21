@@ -7,6 +7,8 @@ export type Linha = {
   prize: number | null;
   /** Planilha: o prêmio não existe, foi deduzido dos pontos; a tela mostra "—". */
   premioInferido: boolean;
+  /** Participação de flight: vale 10 pontos fixos (flights e Dia Final sem posição). */
+  participacao: boolean;
   buyIn: number;
   field: number;
   fieldApi: number;
@@ -38,11 +40,18 @@ export type TorneioPainel = {
   corretos: number;
   erros: number;
   aguardando: number;
+  /** Resultados com posição e participações de flight (o Dia Final mostra os dois separados). */
+  comPosicao: number;
+  participacao: number;
+  /** Da planilha; null quando a fonte não informa (o site não informa). Ações = buy-ins + re-entries. */
+  buyIns: number | null;
+  reentries: number | null;
+  acoes: number | null;
   estado: "ok" | "erro" | "divergencia" | "vazio" | "aguardando";
   achado: Achado | null;
 };
 export type Grupo = { codigo: string; titulo: string; explicacao: string; pontos: number; indices: number[] };
-export type JogadorPainel = { nome: string; resultados: number; pontosSite: number; pontosCorretos: number; diferenca: number; erros: number };
+export type JogadorPainel = { nome: string; id?: string | null; resultados: number; pontosSite: number; pontosCorretos: number; diferenca: number; erros: number };
 
 /** De onde vieram os dados. */
 export type Origem = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosInferidos?: boolean; inscritosDiaFinal?: { texto: string } };

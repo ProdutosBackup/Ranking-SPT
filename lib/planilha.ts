@@ -67,6 +67,9 @@ type Aba = {
   linhas: Linha[];
   semColocacao: number;
   totalDaAba: number | null;
+  /** Do bloco lateral: buy-ins e re-entries (null quando a aba não traz o rótulo). */
+  buyIns: number | null;
+  reentries: number | null;
 };
 
 const ROTULOS_ABA = ["Buy-in (R$)", "Inscritos", "Modelo de ranking", "Fator do torneio"];
@@ -146,11 +149,13 @@ export async function lerPlanilha(bytes: Uint8Array, opcoes: Opcoes = {}): Promi
     role: /dia final/i.test(a.nome) ? "FINAL" : "STANDALONE",
     flightLabel: null,
     status: "FINISHED",
+    buyIns: a.buyIns,
+    reentries: a.reentries,
   }));
   const porId = new Map<string, Jogador>();
   abas.forEach((a, i) => {
     for (const l of a.linhas) {
-      const j = porId.get(l.id) ?? porId.set(l.id, { name: exibido(l), rank: 0, rankingPoints: 0, resultados: [] }).get(l.id)!;
+      const j = porId.get(l.id) ?? porId.set(l.id, { name: exibido(l), rank: 0, rankingPoints: 0, resultados: [], id: l.id.toLowerCase() }).get(l.id)!;
       const r: Resultado = {
         tournamentId: torneios[i].id,
         tournamentName: a.nome,
@@ -265,11 +270,22 @@ function lerAba(ws: ExcelJS.Worksheet, nome: string, cab: number, erros: string[
   }
   const bi = achar(ws, "BUY IN");
   const lateral = bi ? celula(ws, bi.r + 1, bi.c) : undefined;
+  const re = achar(ws, "REENTRY") ?? achar(ws, "REENTRADA");
+  const reentries = re ? celula(ws, re.r + 1, re.c) : undefined;
   if (typeof lateral === "number" && lateral !== inscritos) aviso(`"Inscritos" (${inscritos}) é diferente dos buy-ins do bloco lateral (${lateral}).`);
   const soma = linhas.reduce((s, l) => s + centDe(l.pontos), 0);
   if (totalDaAba != null && centDe(totalDaAba) !== soma) aviso(`a soma dos pontos (${nf(soma / 100)}) é diferente do total da aba (${nf(totalDaAba)}).`);
 
-  return { nome, buyIn: buyIn as number, inscritos: inscritos as number, linhas, semColocacao, totalDaAba };
+  return {
+    nome,
+    buyIn: buyIn as number,
+    inscritos: inscritos as number,
+    linhas,
+    semColocacao,
+    totalDaAba,
+    buyIns: typeof lateral === "number" ? lateral : null,
+    reentries: typeof reentries === "number" ? reentries : null,
+  };
 }
 
 /** Confere total geral e total por jogador com a aba Consolidado (só avisos). Devolve se a conferência foi possível. */

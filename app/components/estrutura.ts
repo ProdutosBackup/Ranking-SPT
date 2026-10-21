@@ -20,6 +20,7 @@ export const BARRA = {
   enviar: "Enviar planilha",
   baixar: "Baixar relatório",
   exportar: "Exportar dados",
+  consolidado: "Consolidado",
   confianca: "Faixa de confiança",
 } as const;
 export const BARRA_ITENS = Object.values(BARRA);
@@ -43,6 +44,13 @@ export const TEXTOS_PLANILHA = {
   faixa: (arquivo: string, data: string) => `Dados da planilha ${arquivo}, enviada em ${data} (Brasília)`,
   mudou: "A planilha foi trocada ou removida depois desta auditoria. Audite de novo.",
 } as const;
+
+import { ACOES, PARTICIPACAO } from "../../lib/participacao";
+/**
+ * Participação de flight e ações por torneio (itens acrescentados com autorização do usuário em 21/10/2026): nome e explicação da
+ * categoria, bloco da aba Regras, campos separados do Dia Final, colunas da aba Torneios e texto da aba "Aguardando regra" vazia.
+ */
+export { ACOES, PARTICIPACAO };
 
 /** Seções da aba Resumo, na ordem. */
 export const SECOES_RESUMO = [
@@ -82,7 +90,21 @@ export const ENDERECO = {
   item: "ver",
 } as const;
 /** Parâmetro que já existia além dos acima (filtro "só com erro"). O antigo `sat` (satélites) foi removido em 21/10/2026 e é ignorado. */
-export const ENDERECO_EXTRA = { soErro: "soerro" } as const;
+export const ENDERECO_EXTRA = { soErro: "soerro", visao: "visao" } as const;
+
+/**
+ * Consolidado (itens acrescentados com autorização do usuário em 21/10/2026): o botão "Consolidado" fica em BARRA, separado das abas;
+ * aqui estão o valor do parâmetro de endereço (?visao=consolidado&etapa=...), o seletor de etapa e a tabela do ranking acumulado.
+ */
+export const CONSOLIDADO = {
+  visao: "consolidado",
+  etapa: "Etapa",
+  busca: "Buscar jogador",
+  sair: "Voltar à auditoria",
+  semDados: "Sem dados nesta etapa",
+  colunas: ["Posição", "Jogador", "Pontos acumulados"],
+} as const;
+export const CONSOLIDADO_ITENS = [CONSOLIDADO.etapa, CONSOLIDADO.busca, CONSOLIDADO.sair, CONSOLIDADO.semDados, ...CONSOLIDADO.colunas];
 
 /** Atalhos de teclado do painel lateral. */
 export const ATALHOS = {
