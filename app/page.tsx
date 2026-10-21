@@ -37,6 +37,10 @@ export default function Home() {
   const [foraPremiacao, setForaPremiacao] = useState("base10xFatores");
   const [apos18, setApos18] = useState("base100TodosItm");
   const [tolerancia, setTolerancia] = useState("0,01");
+  const [campo, setCampo] = useState("inscritos");
+  // Versão dos acordos: muda quando alguém marca ou desfaz um acordo, e invalida as leituras guardadas de outras etapas.
+  const versaoAcordos = useRef(0);
+  const [, setVAc] = useState(0);
   const [guardadas, setGuardadas] = useState<Record<string, Guardada>>({});
   const [carregando, setCarregando] = useState(false);
   const [progresso, setProgresso] = useState<[number, number] | null>(null);
@@ -65,7 +69,7 @@ export default function Home() {
   const ver = d ? q.get(ENDERECO.item) : null;
 
   const parametros = (etapa: string) =>
-    new URLSearchParams({ stage: etapa, foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia }).toString();
+    new URLSearchParams({ stage: etapa, foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia, campo, av: String(versaoAcordos.current) }).toString();
 
   async function auditar(etapa = stage) {
     const p = parametros(etapa);
@@ -106,6 +110,24 @@ export default function Home() {
       setFalha("Não foi possível falar com o servidor. Verifique a conexão e tente novamente.");
     } finally {
       setCarregando(false);
+    }
+  }
+
+  // Acordo (salvo para todos): grava ou desfaz e audita de novo a etapa que está na tela. Devolve a mensagem de erro, ou null.
+  async function mudarAcordo(torneioId: string, n: number | null): Promise<string | null> {
+    try {
+      const r =
+        n == null
+          ? await fetch(`/api/acordos?etapa=${encodeURIComponent(stage)}&torneioId=${encodeURIComponent(torneioId)}`, { method: "DELETE" })
+          : await fetch("/api/acordos", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ etapa: stage, torneioId, n }) });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) return j?.erro ?? "Não foi possível salvar o acordo. Tente novamente.";
+      versaoAcordos.current += 1;
+      setVAc(versaoAcordos.current);
+      await auditar(stage);
+      return null;
+    } catch {
+      return "Não foi possível falar com o servidor. Verifique a conexão e tente novamente.";
     }
   }
 
@@ -179,7 +201,7 @@ export default function Home() {
       cancelado = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, foraPremiacao, apos18, tolerancia]);
+  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, foraPremiacao, apos18, tolerancia, campo, versaoAcordos.current]);
 
   const consolidado = useMemo(() => {
     if (!visaoCons) return null;
@@ -195,7 +217,7 @@ export default function Home() {
     }
     return consolidar(etapas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, ate, guardadas, planilha, foraPremiacao, apos18, tolerancia]);
+  }, [visaoCons, ate, guardadas, planilha, foraPremiacao, apos18, tolerancia, campo, versaoAcordos.current]);
   const regraCons = guardadas[ETAPAS[ate - 1].v]?.dados.painel.regrasTexto.find((r) => r.titulo === "Quem fica fora da premiação")?.valor ?? null;
   const opcoesEtapa: EtapaOpcao[] = ETAPAS.map((_, i) => ({
     numero: i + 1,
@@ -457,7 +479,7 @@ export default function Home() {
                 {aba === "jogadores" && <Jogadores d={d} q={q} navegar={navegar} />}
                 {aba === "torneios" && <Torneios d={d} navegar={navegar} />}
                 {aba === "aguardando" && <Aguardando d={d} />}
-                {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia }} />}
+                {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia, campo, setCampo }} />}
               </div>
             </>
           )}
@@ -466,7 +488,7 @@ export default function Home() {
         </main>
       </div>
 
-      {d && ver && <Painel key={ver.split(":")[0]} d={d} ver={ver} navegar={navegar} lista={listaNavegacao} revisados={revisados} alternarRevisado={alternarRevisado} retorno={ultimoFoco} />}
+      {d && ver && <Painel key={ver.split(":")[0]} d={d} ver={ver} navegar={navegar} lista={listaNavegacao} revisados={revisados} alternarRevisado={alternarRevisado} retorno={ultimoFoco} onAcordo={mudarAcordo} />}
     </div>
   );
 }

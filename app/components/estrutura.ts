@@ -45,12 +45,13 @@ export const TEXTOS_PLANILHA = {
   mudou: "A planilha foi trocada ou removida depois desta auditoria. Audite de novo.",
 } as const;
 
-import { ACOES, PARTICIPACAO } from "../../lib/participacao";
+import { ACORDO } from "../../lib/acordo";
+import { ACOES, CAMPO, PARTICIPACAO } from "../../lib/participacao";
 /**
  * Participação de flight e ações por torneio (itens acrescentados com autorização do usuário em 21/10/2026): nome e explicação da
  * categoria, bloco da aba Regras, campos separados do Dia Final, colunas da aba Torneios e texto da aba "Aguardando regra" vazia.
  */
-export { ACOES, PARTICIPACAO };
+export { ACOES, ACORDO, CAMPO, PARTICIPACAO };
 
 /** Seções da aba Resumo, na ordem. */
 export const SECOES_RESUMO = [

@@ -1,7 +1,7 @@
 "use client";
 
 import { Detalhe, Comparativo } from "./Detalhe";
-import { ACOES, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
+import { ACOES, ACORDO, CAMPO, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
 import { chaveLinha, classeDif, n, nSinal, semAcento } from "./formato";
 import { Paginada } from "./Paginada";
 import type { Navegar, Opcoes, Resposta } from "./tipos";
@@ -143,6 +143,7 @@ export function Torneios({ d, navegar }: { d: Resposta; navegar: Navegar }) {
                   </span>
                 )}
                 <LinhaAcoes t={t} origem={d.origem} />
+                {t.acordo != null && <span className="linha-extra acordo-torneio">{ACORDO.torneio(t.acordo)}</span>}
               </span>
             </button>
           </li>
@@ -289,6 +290,13 @@ export function Regras({ d, opcoes }: { d: Resposta; opcoes: Opcoes }) {
             </select>
           </div>
           <div className="campo">
+            <label htmlFor="campo">{CAMPO.rotulo}</label>
+            <select id="campo" value={opcoes.campo} onChange={(e) => opcoes.setCampo(e.target.value)}>
+              <option value="inscritos">{CAMPO.inscritos}</option>
+              <option value="acoes">{CAMPO.acoes}</option>
+            </select>
+          </div>
+          <div className="campo">
             <label htmlFor="tol">Diferença aceita como arredondamento (pontos)</label>
             <input id="tol" type="text" inputMode="decimal" size={6} value={opcoes.tolerancia} onChange={(e) => opcoes.setTolerancia(e.target.value)} />
           </div>
@@ -309,6 +317,7 @@ export function LinhaExpandivel({ l }: { l: Resposta["linhas"][number] }) {
         <Comparativo l={l} />
         <span>
           {l.participacao && <span className="etiqueta categoria" title={PARTICIPACAO.explicacao}>{PARTICIPACAO.rotulo}</span>}
+          {l.acordo && <span className="etiqueta categoria">{ACORDO.rotulo}</span>}
           <span className={`etiqueta ${l.classe}`}>{l.rotulo}</span>
         </span>
       </summary>

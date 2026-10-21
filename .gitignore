@@ -42,3 +42,4 @@ next-env.d.ts
 
 # planilha guardada em desenvolvimento (sem Vercel Blob)
 /.planilha-local/
+/.acordos-local/

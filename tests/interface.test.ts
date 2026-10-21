@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABAS, ACOES, ATALHOS, BARRA_ITENS, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
+  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CAMPO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -36,22 +36,41 @@ describe("estrutura da tela travada", () => {
   });
 
   // Itens acrescentados com autorização do usuário em 21/10/2026 (participação de flight e ações por torneio).
-  it("participação de flight: nome, explicação, bloco da aba Regras, campos do Dia Final e texto da aba Aguardando vazia", () => {
+  it("participação de flight: nome, explicação, bloco da aba Regras, motivos da aba Aguardando e texto vazio", () => {
     expect(
-      [PARTICIPACAO.rotulo, PARTICIPACAO.explicacao, PARTICIPACAO.bloco, PARTICIPACAO.fonte, PARTICIPACAO.comPosicao, PARTICIPACAO.vazioAguardando],
+      [PARTICIPACAO.rotulo, PARTICIPACAO.explicacao, PARTICIPACAO.bloco, PARTICIPACAO.regra, PARTICIPACAO.fonte, PARTICIPACAO.comPosicao, PARTICIPACAO.vazioAguardando],
       TRAVADA,
     ).toEqual([
       "Participação de flight",
-      "10 pontos fixos, sem fatores nem tabela de posição. Vale também para quem aparece sem posição no Dia Final.",
+      "Vale 10 × fatores com o campo em ações (buy-ins + re-entries). Sem as ações do flight, ou sem posição no Dia Final, aguarda regra.",
       "Participação nos flights",
-      "Fonte: confirmado com o responsável do ranking em 21/10/2026.",
+      "Os flights pagam 10 × fator de participantes × fator de buy-in, com o campo do flight igual às ações (buy-ins + re-entries). Exemplo: 126 ações e buy-in R$ 1.000 dão 10 × 1,76 × 1 = 17,6. Quando as ações do flight não são conhecidas, o resultado aguarda regra.",
+      "Fonte: decisão do responsável do ranking, confirmada em 21/10/2026. O site contou só buy-ins na Etapa 2; segundo a decisão, o campo correto é ações.",
       "Com posição",
       "Nenhum resultado aguardando regra.",
     ]);
+    expect([PARTICIPACAO.motivoFlight, PARTICIPACAO.motivoDiaFinal], TRAVADA).toEqual([
+      "faltam as ações deste flight",
+      "não se sabe em qual flight o jogador jogou, então o multiplicador não pode ser calculado; o site pagou 10",
+    ]);
+  });
+
+  it("opção de regra: campo do torneio (inscritos por padrão, ou ações)", () => {
+    expect([CAMPO.rotulo, CAMPO.inscritos, CAMPO.acoes], TRAVADA).toEqual(["Campo do torneio", "Inscritos (só buy-ins)", "Ações (buy-ins + re-entries)"]);
   });
 
   it("aba Torneios: colunas de buy-ins, re-entries e ações", () => {
     expect([ACOES.buyIns, ACOES.reentries, ACOES.acoes, ACOES.naoInformado], TRAVADA).toEqual(["Buy-ins", "Re-entries", "Ações", "não informado pelo site"]);
+  });
+
+  // Itens acrescentados com autorização do usuário em 21/10/2026 (acordo).
+  it("acordo: caixa e campo do painel, aviso, conta, marcação nas telas e texto da faixa de confiança", () => {
+    expect([ACORDO.rotulo, ACORDO.pergunta, ACORDO.aplicar, ACORDO.desfazer, ACORDO.sim, ACORDO.nao, ACORDO.contaTitulo, ACORDO.soma], TRAVADA).toEqual([
+      "Acordo", "Acordo entre quantas pessoas?", "Aplicar", "Desfazer o acordo para todos?", "Sim", "Não", "Conta com acordo", "Soma",
+    ]);
+    expect([ACORDO.aviso(3), ACORDO.torneio(3), ACORDO.faixa(2), ACORDO.causa(2, "3.429")], TRAVADA).toEqual([
+      "Este torneio tem acordo entre 3 pessoas", "Acordo: 3 pessoas", "Acordos aplicados: 2 torneio(s)", "Acordo entre 2 jogadores: cada um recebe 3.429",
+    ]);
   });
 
   it("aba Resumo: seções e ordem", () => {
@@ -79,7 +98,7 @@ describe("estrutura da tela travada", () => {
   });
 
   it("os componentes continuam importando a estrutura (sem nomes duplicados à mão)", () => {
-    for (const arq of ["page.tsx", "components/Barra.tsx", "components/Erros.tsx", "components/Outras.tsx", "components/Painel.tsx", "components/Planilha.tsx", "components/Consolidado.tsx", "components/Resumo.tsx", "components/Detalhe.tsx"])
+    for (const arq of ["page.tsx", "components/Barra.tsx", "components/Erros.tsx", "components/Outras.tsx", "components/Painel.tsx", "components/Planilha.tsx", "components/Consolidado.tsx", "components/Acordo.tsx", "components/Resumo.tsx", "components/Detalhe.tsx"])
       expect(readFileSync(`app/${arq}`, "utf8"), `${TRAVADA} (${arq} deve importar app/components/estrutura.ts)`).toMatch(/from "(\.\/|\.\/components\/)estrutura"/);
     const page = readFileSync("app/page.tsx", "utf8");
     for (const nome of ["Divergências de inscritos", "Aguardando regra"]) expect(page, `${TRAVADA} ("${nome}" deve vir de estrutura.ts)`).not.toContain(`"${nome}"`);

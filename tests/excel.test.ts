@@ -63,8 +63,8 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     const rs = wb.getWorksheet("Resumo")!;
     const achar = (t: string) => { let c: ExcelJS.Cell | undefined; rs.eachRow((row) => row.eachCell((x) => { if (!c && txt(x.value) === t) c = x; })); return c; };
     const abaixo = (t: string) => rs.getCell(achar(t)!.row + 1, achar(t)!.col).value;
-    expect([abaixo("Erros"), abaixo("Pontos em discordância"), abaixo("Jogadores afetados"), abaixo("Divergências de inscritos"), abaixo("Aguardando regra"), abaixo("Resultados corretos (entre os conferidos)")]).toEqual([10, 3155.65, 10, 0, 0, 96.3]);
-    expect(achar("Etapa 2: 10 resultados com pontuação diferente da regra, afetando 10 jogadores (3.155,65 pontos em discordância).")).toBeDefined();
+    expect([abaixo("Erros"), abaixo("Pontos em discordância"), abaixo("Jogadores afetados"), abaixo("Divergências de inscritos"), abaixo("Aguardando regra"), abaixo("Resultados corretos (entre os conferidos)")]).toEqual([10, 3155.65, 10, 0, 126, 93.1]);
+    expect(achar("Etapa 2: 10 resultados com pontuação diferente da regra, afetando 10 jogadores (3.155,65 pontos em discordância). 126 resultados aguardam definição de regra.")).toBeDefined();
     expect(txt(rs.getCell(4, 8).value)).toContain(`Identificador ${id.sha256.slice(0, 8)}`);
     expect(rs.pageSetup).toMatchObject({ fitToPage: true, fitToWidth: 1, fitToHeight: 1, orientation: "landscape", paperSize: 9 });
     expect(rs.getImages()).toHaveLength(4); // logo + 3 gráficos
@@ -73,7 +73,7 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(tc.rowCount - 1).toBe(270);
     const cont: Record<string, number> = {};
     for (let i = 2; i <= tc.rowCount; i++) { const s = txt(tc.getCell(i, 15).value); cont[s] = (cont[s] ?? 0) + 1; }
-    expect(cont).toEqual({ Correto: 260, Erro: 10 });
+    expect(cont).toEqual({ Correto: 134, Erro: 10, "Aguardando: Dia Final sem posição": 126 });
     const categorias = new Set<string>();
     for (let i = 2; i <= tc.rowCount; i++) if (txt(tc.getCell(i, 16).value)) categorias.add(txt(tc.getCell(i, 16).value));
     expect([...categorias]).toEqual(["Participação de flight"]);
@@ -102,16 +102,15 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(aud.resumo.total).toBe(270);
   });
 
-  it("Etapa 1: 202 flights com valor diferente de 10, 5 divergências e gráficos", async () => {
+  it("Etapa 1: sem erros, com 5 divergências e gráficos vazios sem quebrar", async () => {
     const { wb, r, buf } = await gerar("taua-2026");
     expect(wb.worksheets.map((w) => w.name)).toEqual(ABAS);
-    expect(r.painel.veredito).toContain("202 resultados com pontuação diferente da regra");
+    expect(r.painel.veredito).toContain("Nenhum erro de pontuação encontrado");
     const dv = wb.getWorksheet("Divergências de inscritos")!;
     expect(dv.rowCount - 1).toBe(5);
     expect(wb.getWorksheet("Todos os cálculos")!.rowCount - 1).toBe(642);
     expect(wb.getWorksheet("Resumo")!.getImages()).toHaveLength(4);
-    const g1 = dadosDosGraficos(r);
-    expect(Math.round(g1.torneios.reduce((a, x) => a + x.valor, 0) * 100) / 100).toBe(883); // os 202 flights com valor diferente de 10
+    expect(dadosDosGraficos(r)).toEqual({ torneios: [], causas: [], jogadores: [] });
     expect(await termosProibidos(buf, wb)).toEqual([]);
   });
 

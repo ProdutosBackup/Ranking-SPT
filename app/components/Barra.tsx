@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { BARRA, TEXTOS_PLANILHA } from "./estrutura";
+import { ACORDO, BARRA, TEXTOS_PLANILHA } from "./estrutura";
 import { dataBr } from "./formato";
 import { MarcaPlanilha } from "./Planilha";
 import type { PlanilhaGuardada, Resposta } from "./tipos";
@@ -48,6 +48,7 @@ function Confianca({ d, classe }: { d: Resposta; classe: string }) {
       <span>
         Identificador <b className="cod">{d.identificador.sha256.slice(0, 8)}</b>
       </span>
+      {d.acordos?.aplicados > 0 && <span>{ACORDO.faixa(d.acordos.aplicados)}</span>}
       <span className="selo">✓ Conta conferida por dois cálculos independentes</span>
     </div>
   );

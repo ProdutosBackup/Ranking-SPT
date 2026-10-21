@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, type RefObject } from "react";
+import { Acordo } from "./Acordo";
 import { Detalhe } from "./Detalhe";
-import { ATALHOS, ENDERECO, PARTICIPACAO } from "./estrutura";
+import { ACORDO, ATALHOS, ENDERECO, PARTICIPACAO } from "./estrutura";
 import { chaveLinha, classeDif, n, nSinal } from "./formato";
 import { LinhaExpandivel } from "./Outras";
 import { Paginada } from "./Paginada";
@@ -18,12 +19,14 @@ type Props = {
   alternarRevisado: (chave: string) => void;
   /** Último elemento com foco antes de abrir (o fundo fica inerte e perde o foco). */
   retorno: RefObject<HTMLElement | null>;
+  /** Salva (n) ou desfaz (null) o acordo de um torneio, para todos. Devolve a mensagem de erro, ou null se deu certo. */
+  onAcordo: (torneioId: string, n: number | null) => Promise<string | null>;
 };
 
 const FOCAVEIS = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 /** Painel lateral (tela cheia no celular). Prende o foco, fecha com Esc e devolve o foco ao fechar. */
-export function Painel({ d, ver, navegar, lista, revisados, alternarRevisado, retorno }: Props) {
+export function Painel({ d, ver, navegar, lista, revisados, alternarRevisado, retorno, onAcordo }: Props) {
   const raiz = useRef<HTMLDivElement>(null);
   const [tipo, ...resto] = ver.split(":");
   const id = resto.join(":");
@@ -121,6 +124,7 @@ export function Painel({ d, ver, navegar, lista, revisados, alternarRevisado, re
     return null;
   }, [tipo, id, d]);
 
+  const torneioDaLinha = linha ? d.painel.torneios.find((t) => t.id === linha.torneioId) : undefined;
   const k = linha ? chaveLinha(linha) : "";
   const revisado = revisados.has(k);
 
@@ -132,7 +136,7 @@ export function Painel({ d, ver, navegar, lista, revisados, alternarRevisado, re
             <h2 id="painel-titulo">{linha ? linha.jogador : (conteudo?.titulo ?? "Detalhe")}</h2>
             {linha && (
               <p className="muted">
-                {linha.torneio} · {linha.posicao == null ? "sem posição" : `${n(linha.posicao)}º`} · {linha.participacao && <><span className="etiqueta categoria">{PARTICIPACAO.rotulo}</span>{" "}</>}<span className={`etiqueta ${linha.classe}`}>{linha.rotulo}</span>
+                {linha.torneio} · {linha.posicao == null ? "sem posição" : `${n(linha.posicao)}º`} · {linha.participacao && <><span className="etiqueta categoria">{PARTICIPACAO.rotulo}</span>{" "}</>}{linha.acordo && <><span className="etiqueta categoria">{ACORDO.rotulo}</span>{" "}</>}<span className={`etiqueta ${linha.classe}`}>{linha.rotulo}</span>
               </p>
             )}
           </div>
@@ -165,6 +169,15 @@ export function Painel({ d, ver, navegar, lista, revisados, alternarRevisado, re
             <button type="button" className={`btn ${revisado ? "sec" : ""}`} aria-pressed={revisado} onClick={() => alternarRevisado(k)}>
               {revisado ? "✓ Revisado (desfazer)" : "Marcar como revisado"}
             </button>
+            {torneioDaLinha && torneioDaLinha.premiados >= 2 && (
+              <Acordo
+                key={linha.torneioId}
+                atual={torneioDaLinha.acordo}
+                premiados={torneioDaLinha.premiados}
+                onAplicar={(n) => onAcordo(linha.torneioId, n)}
+                onDesfazer={() => onAcordo(linha.torneioId, null)}
+              />
+            )}
           </footer>
         )}
       </div>

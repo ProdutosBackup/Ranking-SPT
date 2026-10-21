@@ -184,8 +184,8 @@ Na etapa 2, a API mostra **10 pontos fixos** para jogadores sem prêmio em vári
 | Total do jogador | Soma simples de todos os torneios | [OFICIAL] e [CONFIRMADO] |
 | Bounty / KO | Não entra na pontuação; vale só a posição final | [CONFIRMADO] |
 | Critério de ITM | "Ambos": posição dentro do nº de premiados **e** premiação maior que zero | [CONFIRMADO] |
-| Flights do Main Event | Regra informada: **flight não conta ponto**; só o dia final pontua. O usuário acredita que flights não pontuam, mas pediu verificação, porque a etapa 1 mostra pontos em flights (seção 6.4) | [CONFIRMADO], em verificação. **Atualizado em 21/10/2026:** flights geram só 10 pontos fixos de participação [CONFIRMADO] (seção 6.4) |
-| Field | O site conta **só buy-ins**, não ações [CONFIRMADO em 18/10]. Qual campo da API corresponde a isso está em aberto (seção 6.2) | [CONFIRMADO] |
+| Flights do Main Event | Regra informada: **flight não conta ponto**; só o dia final pontua. O usuário acredita que flights não pontuam, mas pediu verificação, porque a etapa 1 mostra pontos em flights (seção 6.4) | [CONFIRMADO], em verificação. **Atualizado em 21/10/2026:** flights pagam 10 × fatores com o campo em ações [CONFIRMADO] (seção 6.4); "10 pontos fixos" foi substituído |
+| Field | O site conta **só buy-ins**, não ações [CONFIRMADO em 18/10; **revista em 21/10/2026**: o campo correto é ações, e a contagem só em buy-ins é erro do site (seção 6.2)]. Qual campo da API corresponde a isso está em aberto | [CONFIRMADO] |
 | Referência de verdade | Etapa 1 é o tira-teima. Em qualquer dúvida de regra, vale a variante que reproduz a etapa 1 | [CONFIRMADO em 18/10] |
 | Arredondamento na tela | O site exibe pontos como número inteiro; a API guarda com decimais | [CONFIRMADO em 18/10] e [OBSERVADO] |
 | Stack | Next.js com TypeScript (página e rotas de servidor); ExcelJS para o Excel | [CONFIRMADO em 18/10] |
@@ -208,7 +208,7 @@ Estes pontos não podem ser tratados como regra. A ferramenta deve testar as var
 
 ### 6.2 O que conta como "número de participantes" (field) [PENDENTE]
 
-- O regulamento diz "Número_de_Participantes", sem tratar re-entries. O usuário confirmou que o site conta **só buy-ins, não ações**. **[CONFIRMADO]**
+- O regulamento diz "Número_de_Participantes", sem tratar re-entries. O usuário confirmou que o site conta **só buy-ins, não ações**. **[CONFIRMADO em 18/10; REVISTO em 21/10/2026]** Em 21/10/2026 o usuário, vindo do superior/responsável do ranking, informou que isso é um **erro do site** e que o campo correto é **ações** (buy-ins + re-entries). **[CONFIRMADO 21/10/2026]** A ferramenta mantém, como padrão, o campo em buy-ins (inscritos) e oferece a opção de regra "campo do torneio = ações", desligada por padrão; a planilha traz as ações por torneio, e o site não.
 - Campo `players` da API comparado com o field deduzido dos pontos:
 
 | Etapa | Torneio | `players` na API | Field deduzido dos pontos | Bate? |
@@ -238,13 +238,13 @@ A calculadora do site dá base 100 a todos os premiados depois do 18º. No Dia F
 
 ### 6.4 Flights do Main Event [CONFIRMADO 21/10/2026]
 
-- **[CONFIRMADO 21/10/2026]** Os flights geram **apenas 10 pontos de participação**: 10 pontos fixos, sem fatores e sem tabela de posição (decisão do usuário, confirmada com o responsável do ranking). O esperado de uma linha de flight é 10,00; valor registrado diferente de 10,00 é Erro. A ferramenta mostra essas linhas como "Participação de flight". Flights nunca entram no ITM de outros torneios. Isto substitui a regra provisória "flight não conta ponto" e o estado "aguardando regra" das observações abaixo, que ficam como histórico.
+- **[CONFIRMADO 21/10/2026]** Os flights geram apenas pontos de participação: **pontos = 10 × Fator_Participantes × Fator_BuyIn, com o campo = ações (buy-ins + re-entries) do flight** (decisão do usuário, vinda do superior/responsável do ranking). Exemplo: Dia 1A com 126 ações e buy-in R$ 1.000: 10 × (126/100 + 0,5) × 1,0 = **17,6** (valor que o site pagou). Etapa 1: 12,1 = 10 × 1,21 (campo 71, buy-in 1.000). As ações dos flights **não existem nos dados do site**: sem elas a linha fica "aguardando regra" (motivo: faltam as ações deste flight); com elas, igual é Correto e diferente é Erro, sem tolerância. Isto **substitui** a decisão anterior do mesmo dia ("10 pontos fixos", marcada como substituída) e a regra provisória "flight não conta ponto". Flights nunca entram no ITM de outros torneios.
 
 - Regra informada: **flight não conta ponto**. O usuário acredita que não pontuam, mas pediu verificação varrendo o site. **[CONFIRMADO em 18/10]**
 - Etapa 1: os flights (Dia 1A, 1C, 1D, 1E) aparecem nos resultados de **todos** os participantes, com prize 0. Exemplo: Anderson De Carvalho Costa, Dia 1D, posição 1, **12,1 pontos**. **[OBSERVADO]** Pela regra, deveria ser 0.
 - 12,1 pontos equivalem a base 10 × fator 1,21; com buy-in 1.000, o field seria 71, mas a API traz 55 jogadores no Dia 1D. **[INFERIDO]**
 - Etapa 1 não tem Dia 1B na API (só 1A, 1C, 1D, 1E). **[OBSERVADO]**
-- Com a regra de 21/10/2026, os 202 resultados de flights da etapa 1 ficam como Erro (valores registrados 11,1, 12,1, 15 e 17,6; nenhum é 10), com 883 pontos de diferença no total. **[OBSERVADO]**
+- Cada flight da etapa 1 tem um único valor registrado, e ele é exatamente 10 × (ações/100 + 0,5) com buy-in R$ 1.000: Dia 1A 17,6 (126 ações), Dia 1C 11,1 (61), Dia 1D 12,1 (71) e Dia 1E 15 (100). **[OBSERVADO]** Esses números de ações são os implícitos nos pontos, não informados pelo site. **[INFERIDO]**
 - Etapa 2: a API **não traz nenhum resultado** dos flights (Dia 1A a 1E). **[OBSERVADO]**
 - O usuário pode fornecer a página do site com a grade completa dos torneios, para conferência. **[CONFIRMADO]**
 
@@ -266,7 +266,7 @@ A calculadora do site dá base 100 a todos os premiados depois do 18º. No Dia F
 
 ### 6.7 Pontos fixos de 10 na etapa 2 [OBSERVADO]
 
-**[CONFIRMADO pelo usuário em 21/10/2026]** Linha do Dia Final (role FINAL) **sem posição** é participação nos flights: 10 pontos fixos, igual aos flights, e **não** é resultado do Dia Final (não entra na contagem de posições). **[INFERIDO]** Quem aparece sem posição no Dia Final jogou só os flights. Evidência: na etapa 3 as posições do Dia Final vão de 1 a 79, contínuas, e os inscritos são 79; os "—" são 135. Na etapa 2 há 64 posições e 126 linhas sem posição.
+**[CONFIRMADO 21/10/2026]** Linha do Dia Final (role FINAL) **sem posição** fica **"aguardando regra"**, com o motivo: não se sabe em qual flight o jogador jogou, então o multiplicador não pode ser calculado; o site pagou 10. Ela não é resultado do Dia Final (não entra na contagem de posições) e a ferramenta a mostra com a etiqueta "Participação de flight". A decisão anterior do mesmo dia ("10 pontos fixos") fica **marcada como substituída**. **[INFERIDO]** Quem aparece sem posição no Dia Final jogou só os flights. Evidência: na etapa 3 as posições do Dia Final vão de 1 a 79, contínuas, e os inscritos são 79; os "—" são 135. Na etapa 2 há 64 posições e 126 linhas sem posição.
 
 Na etapa 2, a API mostra 10 pontos sem multiplicador nestes casos:
 
@@ -279,11 +279,20 @@ Na etapa 2, a API mostra 10 pontos sem multiplicador nestes casos:
 
 Pela regra da seção 5 (base 10 × fatores), esses jogadores deveriam ter 10 × fator do torneio (ex.: 33 no EV #8, com fator total 3,3). São candidatos fortes a erro. **[INFERIDO]**
 
-~~[PENDENTE: responder em 19/10]~~ **[RESOLVIDO 21/10/2026]** Os 126 jogadores sem posição do Dia Final entram na conferência como participação de flight (10 pontos fixos), conforme a decisão acima.
+~~[PENDENTE: responder em 19/10]~~ **[RESPONDIDO 21/10/2026]** Os 126 jogadores sem posição do Dia Final **ficam fora da conferência, aguardando regra**, conforme a decisão acima (a resposta anterior, "10 pontos fixos", foi substituída).
 
 ### 6.8 Buy-in abaixo de R$ 500 [OBSERVADO]
 
 O Compêndio registrava que não havia buy-in abaixo de R$ 500 na etapa 1. A API mostra **"Second Chance 20K" com buy-in 250** na etapa 1 (correta), e "EV #10 SECOND CHANCE 20K" com buy-in 250 na etapa 2. Os pontos da etapa 1 (12º = 375) são compatíveis com fator buy-in 1,0. **[INFERIDO]** Qual fator vale abaixo de R$ 500: **[PENDENTE]** (a calculadora do site usa 1,0).
+
+### 6.9 Acordo [CONFIRMADO pelo usuário em 21/10/2026]
+
+- **Regra [CONFIRMADO 21/10/2026]:** num torneio com **acordo** entre N jogadores, os N que restam na mesa (posições 1 a N) dividem igualmente os pontos das posições 1 a N. Valor de cada um = (soma dos pontos corretos das posições 1 a N, cada uma pela fórmula normal: base da posição × fator de participantes × fator de buy-in × multiplicador do torneio) ÷ N. O mesmo valor para os N. Exemplo do usuário: dois jogadores dividem os pontos da 1ª e da 2ª posição, e cada um recebe a metade da soma.
+- **Conta no Dia Final da etapa 2** (fator de participantes 3,81, fator de buy-in 1, multiplicador 1,0; o teste confere a conta, não conclui que houve acordo): N=2 → 3.429,00 cada; N=3 → 3.175,00 cada; N=4 → 2.952,75 cada.
+- **Quem entra:** N é inteiro, de 2 até o número de premiados (ITM) do torneio. Posições acima de N não mudam. A posição e o prêmio publicados continuam como estão.
+- **Como a ferramenta guarda:** o acordo é marcado por torneio, salvo para todos, sem login, e qualquer pessoa pode desfazer. Ele entra no identificador dos dados e na chave do cache. A linha mostra a etiqueta "Acordo", e o resultado (Correto ou Erro, sem tolerância de arredondamento) usa o valor dividido.
+- **[INFERIDO] Arredondamento:** a divisão é feita em centésimos inteiros e arredondada a 2 casas, **metade para cima**, com o mesmo valor para os N. É uma hipótese, porque a regra de arredondamento do site está **[PENDENTE]** (seção 6.1). Pode sobrar ou faltar um centésimo na soma dos N.
+- **[PENDENTE] Desempate:** o Compêndio (seção 3.5) não define como o acordo conta no critério "maior número de primeiros lugares" (por exemplo, se os dois que dividem a 1ª e a 2ª posição têm cada um um primeiro lugar). A ferramenta **não altera** o desempate: as posições seguem como publicadas. Decisão para o responsável do ranking.
 
 ## 7. Dados de referência da etapa 1
 
@@ -451,13 +460,14 @@ Comportamento confirmado na inspeção de 18/10/2026 **[OBSERVADO]**:
 - **CORS [OBSERVADO]:** resolvido com rota de servidor.
 - **Entrada da ferramenta [CONFIRMADO em 18/10/2026]:** fase 1 = leitura direta do site pela API; fase 2 = upload de arquivo, depois que a fase 1 funcionar. Formato do arquivo: **[PENDENTE]**.
 - **Prazo [CONFIRMADO em 18/10/2026]:** fase 1 até 18/10/2026, para verificar a etapa 2.
-- **[CONFIRMADO 21/10/2026]** Os 126 jogadores sem posição do Dia Final da etapa 2 entram na conferência como participação de flight, 10 pontos fixos (seção 6.7).
+- **[CONFIRMADO 21/10/2026]** Os 126 jogadores sem posição do Dia Final da etapa 2 ficam aguardando regra: não se sabe em qual flight jogaram (seção 6.7). A decisão de "10 pontos fixos" foi substituída.
 - **[PENDENTE]** Buy-in do Dia Final da etapa 2 (seção 7.6).
 - **[PENDENTE]** Field: `players` ou soma dos flights / deduzido (seções 6.2 e 7.6).
-- **[CONFIRMADO 21/10/2026]** Flights geram só 10 pontos de participação (seção 6.4).
+- **[CONFIRMADO 21/10/2026]** Flights: 10 × fatores com o campo em ações; sem as ações, aguardando regra (seção 6.4). "10 pontos fixos" foi substituído.
 - **[PENDENTE]** Fator buy-in abaixo de R$ 500 (seção 6.8).
 - **[CONFIRMADO 21/10/2026]** Satélites não pontuam (seção 6.6).
-- **[PENDENTE]** Regra de arredondamento exibida no site (seção 6.1).
+- **[PENDENTE]** Regra de arredondamento exibida no site (seção 6.1). O acordo usa, como hipótese, metade para cima (seção 6.9).
+- **[PENDENTE]** Como o acordo conta nos "primeiros lugares" do desempate (seção 6.9).
 - Pontos 6.3 e 6.5. **[PENDENTE]**
 
 ## 10. Glossário

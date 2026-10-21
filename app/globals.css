@@ -388,6 +388,23 @@ details.expandivel[open] { padding-bottom: 12px; }
 
 .marca-dif { color: var(--peach); }
 
+/* ---------- acordo ---------- */
+.acordo { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: end; gap: var(--e-2) var(--e-3); padding-top: var(--e-2); border-top: 1px solid var(--linha); }
+.acordo-caixa { display: inline-flex; align-items: center; gap: var(--e-2); min-height: 44px; cursor: pointer; font-weight: var(--peso-medio); }
+.acordo-caixa input { width: 24px; height: 24px; accent-color: var(--destaque); margin: 0; }
+.acordo-caixa input:focus-visible, .acordo-campo input:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; }
+.acordo-campo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--e-2) var(--e-3); }
+.acordo-campo input { width: 88px; }
+.acordo-confirma { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); }
+.acordo-erro { flex: 1 1 100%; margin: 0; font-size: var(--fs-apoio); color: var(--estado-erro-texto); }
+.aviso-acordo { margin: 0 0 var(--e-3); padding: var(--e-2) var(--e-3); border-left: 3px solid var(--peach); background: var(--camada-2); border-radius: var(--r-pequeno); font-weight: var(--peso-medio); }
+.conta-acordo { display: grid; gap: var(--e-2); }
+.passos-acordo { list-style: none; margin: 0; padding: 0; display: grid; }
+.passos-acordo li { display: grid; grid-template-columns: minmax(0, 7em) minmax(0, 1fr) auto; gap: var(--e-2); align-items: baseline; padding: var(--e-1) 0; border-bottom: 1px solid var(--linha); font-variant-numeric: tabular-nums; }
+.passos-acordo .muted { overflow-wrap: anywhere; }
+.soma-acordo { margin: 0; font-size: var(--fs-corpo); }
+.acordo-torneio { color: var(--peach); }
+
 /* sem movimento: tudo aparece direto, sem deslocamento */
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 

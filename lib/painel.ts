@@ -4,7 +4,9 @@ import type { DadosSpt } from "./api-spt";
 import { descreverBase, type auditar } from "./auditoria";
 import { baseDaPosicao, fb100 } from "./calculo";
 import type { identificador } from "./integridade";
-import { PARTICIPACAO } from "./participacao";
+import { acoesDe } from "./auditoria";
+import { ACORDO } from "./acordo";
+import { CAMPO, PARTICIPACAO } from "./participacao";
 import type { Regras } from "./regras";
 
 type Aud = ReturnType<typeof auditar>;
@@ -27,6 +29,8 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const MOTIVO_TEXTO: Record<string, string> = {
   NAO_FINALIZADO: "torneio não finalizado",
   CANCELADO: "torneio cancelado",
+  FLIGHT: PARTICIPACAO.motivoFlight,
+  FINAL_SEM_POSICAO: "sem posição: não se sabe em qual flight o jogador jogou",
   SEM_BUYIN: "buy-in não informado",
 };
 
@@ -37,6 +41,7 @@ const EXPLICACAO: Record<string, string> = {
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
   SATELITE: "Satélites não pontuam, mas este resultado tem pontos registrados.",
   PARTICIPACAO: "Participação de flight vale 10 pontos fixos, mas o valor registrado é outro.",
+  ACORDO: "Num torneio com acordo, os jogadores das posições 1 a N recebem o mesmo valor, mas o registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
 };
 
@@ -52,6 +57,16 @@ const faixaDe = (buyIn: number) => (FAIXAS_BUYIN.find((f) => buyIn >= f.min) ?? 
 const ETAPA: Record<string, number> = { "taua-2026": 1, "vale-suico-2026": 2, "bendito-cacao-2026": 3 };
 
 const PENDENCIA: Record<string, { titulo: string; pendente: string; decisao: string }> = {
+  FINAL_SEM_POSICAO: {
+    titulo: PARTICIPACAO.tituloDiaFinal,
+    pendente: PARTICIPACAO.pendenteDiaFinal,
+    decisao: PARTICIPACAO.decisaoDiaFinal,
+  },
+  FLIGHT: {
+    titulo: PARTICIPACAO.tituloFlight,
+    pendente: PARTICIPACAO.pendenteFlight,
+    decisao: PARTICIPACAO.decisaoFlight,
+  },
   NAO_FINALIZADO: {
     titulo: "Torneios não finalizados",
     pendente: "Estes torneios ainda não terminaram, então os resultados podem mudar.",
@@ -76,6 +91,8 @@ export type OrigemDados = { tipo: "site" } | { tipo: "planilha"; arquivo: string
 
 export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, aud: Aud, id: ReturnType<typeof identificador>) {
   const ROTULO_PENDENCIA: Record<string, string> = {
+    FLIGHT: "Aguardando: faltam as ações deste flight",
+    FINAL_SEM_POSICAO: "Aguardando: Dia Final sem posição",
     NAO_FINALIZADO: "Aguardando: torneio não finalizado",
     CANCELADO: "Aguardando: torneio cancelado",
     SEM_BUYIN: "Aguardando: buy-in não informado",
@@ -95,6 +112,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
         return { texto: "10 pontos fixos, sem multiplicar pelos fatores", conta: "10 pontos fixos = 10" };
       case "SATELITE":
         return { texto: "Satélite com pontos registrados", conta: null };
+      case "ACORDO":
+        return { texto: ACORDO.causa(l.acordo?.n ?? 0, n((l.acordo?.valorCent ?? 0) / 100)), conta: null };
       case "PARTICIPACAO":
         return { texto: PARTICIPACAO.causa, conta: "10 pontos fixos = 10" };
       case "SUSPEITO":
@@ -131,6 +150,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       else if (primeira.causaCodigo === "CAMPO") titulo = "Valor compatível com outro número de inscritos";
       else if (primeira.causaCodigo === "SATELITE") titulo = "Satélite com pontos registrados";
       else if (primeira.causaCodigo === "PARTICIPACAO") titulo = PARTICIPACAO.causa;
+      else if (primeira.causaCodigo === "ACORDO") titulo = "Valor diferente do acordo";
       else if (primeira.causaCodigo === "SUSPEITO") titulo = "Posição e prêmio não concordam";
       else if (primeira.causaCodigo === "BASE") {
         const igual = indices.every((i) => linhas[i].posicao === primeira.posicao);
@@ -205,6 +225,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     buyIns: (x.buyIns as number | null) ?? null,
     reentries: (x.reentries as number | null) ?? null,
     acoes: x.buyIns != null && x.reentries != null ? (x.buyIns as number) + (x.reentries as number) : null,
+    acordo: (x.acordo as number | null) ?? null,
     comPosicao: x.comPosicao as number,
     participacao: x.participacao as number,
     corretos: (x.CORRETO as number) + (x.CORRETO_SITE as number),
@@ -243,10 +264,16 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   if (linhas.some((l) => l.pendencia === "NAO_FINALIZADO")) avisos.push("Há torneios não finalizados nesta etapa.");
   if (linhas.some((l) => l.pendencia === "CANCELADO")) avisos.push("Há resultados registrados em torneio cancelado.");
   if (linhas.some((l) => l.pendencia === "SEM_BUYIN")) avisos.push("Há torneios sem buy-in informado.");
+  // Opção "campo = ações": os torneios com resultados que não têm as ações informadas usam os inscritos (listados aqui).
+  if (regras.field === "acoes") {
+    const sem = dados.torneios.filter((t) => t.role !== "FINAL" && t.role !== "PARENT" && acoesDe(t) == null && linhas.some((l) => l.torneioId === t.id)).map((t) => t.name);
+    if (sem.length) avisos.push(`Campo do torneio = ações: ${sem.length} ${sem.length === 1 ? "torneio não tem" : "torneios não têm"} as ações informadas e ${sem.length === 1 ? "usou" : "usaram"} os inscritos: ${sem.join(", ")}.`);
+  }
 
   const sn = (b: boolean) => (b ? "Sim" : "Não");
   const regrasTexto = [
     { titulo: "Satélites", valor: "Satélites não pontuam" },
+    { titulo: CAMPO.rotulo, valor: regras.field === "acoes" ? `${CAMPO.acoes}; ${CAMPO.semAcoes}` : CAMPO.inscritos },
     {
       titulo: "Quem fica fora da premiação",
       valor: regras.foraDoItm === "10fixos" ? "10 pontos fixos (como na calculadora do site)" : "10 pontos × os fatores (como no regulamento)",
@@ -295,6 +322,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     updatedAt: dados.updatedAt,
     origem: origem ?? ({ tipo: "site" } as OrigemDados),
     identificador: id,
+    acordos: { aplicados: Object.keys(aud.acordos).length },
     regras,
     resumo: aud.resumo,
     somas: aud.somas,

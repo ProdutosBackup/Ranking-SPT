@@ -1,6 +1,6 @@
 "use client";
 
-import { CONTA_BLOCOS, PAINEL_BLOCOS, PARTICIPACAO } from "./estrutura";
+import { ACORDO, CONTA_BLOCOS, PAINEL_BLOCOS, PARTICIPACAO } from "./estrutura";
 import { classeDif, n, nSinal, nomePosicao, reais } from "./formato";
 import type { Linha } from "./tipos";
 
@@ -23,12 +23,17 @@ export function Comparativo({ l }: { l: Linha }) {
 
 /** Os blocos da conta de uma linha: resultado, conta correta, registrado no site e hipótese da causa. */
 export function Detalhe({ l }: { l: Linha }) {
-  const fixos = !l.conta.includes("×");
+  const fixos = !l.conta.includes("×") && !l.acordo;
   const aguarda = l.classe === "aguarda";
   return (
     <div className="detalhe">
       <section className="bloco">
         <h4>{PAINEL_BLOCOS.resultado}</h4>
+        {l.acordoN != null && !l.acordo && (
+          <p className="aviso-acordo" role="note">
+            {ACORDO.aviso(l.acordoN)}
+          </p>
+        )}
         <dl className="dados">
           <dt>Jogador</dt>
           <dd>{l.jogador}</dd>
@@ -65,7 +70,25 @@ export function Detalhe({ l }: { l: Linha }) {
       ) : (
         <section className="bloco">
           <h4>{PAINEL_BLOCOS.conta}</h4>
-          {fixos ? (
+          {l.acordo ? (
+            <div className="conta-acordo">
+              <p className="muted small">
+                {ACORDO.rotulo} entre {n(l.acordo.n)} pessoas: as posições 1 a {n(l.acordo.n)} dividem igualmente a soma dos pontos delas.
+              </p>
+              <ol className="passos-acordo">
+                {l.acordo.passos.map((p) => (
+                  <li key={p.posicao}>
+                    <span>{nomePosicao(p.posicao)}</span>
+                    <span className="muted">{p.conta}</span>
+                    <b>{n(p.cent / 100)}</b>
+                  </li>
+                ))}
+              </ol>
+              <p className="soma-acordo">
+                {ACORDO.soma}: <b>{n(l.acordo.somaCent / 100)}</b> ÷ {n(l.acordo.n)} = <b className="resultado-conta">{n(l.acordo.valorCent / 100)}</b>
+              </p>
+            </div>
+          ) : fixos ? (
             <p className="resultado-conta">10 pontos fixos = {n(l.esperado)}</p>
           ) : (
             <div className="conta-blocos">
@@ -94,7 +117,7 @@ export function Detalhe({ l }: { l: Linha }) {
             </div>
           )}
           <p className="formula-texto">
-            {fixos ? "" : `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}`}
+            {fixos || l.acordo ? "" : `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}`}
           </p>
         </section>
       )}

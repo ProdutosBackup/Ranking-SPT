@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { DadosSpt } from "./api-spt";
 import type { auditar } from "./auditoria";
 import { centDe } from "./calculo";
+import { assinaturaAcordos } from "./acordo";
 import { VERSAO_REGRAS, type Regras } from "./regras";
 import { verificar } from "./verificador";
 
@@ -26,7 +27,7 @@ const porTexto = (a: unknown, b: unknown) => {
  * Identificador dos dados: hash SHA-256 só do conteúdo (torneios e resultados normalizados e ordenados, valores em
  * centésimos inteiros). O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
  */
-export function identificador(d: DadosSpt) {
+export function identificador(d: DadosSpt, acordos: Record<string, number> = {}) {
   const torneios = d.torneios
     .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status])
     .sort(porTexto);
@@ -39,13 +40,13 @@ export function identificador(d: DadosSpt) {
     .sort(porTexto);
   return {
     updatedAt: d.updatedAt,
-    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, torneios, jogadores })).digest("hex"),
+    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}) })).digest("hex"),
     versaoRegras: VERSAO_REGRAS,
   };
 }
 
 /** Roda checagens de integridade e o verificador independente. Lança ErroAuditoria se algo não fechar. */
-export function conferir(d: DadosSpt, regras: Regras, aud: Aud) {
+export function conferir(d: DadosSpt, regras: Regras, aud: Aud, acordos: Record<string, number> = {}) {
   const f: string[] = [];
   const ids = new Set(d.torneios.map((t) => t.id));
 
@@ -80,6 +81,6 @@ export function conferir(d: DadosSpt, regras: Regras, aud: Aud) {
   }
   if (f.length) throw new ErroAuditoria("Checagem de integridade falhou", f);
 
-  const div = verificar(d, regras, aud.linhas, aud.torneios);
+  const div = verificar(d, regras, aud.linhas, aud.torneios, acordos);
   if (div.length) throw new ErroAuditoria(`Verificador independente divergiu em ${div.length} ponto(s)`, div);
 }

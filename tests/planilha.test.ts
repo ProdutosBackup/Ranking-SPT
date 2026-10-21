@@ -244,7 +244,7 @@ describe("integração com o motor", () => {
 
   it('10 fixos, Dia Final com 328: só os três campeões erram', () => {
     const aud = rodar(CAMPO_FINAL(base, 328), "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 551, CORRETO_SITE: 0, ERRO: 3, SUSPEITO: 0, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 416, CORRETO_SITE: 0, ERRO: 3, SUSPEITO: 0, PENDENTE_REGRA: 135 });
     const erros = aud.linhas.filter((l) => l.situacao === "ERRO").map((l) => [l.torneio, l.posicao, l.registrado, l.esperado]);
     expect(erros.sort()).toEqual([
       ["CHAMPIONSHIP HIGH ROLLER 200K", 1, 2300, 2875],
@@ -255,20 +255,20 @@ describe("integração com o motor", () => {
 
   it("10 fixos, Dia Final com os 79 da planilha: o motor aponta sozinho os 328", () => {
     const aud = rodar(base, "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 487, CORRETO_SITE: 64, ERRO: 3, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 352, CORRETO_SITE: 64, ERRO: 3, PENDENTE_REGRA: 135 });
     const final = aud.torneios.find((t) => t.torneio.includes("Dia Final")) as unknown as { achado: { fieldApi: number; fieldSite: number; linhasExplicadas: number } };
     expect(final.achado).toMatchObject({ fieldApi: 79, fieldSite: 328, linhasExplicadas: 64 });
   });
 
   it("regra padrão (10 × fatores), Dia Final com 328: 276 erros (3 campeões + 273 linhas de 10 fixos)", () => {
     const aud = rodar(CAMPO_FINAL(base, 328), "base10xFatores");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 278, ERRO: 276, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 143, ERRO: 276, PENDENTE_REGRA: 135 });
     expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273);
   });
 
   it("regra padrão com os inscritos da planilha (79): as 64 linhas premiadas do Dia Final também erram", () => {
     const aud = rodar(base, "base10xFatores");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 214, CORRETO_SITE: 0, ERRO: 340, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 79, CORRETO_SITE: 0, ERRO: 340, PENDENTE_REGRA: 135 });
     const final = aud.linhas.filter((l) => l.torneio.includes("Dia Final") && l.situacao === "ERRO" && l.registrado !== 10);
     expect(final).toHaveLength(64);
     expect(final.every((l) => /328 inscritos/.test(l.causaProvavel ?? ""))).toBe(true);

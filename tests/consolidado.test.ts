@@ -145,7 +145,7 @@ describe("etapas reais", () => {
     expect(c.jogadores).toHaveLength(278);
     for (const j of c.jogadores) expect(j.totalCent / 100).toBeCloseTo(esperado.get(chaveNome(j.nome)) ?? 0, 2);
     expect(c.jogadores.reduce((a, j) => a + j.totalCent, 0)).toBe(Math.round([...esperado.values()].reduce((a, x) => a + x, 0) * 100));
-    expect(c.aguardando).toEqual([{ etapa: 1, n: 0 }]);
+    expect(c.aguardando).toEqual([{ etapa: 1, n: 202 }]);
   });
 
   it("Etapa 2 acumulada = pontos corretos da Etapa 1 + da Etapa 2, conferido por soma independente por nome", async () => {
@@ -158,7 +158,7 @@ describe("etapas reais", () => {
     const nomes = new Set([...e1.brutas, ...e2.brutas].map((b) => chaveNome(b.nome)));
     expect(c.jogadores).toHaveLength(nomes.size); // quem só tem resultado pendente aparece com 0
     for (const j of c.jogadores) expect(j.totalCent).toBe(soma.get(chaveNome(j.nome)) ?? 0);
-    expect(c.aguardando).toEqual([{ etapa: 1, n: 0 }, { etapa: 2, n: 0 }]);
+    expect(c.aguardando).toEqual([{ etapa: 1, n: 202 }, { etapa: 2, n: 126 }]);
     expect(c.jogadores[0].posicao).toBe(1);
   });
 });

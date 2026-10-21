@@ -33,7 +33,7 @@ describe("etapa 2 (vale-suico-2026), regras padrão", () => {
     aud.linhas.find((l) => l.jogador === jogador && l.torneio.includes(torneio) && l.posicao === pos)!;
 
   it("contagens", () => {
-    expect(aud.resumo).toMatchObject({ total: 270, CORRETO: 260, ERRO: 10, ARREDONDAMENTO: 0, SUSPEITO: 0, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 270, CORRETO: 134, ERRO: 10, ARREDONDAMENTO: 0, SUSPEITO: 0, PENDENTE_REGRA: 126 });
   });
   it("Rafael Bryan", () => {
     const rb = aud.linhas.filter((l) => l.jogador.startsWith("Rafael Bryan"));
@@ -101,13 +101,12 @@ describe("etapa 1 (taua-2026), a referência correta", () => {
       ["Second Chance 20K", 95, 100, 95],
     ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
   });
-  it("440 corretos (54 + 386 com os inscritos do site); os 202 flights valem 10 pontos de participação e todos têm outro valor registrado", () => {
-    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 202, SUSPEITO: 0, ARREDONDAMENTO: 0, CORRETO: 54, CORRETO_SITE: 386, PENDENTE_REGRA: 0 });
+  it("0 erros; 440 corretos (54 + 386 com os inscritos do site); 202 flights aguardam regra (faltam as ações)", () => {
+    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 0, SUSPEITO: 0, ARREDONDAMENTO: 0, CORRETO: 54, CORRETO_SITE: 386, PENDENTE_REGRA: 202 });
+    expect(sit(aud).CORRETO + sit(aud).CORRETO_SITE).toBe(440);
     const flights = aud.linhas.filter((l) => l.participacao);
     expect(flights).toHaveLength(202);
-    expect(flights.every((l) => l.situacao === "ERRO" && l.esperado === 10 && l.causaCodigo === "PARTICIPACAO")).toBe(true);
-    expect(Math.round(flights.reduce((a, l) => a + l.diferenca, 0) * 100) / 100).toBe(883);
-    expect(sit(aud).CORRETO + sit(aud).CORRETO_SITE).toBe(440);
+    expect(flights.every((l) => l.situacao === "PENDENTE_REGRA" && l.pendencia === "FLIGHT" && l.causaProvavel === "faltam as ações deste flight")).toBe(true);
   });
   it("torneios sem divergência não têm achado", () => {
     for (const t of torn(aud).filter((x) => !x.achado && x.melhorCandidato)) expect(t.melhorCandidato!.field).toBe(t.players);
@@ -132,7 +131,7 @@ describe("etapa 2: sem divergência de inscritos", () => {
     const dados = await fixture("vale-suico-2026");
     const aud = auditar(dados, REGRAS_PADRAO);
     expect(torn(aud).filter((t) => t.achado)).toHaveLength(0);
-    expect(aud.resumo).toMatchObject({ ERRO: 10, CORRETO: 260, CORRETO_SITE: 0, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ ERRO: 10, CORRETO: 134, CORRETO_SITE: 0, PENDENTE_REGRA: 126 });
     const erros = aud.linhas.filter((l) => l.situacao === "ERRO").map((l) => `${l.torneio.slice(0, 7)}|${l.posicao}|${l.registrado}|${l.esperado}`).sort();
     expect(erros).toEqual([
       "EV #11 |8|10|12.75", "EV #2 2|1|1008|1260", "EV #6 8|1|547.2|684", "EV #8 C|14|10|33", "EV #8 C|15|10|33", "EV #8 C|16|10|33",
