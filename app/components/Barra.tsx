@@ -83,10 +83,10 @@ export function Barra(p: Props) {
               ))}
             </select>
           </div>
-          <button className="btn" type="submit" disabled={p.carregando}>
+          <button className="b-btn b-principal" type="submit" disabled={p.carregando}>
             {p.carregando ? "Auditando…" : BARRA.auditar}
           </button>
-          <button className="btn sec" type="button" disabled={p.enviando} onClick={() => seletor.current?.click()}>
+          <button className="b-btn b-sec" type="button" disabled={p.enviando} onClick={() => seletor.current?.click()}>
             {p.enviando ? "Enviando…" : BARRA.enviar}
           </button>
           <input
@@ -100,13 +100,13 @@ export function Barra(p: Props) {
               if (f) p.onEnviar(f);
             }}
           />
-          <button className="btn sec" type="button" disabled={!p.d || p.baixando !== null} title={p.d ? undefined : DISPONIVEL_DEPOIS} onClick={() => p.onBaixar("relatorio")}>
+          <button className="b-btn b-sec" type="button" disabled={!p.d || p.baixando !== null} title={p.d ? undefined : DISPONIVEL_DEPOIS} onClick={() => p.onBaixar("relatorio")}>
             {p.baixando === "relatorio" ? "Gerando…" : BARRA.baixar}
           </button>
-          <button className="btn sec" type="button" disabled={!p.d || p.baixando !== null} title={p.d ? undefined : DISPONIVEL_DEPOIS} onClick={() => p.onBaixar("exportacao")}>
+          <button className="b-btn b-sec" type="button" disabled={!p.d || p.baixando !== null} title={p.d ? undefined : DISPONIVEL_DEPOIS} onClick={() => p.onBaixar("exportacao")}>
             {p.baixando === "exportacao" ? "Gerando…" : BARRA.exportar}
           </button>
-          <button id="btn-consolidado" className="btn sec" type="button" aria-pressed={p.consolidadoAtivo} onClick={p.onConsolidado}>
+          <button id="btn-consolidado" className="b-btn b-sec" type="button" aria-pressed={p.consolidadoAtivo} onClick={p.onConsolidado}>
             {BARRA.consolidado}
           </button>
         </form>

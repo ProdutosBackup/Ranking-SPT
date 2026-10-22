@@ -69,6 +69,7 @@
   --r-card: 24px;
   --r-bloco: 16px;
   --r-pequeno: 12px;
+  --r-controle: 10px; /* botões e seletor da barra superior */
 
   /* ---------- movimento: só transform e opacity ---------- */
   --mov-150: 150ms;
@@ -168,12 +169,28 @@ select:hover, input[type="search"]:hover, input[type="text"]:hover { border-colo
 .btn:disabled, .btn.sec:disabled { background: transparent; border-color: var(--linha); color: var(--mist-2); cursor: not-allowed; transform: none; }
 .btn:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; }
 .btn.mais { margin: var(--e-3) 0; }
+/* ---------- barra superior: 1 ação principal (laranja cheio) e 4 secundárias (só contorno) ----------
+   Classes próprias da barra: .btn, .chip e .campo continuam como estão nos outros componentes. */
+.barra-topo { --contorno-controle: color-mix(in srgb, var(--mist) 40%, transparent); } /* 3,5:1 sobre o fundo e sobre --camada-1 */
+.b-btn { height: 44px; padding: 0 22px; border-radius: var(--r-controle); border: 1px solid transparent; font-weight: var(--peso-medio); transition: transform var(--mov-150) var(--ease-saida); }
+.b-btn:active:not(:disabled) { transform: scale(0.98); }
+.b-btn:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; }
+.b-principal { background: var(--destaque); border-color: var(--destaque); color: var(--ink); }
+.b-principal:hover:not(:disabled) { background: var(--destaque-hover); border-color: var(--destaque-hover); }
+.b-sec { background: transparent; border-color: var(--contorno-controle); color: var(--mist); }
+.b-sec:hover:not(:disabled) { border-color: var(--destaque); color: var(--destaque); }
+.b-sec[aria-pressed="true"] { background: var(--camada-2); border-color: var(--mist-2); }
+.b-btn:disabled { background: transparent; border-color: var(--linha); color: var(--mist-2); cursor: not-allowed; }
+.barra-topo select { border-radius: var(--r-controle); border-color: var(--contorno-controle); }
+.barra-topo select:hover { border-color: var(--destaque); }
 
-.confianca { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); align-items: center; font-size: var(--fs-apoio); color: var(--mist-2); }
+
+.confianca { display: flex; flex-wrap: wrap; gap: var(--e-1) 0; align-items: center; font-size: var(--fs-apoio); color: var(--mist-2); }
+.confianca > * + * { margin-left: 12px; padding-left: 12px; border-left: 1px solid var(--linha); } /* separador discreto entre os itens (só desenho: o texto não muda) */
 .confianca b { color: var(--mist); font-weight: var(--peso-medio); }
 .confianca.na-barra { max-width: 1440px; margin: var(--e-2) auto 0; }
 .confianca.abaixo-da-barra { display: none; padding: var(--e-2) var(--gutter); border-bottom: 1px solid var(--linha); }
-.selo { display: inline-flex; padding: 2px 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--destaque) 50%, transparent); background: color-mix(in srgb, var(--destaque) 12%, transparent); color: var(--peach); font-weight: var(--peso-medio); font-size: var(--fs-rotulo); }
+.selo { color: var(--mist); font-weight: var(--peso-medio); } /* "✓ Conta conferida…": texto, sem pílula e sem fundo */
 .cod { letter-spacing: 0.04em; }
 .progresso { max-width: 1440px; margin: var(--e-2) auto 0; font-size: var(--fs-apoio); }
 .trilho { height: 6px; border-radius: 999px; background: var(--camada-2); overflow: hidden; margin-top: 6px; }
@@ -351,6 +368,8 @@ details.expandivel[open] { padding-bottom: 12px; }
 .x-planilha:disabled { color: var(--mist-2); cursor: not-allowed; }
 .texto-btn:focus-visible, .x-planilha:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; }
 .confirmar-remocao { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); color: var(--mist); }
+.barra-topo .x-planilha, .barra-topo .confirmar-remocao .btn.sec { border-radius: var(--r-controle); border-color: var(--contorno-controle); }
+.barra-topo .x-planilha:hover:not(:disabled), .barra-topo .confirmar-remocao .btn.sec:hover { background: transparent; border-color: var(--destaque); color: var(--destaque); }
 .lido { animation: entrada var(--mov-200) var(--ease-saida) both; }
 .lido-topo { display: flex; justify-content: space-between; align-items: center; gap: var(--e-3); }
 .lido h3 { font-weight: var(--peso-forte); }
@@ -430,6 +449,9 @@ details.expandivel[open] { padding-bottom: 12px; }
   .campo.etapa select { width: 100%; min-width: 0; }
   fieldset.campo { flex: 1 1 auto; }
   .btn { padding: 0 var(--e-3); height: 44px; }
+  .b-btn { padding: 0 var(--e-3); }
+  .confianca { column-gap: var(--e-4); }
+  .confianca > * + * { margin-left: 0; padding-left: 0; border-left: 0; }
   .logo { --logo-w: 112px; }
   .topo { padding-top: var(--e-4); }
   .comecar { margin-top: var(--e-6); }
