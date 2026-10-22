@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quadro de marca SPT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600&family=Public+Sans:wght@400;500;600&family=Archivo:wdth,wght@125,500;125,600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="marca.css">
+<style>
+  body { overflow-x: hidden; }
+  .quadro { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 var(--e-8); }
+  .topo { display: grid; grid-template-columns: auto 1fr; gap: var(--e-8); align-items: end; padding: var(--e-12) 0 var(--e-8); border-bottom: 1px solid var(--linha); }
+  .topo img { height: 112px; width: auto; display: block; }
+  .topo h1 { font-size: var(--t-display); margin: var(--e-2) 0 var(--e-3); }
+  .topo p { max-width: 62ch; color: var(--creme-apoio); }
+  nav.indice { display: flex; flex-wrap: wrap; gap: var(--e-1) var(--e-4); padding: var(--e-4) 0; border-bottom: 1px solid var(--linha); font-size: var(--t-apoio); }
+  nav.indice a { color: var(--creme-apoio); text-decoration: none; min-height: 32px; display: inline-flex; align-items: center; }
+  nav.indice a:hover { color: var(--creme); }
+  section.parte { padding: var(--e-16) 0 var(--e-8); border-bottom: 1px solid var(--linha); scroll-margin-top: var(--e-4); }
+  .parte > h2 { font-size: var(--t-h1); margin-bottom: var(--e-3); }
+  .parte > .intro { max-width: 68ch; color: var(--creme-apoio); margin-bottom: var(--e-8); }
+  .parte h3 { font-size: var(--t-h3); margin: var(--e-8) 0 var(--e-4); }
+  code { font-family: ui-monospace, Consolas, monospace; font-size: 0.92em; color: var(--creme); }
+
+  /* cores */
+  .amostras { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--e-4); }
+  .amostra { border: 1px solid var(--linha); border-radius: var(--r-superficie); overflow: hidden; background: var(--grafite-1); }
+  .amostra .cor { height: 120px; border-bottom: 1px solid var(--linha); }
+  .amostra .info { padding: var(--e-3) var(--e-4); display: grid; gap: 2px; }
+  .amostra .info b { font-family: var(--f-titulo); font-weight: var(--p-medio); }
+  .amostras.menores .cor { height: 56px; }
+  .amostras.menores { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .tabela-quadro { border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--t-apoio); }
+  th { text-align: left; font-weight: var(--p-medio); color: var(--creme-apoio); font-size: var(--t-meta); padding: var(--e-3) var(--e-4); border-bottom: 1px solid var(--linha); white-space: nowrap; }
+  td { padding: var(--e-3) var(--e-4); border-bottom: 1px solid var(--linha); vertical-align: middle; }
+  tr:last-child td { border-bottom: 0; }
+  .amostra-par { display: inline-block; padding: 4px 10px; border-radius: var(--r-ficha); font-family: var(--f-titulo); font-weight: var(--p-medio); border: 1px solid var(--linha); white-space: nowrap; }
+
+  /* tipografia */
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-6); }
+  .opcao-fonte { border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); padding: var(--e-6); display: grid; gap: var(--e-4); align-content: start; }
+  .opcao-fonte.recomendada { border-color: color-mix(in srgb, var(--dourado) 55%, transparent); }
+  .opcao-fonte .rec { display: inline-flex; align-items: center; gap: var(--e-2); color: var(--dourado); font-size: var(--t-apoio); font-weight: var(--p-medio); }
+  .opcao-fonte .amostra-titulo { font-size: var(--t-h1); line-height: 1.15; }
+  .opcao-fonte .amostra-num { font-size: var(--t-placar); line-height: 1; letter-spacing: -0.02em; }
+  .opcao-fonte .amostra-caixa { font-size: var(--t-meta); letter-spacing: var(--espacado); text-transform: uppercase; }
+  .opcao-fonte .amostra-texto { max-width: 60ch; }
+  .opcao-fonte .tabular { font-variant-numeric: tabular-nums; display: grid; grid-template-columns: auto auto; justify-content: start; gap: 0 var(--e-6); font-size: var(--t-apoio); }
+  .b .t-tit { font-family: "Archivo", sans-serif; font-stretch: 125%; }
+  .b .t-txt { font-family: "IBM Plex Sans", sans-serif; }
+  .escala td:first-child { white-space: nowrap; }
+
+  /* espaço e raios */
+  .reguas { display: grid; gap: var(--e-2); }
+  .regua { display: grid; grid-template-columns: 6rem 1fr; align-items: center; gap: var(--e-4); font-size: var(--t-apoio); }
+  .regua i { display: block; height: 12px; background: var(--dourado); border-radius: 2px; }
+  .raios { display: flex; flex-wrap: wrap; gap: var(--e-6); }
+  .raio { display: grid; gap: var(--e-2); justify-items: start; font-size: var(--t-apoio); }
+  .raio i { display: block; width: 120px; height: 80px; background: var(--grafite-2); border: 1px solid var(--linha-forte); }
+
+  /* fichas */
+  .grade-fichas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e-4); }
+  .cartao-demo { border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); padding: var(--e-6); display: grid; gap: var(--e-4); align-content: start; }
+  .cartao-demo h4 { font-size: var(--t-corpo); }
+  .cartao-demo p { color: var(--creme-apoio); font-size: var(--t-apoio); }
+  .demo-linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-4); }
+  .progresso { display: flex; align-items: center; gap: var(--e-3); font-size: var(--t-apoio); }
+  .barra-demo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--e-2) var(--e-3); align-items: center; font-size: var(--t-apoio); }
+  .trilho { height: 16px; border-radius: var(--r-ficha); background: var(--grafite-2); overflow: hidden; }
+  .trilho i { display: block; height: 100%; border-radius: var(--r-ficha); }
+  .nao-faca { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--e-2); font-size: var(--t-apoio); }
+  .nao-faca li { display: flex; gap: var(--e-2); align-items: start; }
+
+  /* estados e componentes */
+  .estados { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--e-3); }
+  .estado-cartao { border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); padding: var(--e-4); display: grid; gap: var(--e-2); }
+  .estado-cartao p { font-size: var(--t-apoio); color: var(--creme-apoio); }
+  .comp { display: grid; gap: var(--e-6); }
+  .comp-item { display: grid; grid-template-columns: 12rem minmax(0, 1fr); gap: var(--e-6); padding: var(--e-6) 0; border-top: 1px solid var(--linha); align-items: start; }
+  .comp-item > h4 { font-size: var(--t-corpo); }
+  .comp-item > h4 + * { min-width: 0; }
+  .marca-planilha { display: inline-flex; align-items: center; gap: var(--e-2); flex-wrap: wrap; padding: var(--e-1) var(--e-1) var(--e-1) var(--e-3); border: 1px solid var(--linha-forte); border-radius: var(--r-controle); font-size: var(--t-apoio); }
+  .marca-planilha b { font-weight: var(--p-medio); }
+  .marca-planilha .x { display: inline-grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: var(--r-ficha); background: none; color: var(--creme-apoio); cursor: pointer; }
+  .marca-planilha .x:hover { color: var(--creme); background: var(--grafite-2); }
+  .marca-planilha .x svg { width: 14px; height: 14px; }
+  .confirma { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-3); font-size: var(--t-apoio); margin-top: var(--e-3); }
+  .linha-demo { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--e-2) var(--e-6); align-items: center; padding: var(--e-3) var(--e-6); border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); }
+  .linha-demo .s { font-size: var(--t-apoio); color: var(--creme-apoio); }
+  .filtros-demo { display: flex; flex-wrap: wrap; gap: var(--e-2); align-items: center; padding: var(--e-2); border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); }
+  .filtros-demo .controle { min-height: 40px; background-color: var(--grafite-0); }
+  .nota-exemplo { font-size: var(--t-meta); color: var(--creme-apoio); margin-top: var(--e-2); }
+
+  /* molduras de tela */
+  .moldura { position: relative; overflow: hidden; border: 1px solid var(--linha-forte); border-radius: var(--r-controle); background: var(--grafite-0); margin-bottom: var(--e-3); }
+  .moldura iframe { display: block; border: 0; transform-origin: 0 0; position: absolute; top: 0; left: 0; }
+  .moldura.celular { max-width: 375px; }
+  .legenda { font-size: var(--t-apoio); color: var(--creme-apoio); margin-bottom: var(--e-8); }
+  .duas-375 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--e-6); align-items: start; }
+
+  /* mudanças futuras */
+  .mudancas { list-style: none; padding: 0; margin: 0; border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); }
+  .mudancas li { display: grid; grid-template-columns: 2rem minmax(0, 1fr) 14rem; gap: var(--e-4); padding: var(--e-4) var(--e-6); align-items: start; }
+  .mudancas li + li { border-top: 1px solid var(--linha); }
+  .mudancas .n { font-family: var(--f-titulo); color: var(--creme-apoio); }
+  .mudancas p { font-size: var(--t-apoio); color: var(--creme-apoio); margin-top: 2px; }
+  .confirmacao { display: flex; gap: var(--e-3); align-items: start; margin-top: var(--e-6); padding: var(--e-4) var(--e-6); border: 1px solid color-mix(in srgb, var(--correto) 40%, transparent); background: var(--correto-fundo); border-radius: var(--r-superficie); }
+  .confirmacao svg { width: 16px; height: 16px; color: var(--correto); flex: none; margin-top: 4px; }
+  footer { padding: var(--e-8) 0 var(--e-16); color: var(--creme-apoio); font-size: var(--t-apoio); }
+
+  @media (max-width: 1023.98px) {
+    .amostras { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .amostras.menores { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .estados { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grade-fichas, .duas { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 767.98px) {
+    .quadro { padding: 0 var(--e-4); }
+    .topo { grid-template-columns: minmax(0, 1fr); gap: var(--e-4); padding-top: var(--e-8); }
+    .topo img { height: 72px; }
+    .topo h1 { font-size: var(--t-h1); }
+    section.parte { padding-top: var(--e-12); }
+    .parte > h2 { font-size: var(--t-h2); }
+    .amostras.menores { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .estados { grid-template-columns: minmax(0, 1fr); }
+    .comp-item { grid-template-columns: minmax(0, 1fr); gap: var(--e-3); }
+    .opcao-fonte { padding: var(--e-4); }
+    .opcao-fonte .amostra-num { font-size: var(--t-display); }
+    .mudancas li { grid-template-columns: 1.5rem minmax(0, 1fr); padding: var(--e-4); }
+    .mudancas li > .estado { grid-column: 2; }
+    .regua { grid-template-columns: 4.5rem 1fr; }
+    .linha-demo { grid-template-columns: minmax(0, 1fr); padding: var(--e-3) var(--e-4); }
+    .comp-item .barra-demo { grid-template-columns: minmax(0, 1fr) auto !important; }
+    .comp-item .barra-demo .trilho { grid-column: 1 / -1; grid-row: 2; }
+  }
+</style>
+</head>
+<body>
+<div class="quadro">
+
+<header class="topo">
+  <img src="../../public/logo-spt.png" alt="Suprema Poker Tour" width="2729" height="948">
+  <div>
+    <span class="espacado apoio">Quadro de marca · proposta para aprovação</span>
+    <h1>Auditoria do Ranking</h1>
+    <p>Direção visual derivada do logo da Suprema Poker Tour: as cores saem do próprio arquivo do logo e as fichas em anel viram a linguagem gráfica. Nada aqui altera o app. Os nomes, rótulos e a ordem das telas são os da estrutura travada; os números são os da Etapa 2 lidos no app em 21/10/2026, 23:09 (Brasília).</p>
+  </div>
+</header>
+
+<nav class="indice" aria-label="Seções do quadro">
+  <a href="#cores">Cores</a><a href="#tipografia">Tipografia</a><a href="#espaco">Espaçamento e raios</a><a href="#fichas">Fichas</a><a href="#estados">Estados</a><a href="#componentes">Componentes</a><a href="#telas-1440">Telas em 1440 px</a><a href="#telas-375">Telas em 375 px</a><a href="#tokens">Tokens</a><a href="#mudancas">Mudanças futuras</a>
+</nav>
+
+<main>
+
+<!-- ============ CORES ============ -->
+<section class="parte" id="cores" aria-labelledby="h-cores">
+  <h2 id="h-cores" class="titulo-secao"><span class="ficha"></span>Cores</h2>
+  <p class="intro">As quatro bases foram extraídas de <code>public/logo-spt.png</code> (2729 × 948 px) por amostragem de pixels: em cada região, a cor mais frequente. O preto das letras de "SUPREMA" é o mesmo grafite do fundo, e por isso a página usa esse grafite: o fundo opaco do logo some na página.</p>
+  <div class="amostras">
+    <div class="amostra"><div class="cor" style="background:#daa763"></div><div class="info"><b>Dourado das fichas</b><span class="num">#DAA763</span><span class="meta">98,7% dos pixels quentes do anel; igual em "POKER TOUR" (96,9%)</span></div></div>
+    <div class="amostra"><div class="cor" style="background:#f3f0eb"></div><div class="info"><b>Creme da faixa SUPREMA</b><span class="num">#F3F0EB</span><span class="meta">99,3% dos pixels claros da faixa</span></div></div>
+    <div class="amostra"><div class="cor" style="background:#1a1c1e"></div><div class="info"><b>Grafite do fundo</b><span class="num">#1A1C1E · #222427</span><span class="meta">topo: 98,4% · base da onda: 100%</span></div></div>
+    <div class="amostra"><div class="cor" style="background:#1a1c1e;box-shadow:inset 0 0 0 24px #f3f0eb"></div><div class="info"><b>Preto das letras</b><span class="num">#1A1C1E</span><span class="meta">96,1% dos pixels escuros da faixa</span></div></div>
+  </div>
+
+  <h3>Paleta montada sobre as bases</h3>
+  <div class="amostras menores">
+    <div class="amostra"><div class="cor" style="background:var(--grafite-0)"></div><div class="info"><b>Página</b><code>--grafite-0</code><span class="meta">#1A1C1E · logo</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--grafite-1)"></div><div class="info"><b>Superfície</b><code>--grafite-1</code><span class="meta">#222427 · logo</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--grafite-2)"></div><div class="info"><b>Elevada</b><code>--grafite-2</code><span class="meta">#2C2F33</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--creme)"></div><div class="info"><b>Texto</b><code>--creme</code><span class="meta">#F3F0EB · logo</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--creme-apoio)"></div><div class="info"><b>Texto de apoio</b><code>--creme-apoio</code><span class="meta">#AEAAA3</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--linha-forte)"></div><div class="info"><b>Borda de campo</b><code>--linha-forte</code><span class="meta">#7A7873</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--dourado)"></div><div class="info"><b>Ação e marca</b><code>--dourado</code><span class="meta">#DAA763 · logo</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--dourado-claro)"></div><div class="info"><b>Mouse e foco</b><code>--dourado-claro</code><span class="meta">#E6BD85</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--correto)"></div><div class="info"><b>Correto</b><code>--correto</code><span class="meta">#8CCAA0</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--erro)"></div><div class="info"><b>Erro</b><code>--erro</code><span class="meta">#F28B82</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--atencao)"></div><div class="info"><b>Atenção</b><code>--atencao</code><span class="meta">#E8C766</span></div></div>
+    <div class="amostra"><div class="cor" style="background:var(--pendente)"></div><div class="info"><b>Pendente</b><code>--pendente</code><span class="meta">#A7ABB2</span></div></div>
+  </div>
+  <p class="nota-exemplo">Proporção de uso: grafite da página na maior área, superfícies em grafite-1 nos quadros e listas, dourado só em ações, marcadores e foco. Linhas finas em creme a 12%.</p>
+
+  <h3>Contraste de cada par (WCAG 2.1, calculado nesta página a partir dos tokens)</h3>
+  <div class="tabela-quadro" id="tabela-contraste">
+    <table><thead><tr><th>Amostra</th><th>Texto</th><th>Fundo</th><th>Uso</th><th>Razão</th><th>Nível</th></tr></thead><tbody></tbody></table>
+  </div>
+</section>
+
+<!-- ============ TIPOGRAFIA ============ -->
+<section class="parte" id="tipografia" aria-labelledby="h-tipo">
+  <h2 id="h-tipo" class="titulo-secao"><span class="ficha"></span>Tipografia</h2>
+  <p class="intro">O logo junta caixa-alta bem espaçada ("SUPREMA") com um peso forte e geométrico ("POKER TOUR"). Duas combinações gratuitas, do Google Fonts, carregáveis com <code>next/font/google</code>: uma fonte para títulos, rótulos e números do placar, outra para texto e tabelas com números tabulares. Três pesos no máximo: 400, 500 e 600.</p>
+  <div class="duas">
+    <article class="opcao-fonte recomendada">
+      <span class="rec" data-icone="correto">Recomendada · A</span>
+      <h3 style="margin:0">Lexend + Public Sans</h3>
+      <p class="amostra-caixa" style="font-family:'Lexend'">Pontos em discordância</p>
+      <p class="amostra-titulo" style="font-family:'Lexend';font-weight:600">Auditoria do Ranking</p>
+      <p class="amostra-num" style="font-family:'Lexend';font-weight:600">488,65</p>
+      <p class="amostra-texto" style="font-family:'Public Sans'">Etapa 2: 7 resultados com pontuação diferente da regra, afetando 7 jogadores. 126 resultados aguardam definição de regra.</p>
+      <div class="tabular" style="font-family:'Public Sans'"><span>Rafael Bryan</span><span>7.092,55</span><span>Joao Victor Sanchez</span><span>6.227,25</span><span>Arnaldo Fernandes</span><span>5.710,75</span></div>
+      <p class="apoio" style="font-size:var(--t-apoio)">Lexend é geométrica e larga, com terminais retos como o "POKER TOUR", e fica muito boa espaçada em caixa-alta, como o "SUPREMA". Public Sans tem desenho institucional, números tabulares e ótima leitura em 14 e 16 px. Em <code>next/font</code>: <code>Lexend({ weight: ["500","600"] })</code> e <code>Public_Sans({ weight: ["400","500"] })</code>.</p>
+    </article>
+    <article class="opcao-fonte b">
+      <span class="rec" style="color:var(--creme-apoio)">Alternativa · B</span>
+      <h3 style="margin:0" class="t-tit">Archivo Expanded + IBM Plex Sans</h3>
+      <p class="amostra-caixa t-tit">Pontos em discordância</p>
+      <p class="amostra-titulo t-tit" style="font-weight:600">Auditoria do Ranking</p>
+      <p class="amostra-num t-tit" style="font-weight:600">488,65</p>
+      <p class="amostra-texto t-txt">Etapa 2: 7 resultados com pontuação diferente da regra, afetando 7 jogadores. 126 resultados aguardam definição de regra.</p>
+      <div class="tabular t-txt"><span>Rafael Bryan</span><span>7.092,55</span><span>Joao Victor Sanchez</span><span>6.227,25</span><span>Arnaldo Fernandes</span><span>5.710,75</span></div>
+      <p class="apoio" style="font-size:var(--t-apoio)">Mantém a Archivo que o app já usa, agora no corte largo (eixo de largura 125), mais perto do "POKER TOUR". IBM Plex Sans é técnica e boa para tabelas. Fica mais pesada no placar e menos parecida com o "SUPREMA" espaçado.</p>
+    </article>
+  </div>
+
+  <h3>Escala (terça maior, 1,25) e pesos</h3>
+  <div class="tabela-quadro escala">
+    <table>
+      <thead><tr><th>Token</th><th>Tamanho / entrelinha</th><th>Fonte e peso</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td><code>--t-placar</code></td><td>61 px / 1,0 (39 px no celular)</td><td>Lexend 600</td><td>Os dois números do placar</td></tr>
+        <tr><td><code>--t-display</code></td><td>39 px / 1,15</td><td>Lexend 600</td><td>Título do quadro; placar no celular</td></tr>
+        <tr><td><code>--t-h1</code></td><td>31 px / 1,15</td><td>Lexend 600</td><td>"Auditoria do Ranking"</td></tr>
+        <tr><td><code>--t-h2</code></td><td>25 px / 1,3</td><td>Lexend 400 e 600</td><td>Veredito, título do Consolidado</td></tr>
+        <tr><td><code>--t-h3</code></td><td>20 px / 1,15</td><td>Lexend 600</td><td>Títulos de seção, números da faixa</td></tr>
+        <tr><td><code>--t-corpo</code></td><td>16 px / 1,55</td><td>Public Sans 400 e 500</td><td>Texto, nomes nas listas</td></tr>
+        <tr><td><code>--t-apoio</code></td><td>14 px / 1,55</td><td>Public Sans 400 · Lexend 500 nos botões</td><td>Tabelas, botões, meta das linhas</td></tr>
+        <tr><td><code>--t-meta</code></td><td>12 px / 1,4</td><td>Lexend 500, caixa-alta, espaço 0,18 em</td><td>Só rótulos do placar e da fórmula (o "SUPREMA" da tela)</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ ESPAÇO ============ -->
+<section class="parte" id="espaco" aria-labelledby="h-espaco">
+  <h2 id="h-espaco" class="titulo-secao"><span class="ficha"></span>Espaçamento e raios</h2>
+  <p class="intro">Grade de 8 px, com 4 e 12 nos detalhes. Muito respiro entre seções (48 a 64 px) e pouco dentro delas. Conteúdo com até 1.280 px de largura, alinhado à esquerda; texto corrido com até 70 caracteres por linha. Os raios vêm da ficha do logo: um retângulo de cantos arredondados, nunca uma pílula.</p>
+  <div class="reguas">
+    <div class="regua"><code>--e-1</code><span style="display:flex;gap:12px;align-items:center"><i style="width:4px"></i>4</span></div>
+    <div class="regua"><code>--e-2</code><span style="display:flex;gap:12px;align-items:center"><i style="width:8px"></i>8</span></div>
+    <div class="regua"><code>--e-3</code><span style="display:flex;gap:12px;align-items:center"><i style="width:12px"></i>12</span></div>
+    <div class="regua"><code>--e-4</code><span style="display:flex;gap:12px;align-items:center"><i style="width:16px"></i>16</span></div>
+    <div class="regua"><code>--e-6</code><span style="display:flex;gap:12px;align-items:center"><i style="width:24px"></i>24</span></div>
+    <div class="regua"><code>--e-8</code><span style="display:flex;gap:12px;align-items:center"><i style="width:32px"></i>32</span></div>
+    <div class="regua"><code>--e-12</code><span style="display:flex;gap:12px;align-items:center"><i style="width:48px"></i>48</span></div>
+    <div class="regua"><code>--e-16</code><span style="display:flex;gap:12px;align-items:center"><i style="width:64px"></i>64</span></div>
+  </div>
+  <h3>Raios</h3>
+  <div class="raios">
+    <div class="raio"><i style="border-radius:var(--r-ficha)"></i><code>--r-ficha</code><span class="apoio">6 px · etiquetas, contadores, barras</span></div>
+    <div class="raio"><i style="border-radius:var(--r-controle)"></i><code>--r-controle</code><span class="apoio">10 px · botões e campos</span></div>
+    <div class="raio"><i style="border-radius:var(--r-superficie)"></i><code>--r-superficie</code><span class="apoio">16 px · quadros, listas, placar</span></div>
+  </div>
+</section>
+
+<!-- ============ FICHAS ============ -->
+<section class="parte" id="fichas" aria-labelledby="h-fichas">
+  <h2 id="h-fichas" class="titulo-secao"><span class="ficha"></span>O padrão das fichas</h2>
+  <p class="intro">As fichas arredondadas em anel do logo viram a linguagem gráfica, sempre com função: marcar uma seção, medir um progresso ou uma proporção. Nunca como ilustração, nunca repetidas como enfeite. O logo em si continua como está.</p>
+  <div class="grade-fichas">
+    <div class="cartao-demo">
+      <h4>Marcador de seção</h4>
+      <h3 class="titulo-secao" style="margin:0;font-size:var(--t-h3)"><span class="ficha"></span>Principais causas</h3>
+      <p>Uma ficha dourada de 12 × 9 px antes do título. Só em títulos de seção, alinhada à altura das maiúsculas.</p>
+    </div>
+    <div class="cartao-demo">
+      <h4>Divisor</h4>
+      <div class="divisor"><span class="ficha vazia"></span></div>
+      <p>Linha fina que começa numa ficha apagada. Separa grupos dentro de uma tela; entre seções basta o respiro.</p>
+    </div>
+    <div class="cartao-demo">
+      <h4>Progresso da leitura</h4>
+      <div class="progresso" role="status"><span data-anel="8,5,40" data-anel-rotulo="5 de 8 fichas: 130 de 208 jogadores"></span><span>Lendo jogadores: 130 de 208</span></div>
+      <p>Anel de 8 fichas, que acendem conforme a leitura avança. O texto ao lado diz o número; o anel só reforça. Sem giro infinito.</p>
+    </div>
+    <div class="cartao-demo">
+      <h4>Proporção</h4>
+      <div class="demo-linha"><span data-anel="8,7,40" data-anel-rotulo="95,1% corretos"></span><span><span class="num" style="font-size:var(--t-h3)">95,1%</span><br><span class="apoio" style="font-size:var(--t-apoio)">Resultados corretos</span></span></div>
+      <p>Na faixa fina do placar: oito fichas, uma a cada 12,5%, arredondado para baixo.</p>
+    </div>
+    <div class="cartao-demo">
+      <h4>Barras</h4>
+      <div class="barra-demo"><span class="trilho"><i style="width:50.7%;background:var(--correto)"></i></span><span class="num">137</span><span class="trilho"><i style="width:46.7%;background:var(--pendente)"></i></span><span class="num">126</span></div>
+      <p>Barras largas, com a ponta arredondada da ficha (6 px), sobre um trilho grafite. Uma linha por situação.</p>
+    </div>
+    <div class="cartao-demo">
+      <h4>Anel aberto, como no logo</h4>
+      <div class="demo-linha"><span data-anel="7,7,64,1"></span></div>
+      <p>Só no título do quadro e em páginas de abertura, nunca nas telas de trabalho.</p>
+    </div>
+  </div>
+  <h3>Não fazer</h3>
+  <ul class="nao-faca">
+    <li><span class="estado erro" data-icone="erro"></span>Redesenhar, traçar, recolorir ou recortar o logo; usar o globo ou o avião como ícone.</li>
+    <li><span class="estado erro" data-icone="erro"></span>Fichas como fundo, padrão repetido ou ilustração decorativa.</li>
+    <li><span class="estado erro" data-icone="erro"></span>Gradientes, vidro fosco, sombras pesadas, brilho em volta dos cartões.</li>
+  </ul>
+</section>
+
+<!-- ============ ESTADOS ============ -->
+<section class="parte" id="estados" aria-labelledby="h-estados">
+  <h2 id="h-estados" class="titulo-secao"><span class="ficha"></span>Estados</h2>
+  <p class="intro">Sempre cor, ícone e texto juntos: a cor nunca diz o estado sozinha. Os nomes são os que o app já usa.</p>
+  <div class="estados">
+    <div class="estado-cartao"><span class="estado correto" data-icone="correto">Correto</span><p>A conta bate com a regra.</p><span class="dif zero">nenhuma</span></div>
+    <div class="estado-cartao"><span class="estado correto-site" data-icone="correto-site">Correto com inscritos do site</span><p>Bate com outro número de inscritos.</p></div>
+    <div class="estado-cartao"><span class="estado erro" data-icone="erro">Erro</span><p>Pontuação diferente da regra.</p><span class="dif neg" style="justify-self:start">−23</span></div>
+    <div class="estado-cartao"><span class="estado atencao" data-icone="atencao">Revisar</span><p>Atenção: posição e prêmio não concordam.</p></div>
+    <div class="estado-cartao"><span class="estado pendente" data-icone="pendente">Aguardando regra</span><p>Pendente: ainda sem regra definida.</p></div>
+  </div>
+</section>
+
+<!-- ============ COMPONENTES ============ -->
+<section class="parte" id="componentes" aria-labelledby="h-comp">
+  <h2 id="h-comp" class="titulo-secao"><span class="ficha"></span>Componentes</h2>
+  <p class="intro">Uma ação principal em dourado por área; o resto é secundário, com borda. Alvos de 44 px. Foco sempre visível em dourado claro.</p>
+  <div class="comp">
+    <div class="comp-item"><h4>Botões</h4>
+      <div class="demo-linha">
+        <button type="button" class="btn">Auditar etapa</button>
+        <button type="button" class="btn sec" data-icone="enviar">Enviar planilha</button>
+        <button type="button" class="btn sec" data-icone="baixar">Baixar relatório</button>
+        <button type="button" class="btn perigo">Remover</button>
+        <button type="button" class="btn texto">Remover acordo</button>
+        <button type="button" class="btn" aria-disabled="true">Auditar etapa</button>
+      </div></div>
+    <div class="comp-item"><h4>Selo de conferência</h4>
+      <div><span class="selo" data-icone="correto">Conta conferida por dois cálculos independentes</span></div></div>
+    <div class="comp-item"><h4>Marca de planilha</h4>
+      <div>
+        <span class="marca-planilha"><span>Planilha carregada: <b>ranking-spt-3a-etapa.xlsx</b> · enviada em 21/10/2026, 14:00 (Brasília)</span><button type="button" class="x" aria-label="Remover planilha" data-icone="fechar"></button></span>
+        <div class="confirma"><span>Remover a planilha para todos?</span><button type="button" class="btn perigo">Sim</button><button type="button" class="btn sec">Não</button></div>
+        <p class="nota-exemplo">Exemplo de formato: hoje não há planilha carregada no app (a marca só aparece quando há). Nome do arquivo e data são ilustrativos.</p>
+      </div></div>
+    <div class="comp-item"><h4>Filtros</h4>
+      <div>
+        <div class="filtros-demo" role="group" aria-label="Filtros (exemplo)">
+          <label class="vh" for="d-causa">Causa</label><select id="d-causa" class="controle"><option>Causa: todas (7)</option></select>
+          <label class="vh" for="d-torneio">Torneio</label><select id="d-torneio" class="controle"><option>Torneio: todos</option></select>
+        </div>
+        <div class="demo-linha" style="margin-top:var(--e-3)"><span class="etiqueta"><span class="texto"><span class="chave">Torneio:</span> EV #8 CHAMPIONSHIP SUPER HIGH ROLLER 200K</span><button type="button" aria-label="Remover filtro de torneio" data-icone="fechar"></button></span></div>
+      </div></div>
+    <div class="comp-item"><h4>Linha de lista</h4>
+      <div class="linha-demo"><span><b style="font-weight:var(--p-medio)">Caio Fábio russo</b><br><span class="s">EV #2 200K PLO 5 K.O · 1º · Valor igual ao de um 2º colocado</span></span><span style="display:flex;gap:var(--e-4);align-items:center;flex-wrap:wrap"><span class="s">Site <b style="color:var(--creme)">1.008</b> → Correto <b style="color:var(--creme)">1.260</b></span><span class="dif neg">−252</span></span></div></div>
+    <div class="comp-item"><h4>Barra de situação</h4>
+      <div class="barra-demo" style="grid-template-columns:minmax(0,12rem) minmax(0,1fr) auto"><span class="estado erro" data-icone="erro">Erros</span><span class="trilho"><i style="width:2.6%;min-width:3px;background:var(--erro)"></i></span><span class="num">7</span></div></div>
+  </div>
+</section>
+
+<!-- ============ TELAS 1440 ============ -->
+<section class="parte" id="telas-1440" aria-labelledby="h-t1440">
+  <h2 id="h-t1440" class="titulo-secao"><span class="ficha"></span>Telas em 1440 px</h2>
+  <p class="intro">Cada tela é renderizada com 1440 px de largura real e reduzida para caber aqui. Abra <code>telas.html#resumo</code>, <code>#erros</code>, <code>#consolidado</code>, <code>#regras</code> ou <code>#protegidas</code> para ver em tamanho natural.</p>
+  <div class="moldura"><iframe src="telas.html#resumo" width="1440" height="1900" title="Resumo em 1440 px"></iframe></div>
+  <p class="legenda">Resumo: cabeçalho com logo, barra superior, faixa de confiança, abas, veredito, placar (Erros e Pontos em discordância grandes; os outros quatro numa faixa fina), "Como ficaram os 270 resultados", causas e torneios.</p>
+  <div class="moldura"><iframe src="telas.html#erros" width="1440" height="1100" title="Aba Erros em 1440 px"></iframe></div>
+  <p class="legenda">Erros: filtros numa barra única, filtro ativo como etiqueta removível, lista em linhas finas.</p>
+  <div class="moldura"><iframe src="telas.html#consolidado" width="1440" height="1100" title="Consolidado em 1440 px"></iframe></div>
+  <p class="legenda">Consolidado: seletor de etapa (Etapa 3 "Sem dados nesta etapa"), busca, aviso dos resultados fora da soma e tabela do ranking correto acumulado.</p>
+  <div class="moldura"><iframe src="telas.html#regras" width="1440" height="1500" title="Aba Regras em 1440 px"></iframe></div>
+  <p class="legenda">Regras: a fórmula em termos, Participação nos flights, tabelas do regulamento e regras usadas nesta auditoria.</p>
+  <div class="moldura"><iframe src="telas.html#protegidas" width="1440" height="500" title="Áreas que não serão alteradas"></iframe></div>
+  <p class="legenda">Painel lateral do resultado e aba Jogadores: fora desta proposta. Aparecem só como retângulos "não alterar".</p>
+</section>
+
+<!-- ============ TELAS 375 ============ -->
+<section class="parte" id="telas-375" aria-labelledby="h-t375">
+  <h2 id="h-t375" class="titulo-secao"><span class="ficha"></span>Telas em 375 px</h2>
+  <p class="intro">As mesmas telas com 375 px de largura real. Sem rolagem horizontal da página: só a fileira de abas rola dentro dela própria.</p>
+  <div class="duas-375">
+    <div><div class="moldura celular"><iframe src="telas.html#resumo" width="375" height="3200" title="Resumo em 375 px"></iframe></div><p class="legenda">Resumo</p></div>
+    <div><div class="moldura celular"><iframe src="telas.html#erros" width="375" height="2200" title="Aba Erros em 375 px"></iframe></div><p class="legenda">Erros</p></div>
+    <div><div class="moldura celular"><iframe src="telas.html#consolidado" width="375" height="1800" title="Consolidado em 375 px"></iframe></div><p class="legenda">Consolidado</p></div>
+    <div><div class="moldura celular"><iframe src="telas.html#regras" width="375" height="3000" title="Aba Regras em 375 px"></iframe></div><p class="legenda">Regras</p></div>
+    <div><div class="moldura celular"><iframe src="telas.html#protegidas" width="375" height="900" title="Áreas que não serão alteradas, 375 px"></iframe></div><p class="legenda">Painel lateral e aba Jogadores: não alterar</p></div>
+  </div>
+</section>
+
+<!-- ============ TOKENS ============ -->
+<section class="parte" id="tokens" aria-labelledby="h-tokens">
+  <h2 id="h-tokens" class="titulo-secao"><span class="ficha"></span>Token atual → token novo</h2>
+  <p class="intro">Para os próximos passos, em <code>app/globals.css</code> e <code>app/layout.tsx</code>. Os tokens atuais continuam valendo até a aprovação.</p>
+  <div class="tabela-quadro">
+    <table>
+      <thead><tr><th>Token atual</th><th>Valor atual</th><th>Token novo</th><th>Valor novo</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr><td><code>--ink</code> / <code>--fundo</code></td><td>#0E0E0F</td><td><code>--grafite-0</code></td><td>#1A1C1E</td><td>Fundo = fundo do logo</td></tr>
+        <tr><td><code>--ink-2</code> / <code>--camada-1</code></td><td>#19191B</td><td><code>--grafite-1</code></td><td>#222427</td><td>Do logo (base da onda)</td></tr>
+        <tr><td><code>--ink-3</code> / <code>--camada-2</code></td><td>#2A2A2D</td><td><code>--grafite-2</code></td><td>#2C2F33</td><td></td></tr>
+        <tr><td><code>--logo-fundo-topo</code> / <code>-base</code></td><td>#1A1C1E / #222427</td><td><code>--grafite-0</code> / <code>--grafite-1</code></td><td>iguais</td><td>Deixam de ser tokens à parte</td></tr>
+        <tr><td><code>--mist</code></td><td>#F5F0EA</td><td><code>--creme</code></td><td>#F3F0EB</td><td>Do logo</td></tr>
+        <tr><td><code>--mist-2</code></td><td>creme a 66%</td><td><code>--creme-apoio</code></td><td>#AEAAA3</td><td>Opaco, contraste conferido</td></tr>
+        <tr><td><code>--mist-3</code> / <code>--linha</code></td><td>creme a 14%</td><td><code>--linha</code></td><td>creme a 12%</td><td>Linhas finas</td></tr>
+        <tr><td><code>--linha-forte</code></td><td>creme a 28%</td><td><code>--linha-forte</code></td><td>#7A7873</td><td>3:1 em campos</td></tr>
+        <tr><td><code>--orange</code> / <code>--destaque</code></td><td>#EFA144</td><td><code>--dourado</code></td><td>#DAA763</td><td>Do logo</td></tr>
+        <tr><td><code>--orange-2</code> / <code>--destaque-hover</code></td><td>#F4B567</td><td><code>--dourado-claro</code></td><td>#E6BD85</td><td></td></tr>
+        <tr><td><code>--peach</code> (foco)</td><td>#F8D3A8</td><td><code>--dourado-claro</code></td><td>#E6BD85</td><td>Anel de foco</td></tr>
+        <tr><td><code>--cream</code> / <code>--estado-correto</code></td><td>#FCEBD6</td><td><code>--correto</code></td><td>#8CCAA0</td><td>Correto ganha cor própria</td></tr>
+        <tr><td><code>--estado-correto-site</code></td><td>#F8D3A8</td><td><code>--correto-site</code></td><td>#C3DCAE</td><td></td></tr>
+        <tr><td><code>--caneta</code> / <code>--estado-erro</code></td><td>#C40F14</td><td><code>--erro-forte</code></td><td>#A3302A</td><td>Fundo de ação destrutiva</td></tr>
+        <tr><td><code>--estado-erro-texto</code> / <code>-claro</code></td><td>#FF8A8D / #FFB3B5</td><td><code>--erro</code> + <code>--erro-fundo</code></td><td>#F28B82 / #3B2523</td><td></td></tr>
+        <tr><td><code>--estado-atencao</code></td><td>#EFA144</td><td><code>--atencao</code></td><td>#E8C766</td><td>Separa atenção da ação</td></tr>
+        <tr><td><code>--estado-pendente</code></td><td>#55555A</td><td><code>--pendente</code></td><td>#A7ABB2</td><td>Agora legível como texto</td></tr>
+        <tr><td>Archivo (<code>--font-archivo</code>)</td><td>Archivo</td><td><code>--f-titulo</code> / <code>--f-texto</code></td><td>Lexend / Public Sans</td><td>Opção A</td></tr>
+        <tr><td><code>--fs-exibicao</code> / <code>--fs-titulo</code> / <code>--fs-subtitulo</code></td><td>40–80 / 28–44 / 20–30 px</td><td><code>--t-display</code> / <code>--t-h1</code> / <code>--t-h2</code></td><td>39 / 31 / 25 px</td><td>Escala fixa 1,25</td></tr>
+        <tr><td><code>--fs-corpo</code> / <code>--fs-apoio</code></td><td>16 / 14 px</td><td><code>--t-corpo</code> / <code>--t-apoio</code></td><td>16 / 14 px</td><td>Iguais</td></tr>
+        <tr><td><code>--fs-rotulo</code> / <code>--fs-minimo</code></td><td>13 / 12 px</td><td><code>--t-meta</code></td><td>12 px</td><td>13 px some</td></tr>
+        <tr><td>(novo)</td><td>—</td><td><code>--t-placar</code> / <code>--t-h3</code></td><td>61 / 20 px</td><td></td></tr>
+        <tr><td><code>--peso-*</code></td><td>400 / 500 / 600</td><td><code>--p-*</code></td><td>400 / 500 / 600</td><td>Iguais</td></tr>
+        <tr><td><code>--e-1</code>…<code>--e-8</code></td><td>4, 8, 16, 24, 32, 48, 64, 96</td><td><code>--e-1</code>…<code>--e-16</code></td><td>4, 8, 12, 16, 24, 32, 48, 64</td><td>Nome = múltiplo de 4</td></tr>
+        <tr><td><code>--r-card</code></td><td>24 px</td><td><code>--r-superficie</code></td><td>16 px</td><td></td></tr>
+        <tr><td><code>--r-bloco</code></td><td>16 px</td><td><code>--r-superficie</code></td><td>16 px</td><td></td></tr>
+        <tr><td><code>--r-pequeno</code></td><td>12 px</td><td><code>--r-controle</code></td><td>10 px</td><td></td></tr>
+        <tr><td>botões e campos (999 px)</td><td>pílula</td><td><code>--r-controle</code></td><td>10 px</td><td>A ficha, não a pílula</td></tr>
+        <tr><td>(novo)</td><td>—</td><td><code>--r-ficha</code></td><td>6 px</td><td>Etiquetas, barras</td></tr>
+        <tr><td><code>--mov-150</code> / <code>-200</code> / <code>-300</code></td><td>150 / 200 / 300 ms</td><td><code>--m-100</code> / <code>-150</code> / <code>-200</code></td><td>100 / 150 / 200 ms</td><td>Só cor e opacidade</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ MUDANÇAS FUTURAS ============ -->
+<section class="parte" id="mudancas" aria-labelledby="h-mud">
+  <h2 id="h-mud" class="titulo-secao"><span class="ficha"></span>Mudanças futuras no app</h2>
+  <p class="intro">Nada disso foi feito. Cada item será um passo separado, depois da aprovação deste quadro.</p>
+  <ol class="mudancas">
+    <li><span class="n">1</span><div><b>Trocar as cores pelos tokens novos</b><p>globals.css, pela tabela acima.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">2</span><div><b>Trocar as fontes</b><p>Archivo por Lexend + Public Sans, em layout.tsx com next/font.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">3</span><div><b>Raios da ficha em botões, campos e quadros</b><p>Pílula vira 10 px; cartões, 16 px.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">4</span><div><b>Placar no Resumo</b><p>Os mesmos seis indicadores, na mesma ordem, com os mesmos rótulos e destinos: dois grandes e quatro numa faixa fina.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">5</span><div><b>"Como ficaram os N resultados" com barras largas e ícones de estado</b></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">6</span><div><b>Ícones de estado (correto, erro, revisar, aguardando) ao lado dos textos que já existem</b></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">7</span><div><b>Ficha antes dos títulos de seção; anel de fichas no progresso da leitura e no percentual de corretos</b><p>Os textos continuam; o anel só reforça.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">8</span><div><b>Barra superior agrupada</b><p>Mesmos itens e mesma ordem; Consolidado separado por uma linha fina; faixa de confiança numa linha própria.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">9</span><div><b>Listas em linhas finas: erros, causas, torneios, Consolidado e tabelas da aba Regras</b></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">10</span><div><b>A fórmula da aba Regras em termos lado a lado</b><p>Mesmo conteúdo.</p></div><span class="estado correto" data-icone="correto">Só visual</span></li>
+    <li><span class="n">11</span><div><b>Abas como sublinhado, em vez de "botões segmentados"</b><p>docs/interface.md descreve as abas como botões segmentados.</p></div><span class="estado atencao" data-icone="atencao">Pede autorização</span></li>
+    <li><span class="n">12</span><div><b>Filtros da aba Erros numa barra única com seletores, e o filtro ativo como etiqueta removível</b><p>Hoje são três grupos de botões (Causa, Torneio, Ordenar por); a etiqueta é um elemento novo.</p></div><span class="estado atencao" data-icone="atencao">Pede autorização</span></li>
+    <li><span class="n">13</span><div><b>Veredito com "Etapa 2:" em destaque e causas e torneios lado a lado</b><p>Muda a disposição das seções do Resumo, não a ordem.</p></div><span class="estado atencao" data-icone="atencao">Pede autorização</span></li>
+  </ol>
+  <p class="confirmacao" data-icone="correto"><span>O painel lateral do resultado (conta, acordo e botões) e a aba Jogadores não aparecem alterados neste quadro: só como retângulos "não alterar", e nenhuma mudança da lista mexe neles.</span></p>
+</section>
+
+</main>
+<footer>Quadro de marca, 21/10/2026. Arquivos: <code>docs/marca/index.html</code>, <code>telas.html</code>, <code>marca.css</code>, <code>marca.js</code>. O logo é <code>public/logo-spt.png</code>, usado como está.</footer>
+</div>
+<script src="marca.js"></script>
+</body>
+</html>

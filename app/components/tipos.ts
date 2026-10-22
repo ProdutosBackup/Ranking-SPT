@@ -9,10 +9,10 @@ export type Linha = {
   premioInferido: boolean;
   /** Participação de flight: vale 10 pontos fixos (flights e Dia Final sem posição). */
   participacao: boolean;
-  /** Conta do acordo, nas posições 1 a N de um torneio com acordo. */
-  acordo: { n: number; passos: { posicao: number; conta: string; cent: number }[]; somaCent: number; valorCent: number } | null;
-  /** N do acordo do torneio, em todas as linhas dele (também fora das posições 1 a N). */
-  acordoN: number | null;
+  /** K do acordo, nas posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
+  acordo: number | null;
+  /** K do acordo do torneio, em todas as linhas dele (também fora das posições 1 a K). */
+  acordoK: number | null;
   buyIn: number;
   field: number;
   fieldApi: number;
@@ -45,7 +45,7 @@ export type TorneioPainel = {
   erros: number;
   aguardando: number;
   /** Resultados com posição e participações de flight (o Dia Final mostra os dois separados). */
-  /** N do acordo do torneio, ou null. */
+  /** K do acordo do torneio, ou null. */
   acordo: number | null;
   comPosicao: number;
   participacao: number;

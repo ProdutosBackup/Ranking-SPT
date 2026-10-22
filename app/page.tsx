@@ -114,12 +114,12 @@ export default function Home() {
   }
 
   // Acordo (salvo para todos): grava ou desfaz e audita de novo a etapa que está na tela. Devolve a mensagem de erro, ou null.
-  async function mudarAcordo(torneioId: string, n: number | null): Promise<string | null> {
+  async function mudarAcordo(torneioId: string, k: number | null): Promise<string | null> {
     try {
       const r =
-        n == null
+        k == null
           ? await fetch(`/api/acordos?etapa=${encodeURIComponent(stage)}&torneioId=${encodeURIComponent(torneioId)}`, { method: "DELETE" })
-          : await fetch("/api/acordos", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ etapa: stage, torneioId, n }) });
+          : await fetch("/api/acordos", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ etapa: stage, torneioId, k }) });
       const j = await r.json().catch(() => null);
       if (!r.ok) return j?.erro ?? "Não foi possível salvar o acordo. Tente novamente.";
       versaoAcordos.current += 1;
@@ -361,7 +361,7 @@ export default function Home() {
     <div className="pagina">
       <div inert={ver ? true : undefined} onFocusCapture={(e) => { ultimoFoco.current = e.target as HTMLElement; }}>
         <header className="topo">
-          <img className="logo" src="/logo-spt.png" alt="Suprema Poker Tour" width={2729} height={948} decoding="async" fetchPriority="high" />
+          <img className="logo" src="/logo-spt-transparente-560.png" alt="Suprema Poker Tour" width={560} height={195} decoding="async" fetchPriority="high" />
           <h1>Auditoria do Ranking</h1>
         </header>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ACORDO, CONTA_BLOCOS, PAINEL_BLOCOS, PARTICIPACAO } from "./estrutura";
 import { classeDif, n, nSinal, nomePosicao, reais } from "./formato";
 import type { Linha } from "./tipos";
@@ -21,17 +22,20 @@ export function Comparativo({ l }: { l: Linha }) {
   );
 }
 
-/** Os blocos da conta de uma linha: resultado, conta correta, registrado no site e hipótese da causa. */
-export function Detalhe({ l }: { l: Linha }) {
-  const fixos = !l.conta.includes("×") && !l.acordo;
+/**
+ * Os blocos da conta de uma linha: resultado, conta correta, registrado no site e hipótese da causa.
+ * `cartaoAcordo` (só no painel lateral) entra logo abaixo de "Conta correta" e passa a mostrar o aviso de acordo no lugar do bloco Resultado.
+ */
+export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNode }) {
+  const fixos = !l.conta.includes("×");
   const aguarda = l.classe === "aguarda";
   return (
     <div className="detalhe">
       <section className="bloco">
         <h4>{PAINEL_BLOCOS.resultado}</h4>
-        {l.acordoN != null && !l.acordo && (
+        {!cartaoAcordo && l.acordoK != null && l.acordo == null && (
           <p className="aviso-acordo" role="note">
-            {ACORDO.aviso(l.acordoN)}
+            {ACORDO.aviso(l.acordoK)}
           </p>
         )}
         <dl className="dados">
@@ -70,32 +74,15 @@ export function Detalhe({ l }: { l: Linha }) {
       ) : (
         <section className="bloco">
           <h4>{PAINEL_BLOCOS.conta}</h4>
-          {l.acordo ? (
-            <div className="conta-acordo">
-              <p className="muted small">
-                {ACORDO.rotulo} entre {n(l.acordo.n)} pessoas: as posições 1 a {n(l.acordo.n)} dividem igualmente a soma dos pontos delas.
-              </p>
-              <ol className="passos-acordo">
-                {l.acordo.passos.map((p) => (
-                  <li key={p.posicao}>
-                    <span>{nomePosicao(p.posicao)}</span>
-                    <span className="muted">{p.conta}</span>
-                    <b>{n(p.cent / 100)}</b>
-                  </li>
-                ))}
-              </ol>
-              <p className="soma-acordo">
-                {ACORDO.soma}: <b>{n(l.acordo.somaCent / 100)}</b> ÷ {n(l.acordo.n)} = <b className="resultado-conta">{n(l.acordo.valorCent / 100)}</b>
-              </p>
-            </div>
-          ) : fixos ? (
+          {l.acordo != null && <p className="conta-acordo">{ACORDO.conta(l.acordo)}</p>}
+          {fixos ? (
             <p className="resultado-conta">10 pontos fixos = {n(l.esperado)}</p>
           ) : (
             <div className="conta-blocos">
               <div className="fator">
                 <span className="rot">{CONTA_BLOCOS.base}</span>
                 <b>{n(l.base)}</b>
-                <span className="muted">{l.itm ? nomePosicao(l.posicao) : "fora da premiação"}</span>
+                <span className="muted">{l.acordo != null ? nomePosicao(l.acordo) : l.itm ? nomePosicao(l.posicao) : "fora da premiação"}</span>
               </div>
               <span className="op" aria-hidden="true">×</span>
               <div className="fator">
@@ -117,10 +104,12 @@ export function Detalhe({ l }: { l: Linha }) {
             </div>
           )}
           <p className="formula-texto">
-            {fixos || l.acordo ? "" : `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}`}
+            {fixos ? "" : `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}`}
           </p>
         </section>
       )}
+
+      {cartaoAcordo}
 
       <section className="bloco">
         <h4>{PAINEL_BLOCOS.registrado}</h4>

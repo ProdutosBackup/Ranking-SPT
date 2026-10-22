@@ -41,7 +41,7 @@ const EXPLICACAO: Record<string, string> = {
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
   SATELITE: "Satélites não pontuam, mas este resultado tem pontos registrados.",
   PARTICIPACAO: "Participação de flight vale 10 pontos fixos, mas o valor registrado é outro.",
-  ACORDO: "Num torneio com acordo, os jogadores das posições 1 a N recebem o mesmo valor, mas o registrado é outro.",
+  ACORDO: "Num torneio com acordo, os jogadores das posições 1 a K pontuam como o Kº colocado, mas o registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
 };
 
@@ -113,7 +113,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       case "SATELITE":
         return { texto: "Satélite com pontos registrados", conta: null };
       case "ACORDO":
-        return { texto: ACORDO.causa(l.acordo?.n ?? 0, n((l.acordo?.valorCent ?? 0) / 100)), conta: null };
+        return { texto: ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
       case "PARTICIPACAO":
         return { texto: PARTICIPACAO.causa, conta: "10 pontos fixos = 10" };
       case "SUSPEITO":

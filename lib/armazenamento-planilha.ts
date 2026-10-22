@@ -33,7 +33,7 @@ const MSG_INCONSISTENTE = "A planilha guardada está sendo atualizada agora. Ten
 
 // ---------- pasta local (desenvolvimento) ----------
 export class ArmazenamentoLocal implements Armazenamento {
-  constructor(private pasta = join(process.cwd(), ".planilha-local")) {}
+  constructor(private pasta = process.env.PLANILHA_LOCAL_DIR || join(process.cwd(), ".planilha-local")) {}
   private xlsx = () => join(this.pasta, "planilha.xlsx");
   private json = () => join(this.pasta, "registro.json");
 

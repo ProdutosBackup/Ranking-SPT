@@ -63,14 +63,32 @@ describe("estrutura da tela travada", () => {
     expect([ACOES.buyIns, ACOES.reentries, ACOES.acoes, ACOES.naoInformado], TRAVADA).toEqual(["Buy-ins", "Re-entries", "Ações", "não informado pelo site"]);
   });
 
-  // Itens acrescentados com autorização do usuário em 21/10/2026 (acordo).
-  it("acordo: caixa e campo do painel, aviso, conta, marcação nas telas e texto da faixa de confiança", () => {
-    expect([ACORDO.rotulo, ACORDO.pergunta, ACORDO.aplicar, ACORDO.desfazer, ACORDO.sim, ACORDO.nao, ACORDO.contaTitulo, ACORDO.soma], TRAVADA).toEqual([
-      "Acordo", "Acordo entre quantas pessoas?", "Aplicar", "Desfazer o acordo para todos?", "Sim", "Não", "Conta com acordo", "Soma",
+  // Itens acrescentados com autorização do usuário em 21/10/2026 (acordo); pergunta, cartão e textos refeitos com nova autorização na mesma data.
+  it("acordo: cartão do painel, pergunta, resumo, remoção, aviso, conta, marcação nas telas e texto da faixa de confiança", () => {
+    expect([ACORDO.rotulo, ACORDO.caixa, ACORDO.pergunta, ACORDO.aplicar, ACORDO.remover, ACORDO.confirmar, ACORDO.confirmarSim, ACORDO.confirmarNao], TRAVADA).toEqual([
+      "Acordo", "Houve acordo neste torneio", "Pontuam como qual colocação?", "Aplicar", "Remover acordo", "Remover o acordo deste torneio para todos?", "Remover", "Cancelar",
     ]);
-    expect([ACORDO.aviso(3), ACORDO.torneio(3), ACORDO.faixa(2), ACORDO.causa(2, "3.429")], TRAVADA).toEqual([
-      "Este torneio tem acordo entre 3 pessoas", "Acordo: 3 pessoas", "Acordos aplicados: 2 torneio(s)", "Acordo entre 2 jogadores: cada um recebe 3.429",
+    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286")], TRAVADA).toEqual([
+      "De 2 a 63 (premiados do torneio)",
+      "Acordo: os 4 primeiros pontuam como 4º colocado",
+      "Este torneio tem acordo: os 4 primeiros pontuam como 4º colocado",
+      "Acordo: pontua como 4º colocado",
+      "Os 4 primeiros, como 4º colocado",
+      "Acordo: os 4 primeiros, como 4º colocado",
+      "Acordos aplicados: 2 torneio(s)",
+      "Acordo: os 4 primeiros pontuam como 4º colocado, 2.286 cada",
     ]);
+  });
+
+  it("painel: o cartão Acordo fica no corpo, logo abaixo de Conta correta; o rodapé tem só Anterior, Próximo e Revisado", () => {
+    const detalhe = readFileSync("app/components/Detalhe.tsx", "utf8");
+    const cartao = detalhe.search(/\{cartaoAcordo\}\s/);
+    expect(cartao, TRAVADA).toBeGreaterThan(detalhe.indexOf("PAINEL_BLOCOS.conta"));
+    expect(cartao, TRAVADA).toBeLessThan(detalhe.indexOf("PAINEL_BLOCOS.registrado"));
+    const painel = readFileSync("app/components/Painel.tsx", "utf8");
+    const rodape = painel.slice(painel.indexOf('<footer className="painel-rodape">'), painel.indexOf("</footer>"));
+    expect(rodape.match(/<button/g), TRAVADA).toHaveLength(3);
+    expect(rodape, TRAVADA).not.toContain("<Acordo");
   });
 
   it("aba Resumo: seções e ordem", () => {

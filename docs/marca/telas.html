@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Telas da proposta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600&family=Public+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="marca.css">
+<style>
+  /* Telas montadas com a direção proposta. Dados reais da Etapa 2 lidos no app em 21/10/2026, 23:09 (Brasília). */
+  body { overflow-x: hidden; }
+  .pagina { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 var(--e-8); }
+
+  /* cabeçalho e barra superior */
+  .cabecalho { border-bottom: 1px solid var(--linha); }
+  .cab-topo { display: flex; align-items: center; gap: var(--e-6); padding: var(--e-6) 0 var(--e-4); }
+  .logo { height: 64px; width: auto; display: block; }
+  .cab-topo h1 { font-size: var(--t-h1); }
+  .barra { display: flex; flex-wrap: wrap; align-items: end; gap: var(--e-3); padding-bottom: var(--e-4); }
+  .barra .campo select { min-width: 300px; }
+  .barra .acoes { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+  .barra .consolidado { margin-left: auto; padding-left: var(--e-4); border-left: 1px solid var(--linha); }
+  .confianca { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-6); padding: var(--e-3) 0; border-top: 1px solid var(--linha); font-size: var(--t-apoio); color: var(--creme-apoio); }
+  .confianca b { color: var(--creme); font-weight: var(--p-medio); }
+  .confianca .selo { margin-left: auto; }
+
+  /* abas */
+  .abas { display: flex; gap: var(--e-1); margin: var(--e-6) 0 var(--e-8); overflow-x: auto; scrollbar-width: thin; border-bottom: 1px solid var(--linha); }
+  .aba { display: inline-flex; align-items: center; gap: var(--e-2); min-height: 44px; padding: 0 var(--e-3); border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: none; color: var(--creme-apoio); font-family: var(--f-titulo); font-size: var(--t-apoio); font-weight: var(--p-medio); white-space: nowrap; cursor: pointer; }
+  .aba:hover { color: var(--creme); }
+  .aba[aria-selected="true"] { color: var(--creme); border-bottom-color: var(--dourado); }
+  .aba .cont { font-size: var(--t-meta); color: var(--creme-apoio); background: var(--grafite-2); border-radius: var(--r-ficha); padding: 1px 6px; }
+  .aba[aria-selected="true"] .cont { background: var(--dourado-fundo); color: var(--dourado); }
+
+  section.bloco { margin-bottom: var(--e-12); }
+  .bloco > h2 { font-size: var(--t-h3); margin-bottom: var(--e-4); }
+  .veredito { font-family: var(--f-titulo); font-size: var(--t-h2); line-height: 1.3; max-width: 46ch; margin-bottom: var(--e-8); font-weight: var(--p-texto); }
+  .veredito b { font-weight: var(--p-forte); }
+
+  /* placar */
+  .placar { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); overflow: hidden; }
+  .placar-num { display: grid; gap: var(--e-2); padding: var(--e-6) var(--e-8); border: 0; background: none; text-align: left; cursor: pointer; }
+  .placar-num + .placar-num { border-left: 1px solid var(--linha); }
+  .placar-num:hover { background: var(--grafite-2); }
+  .placar-num .valor { font-family: var(--f-titulo); font-weight: var(--p-forte); font-size: var(--t-placar); line-height: 1; letter-spacing: -0.02em; }
+  .placar-num .valor.erro { color: var(--erro); }
+  .placar-num .espacado { color: var(--creme-apoio); display: flex; align-items: center; gap: var(--e-2); }
+  .faixa { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--linha); }
+  .faixa-item { display: flex; align-items: center; gap: var(--e-3); padding: var(--e-4) var(--e-8); border: 0; background: none; text-align: left; cursor: pointer; min-width: 0; }
+  .faixa-item + .faixa-item { border-left: 1px solid var(--linha); }
+  .faixa-item:hover { background: var(--grafite-2); }
+  .faixa-item .txt { display: grid; gap: 2px; min-width: 0; }
+  .faixa-item .num { font-size: var(--t-h3); }
+  .faixa-item .anel { margin-left: auto; }
+  .faixa-item .rot { font-size: var(--t-apoio); color: var(--creme-apoio); line-height: 1.3; }
+
+  /* composição */
+  .situacoes { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); }
+  .situacoes li { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) 4rem 4.5rem; align-items: center; gap: var(--e-4); padding: var(--e-3) var(--e-6); }
+  .situacoes li + li { border-top: 1px solid var(--linha); }
+  .trilho { height: 16px; border-radius: var(--r-ficha); background: var(--grafite-2); overflow: hidden; }
+  .trilho i { display: block; height: 100%; border-radius: var(--r-ficha); min-width: 3px; }
+  .situacoes .qtd { text-align: right; font-family: var(--f-titulo); font-weight: var(--p-forte); }
+  .situacoes .pct { text-align: right; color: var(--creme-apoio); font-size: var(--t-apoio); }
+  .nota { margin-top: var(--e-3); font-size: var(--t-apoio); color: var(--creme-apoio); }
+
+  /* listas finas (causas, torneios, erros) */
+  .lista { list-style: none; margin: 0; padding: 0; border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); overflow: hidden; }
+  .lista li + li { border-top: 1px solid var(--linha); }
+  .linha { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--e-2) var(--e-6); align-items: center; width: 100%; padding: var(--e-3) var(--e-6); border: 0; background: none; text-align: left; cursor: pointer; min-height: 56px; }
+  .linha:hover { background: var(--grafite-2); }
+  .linha .t { font-weight: var(--p-medio); overflow-wrap: anywhere; }
+  .linha .s { font-size: var(--t-apoio); color: var(--creme-apoio); }
+  .linha .d { display: flex; align-items: center; gap: var(--e-4); justify-content: flex-end; flex-wrap: wrap; }
+  .comparativo { font-size: var(--t-apoio); color: var(--creme-apoio); white-space: nowrap; }
+  .comparativo b { color: var(--creme); font-weight: var(--p-medio); }
+  .dois { display: grid; grid-template-columns: 1fr 1fr; gap: var(--e-8); }
+
+  /* filtros da aba Erros: barra única */
+  .filtros { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); padding: var(--e-2); border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); margin-bottom: var(--e-3); }
+  .filtros .controle { min-height: 40px; background-color: var(--grafite-0); }
+  .filtros .sep { width: 1px; align-self: stretch; background: var(--linha); margin: 0 var(--e-1); }
+  .filtros .ordem { margin-left: auto; display: flex; align-items: center; gap: var(--e-2); font-size: var(--t-apoio); color: var(--creme-apoio); }
+  .ativos { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); margin-bottom: var(--e-4); font-size: var(--t-apoio); color: var(--creme-apoio); }
+  .erros .linha { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; }
+
+  /* consolidado */
+  .cons-topo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--e-3); margin-bottom: var(--e-4); }
+  .cons-topo .voltar { margin-left: auto; }
+  .busca { position: relative; }
+  .busca svg { position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 16px; height: 16px; color: var(--creme-apoio); pointer-events: none; }
+  .busca input { padding-left: 36px; min-width: 300px; }
+  .aviso { display: flex; gap: var(--e-2); align-items: start; padding: var(--e-3) var(--e-4); border-radius: var(--r-controle); background: var(--pendente-fundo); color: var(--pendente); font-size: var(--t-apoio); margin-bottom: var(--e-4); }
+  .aviso svg { width: 16px; height: 16px; flex: none; margin-top: 2px; }
+  .aviso span { color: var(--creme); }
+  .tabela-quadro { border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--t-apoio); }
+  th { text-align: left; font-weight: var(--p-medio); color: var(--creme-apoio); font-size: var(--t-meta); padding: var(--e-3) var(--e-4); border-bottom: 1px solid var(--linha); white-space: nowrap; }
+  td { padding: var(--e-3) var(--e-4); border-bottom: 1px solid var(--linha); }
+  tr:last-child td { border-bottom: 0; }
+  td.n, th.n { text-align: right; }
+  td.pos { font-family: var(--f-titulo); font-weight: var(--p-forte); width: 4rem; }
+  td.pos.top { color: var(--dourado); }
+  td.total { font-family: var(--f-titulo); font-weight: var(--p-forte); font-size: var(--t-corpo); }
+
+  /* regras */
+  .formula { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3); padding: var(--e-6); border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); font-family: var(--f-titulo); }
+  .formula .termo { display: grid; gap: var(--e-1); padding: var(--e-3) var(--e-4); border-radius: var(--r-controle); background: var(--grafite-2); }
+  .formula .termo .espacado { color: var(--creme-apoio); }
+  .formula .termo b { font-size: var(--t-h3); font-weight: var(--p-forte); }
+  .formula .termo.total { background: var(--dourado); color: var(--grafite-0); }
+  .formula .termo.total .espacado { color: var(--grafite-0); }
+  .formula .op { color: var(--creme-apoio); font-size: var(--t-h3); }
+  .tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--e-8); }
+  .texto-regra { max-width: 70ch; display: grid; gap: var(--e-3); }
+  dl.regras { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); margin: 0; border: 1px solid var(--linha); border-radius: var(--r-superficie); background: var(--grafite-1); }
+  dl.regras > div { display: contents; }
+  dl.regras dt, dl.regras dd { margin: 0; padding: var(--e-3) var(--e-4); border-bottom: 1px solid var(--linha); font-size: var(--t-apoio); }
+  dl.regras dt { color: var(--creme-apoio); }
+  dl.regras > div:last-child > * { border-bottom: 0; }
+
+  /* retângulos "não alterar" */
+  .nao-alterar { display: grid; place-items: center; gap: var(--e-2); min-height: 360px; border: 2px dashed var(--linha-forte); border-radius: var(--r-superficie); text-align: center; padding: var(--e-8); color: var(--creme-apoio); }
+  .nao-alterar b { font-family: var(--f-titulo); color: var(--creme); font-size: var(--t-h3); }
+  .com-painel { display: grid; grid-template-columns: minmax(0, 1fr) 560px; gap: var(--e-6); }
+
+  /* ---------- celular ---------- */
+  @media (max-width: 767.98px) {
+    .pagina { padding: 0 var(--e-4); }
+    .cab-topo { gap: var(--e-3); flex-wrap: wrap; padding-top: var(--e-4); }
+    .logo { height: 44px; }
+    .cab-topo h1 { font-size: var(--t-h3); }
+    .barra { display: grid; grid-template-columns: 1fr 1fr; }
+    .barra .campo, .barra .principal { grid-column: 1 / -1; }
+    .barra .campo select { min-width: 0; width: 100%; }
+    .barra .principal .btn { width: 100%; }
+    .barra .acoes { display: contents; }
+    .barra .acoes .btn { width: 100%; padding: 0 var(--e-2); }
+    .barra .consolidado { grid-column: 1 / -1; margin: 0; padding: 0; border: 0; }
+    .barra .consolidado .btn { width: 100%; }
+    .confianca { gap: var(--e-1) var(--e-4); }
+    .confianca .selo { margin-left: 0; }
+    .abas { margin: var(--e-4) calc(-1 * var(--e-4)) var(--e-6); padding: 0 var(--e-4); }
+    .veredito { font-size: var(--t-h3); }
+    .placar-num { padding: var(--e-4); }
+    .placar-num .valor { font-size: var(--t-display); }
+    .faixa { grid-template-columns: 1fr 1fr; }
+    .faixa-item { padding: var(--e-3) var(--e-4); }
+    .faixa-item:nth-child(3) { border-left: 0; }
+    .faixa-item:nth-child(n + 3) { border-top: 1px solid var(--linha); }
+    .situacoes li { grid-template-columns: minmax(0, 1fr) auto auto; padding: var(--e-3) var(--e-4); gap: var(--e-1) var(--e-3); }
+    .situacoes .trilho { grid-column: 1 / -1; grid-row: 2; }
+    .dois, .tres, .com-painel { grid-template-columns: minmax(0, 1fr); }
+    .linha, .erros .linha { grid-template-columns: minmax(0, 1fr); padding: var(--e-3) var(--e-4); }
+    .linha .d { justify-content: flex-start; }
+    .filtros .controle { flex: 1 1 100%; }
+    .filtros .sep { display: none; }
+    .filtros .ordem { margin-left: 0; flex: 1 1 100%; }
+    .filtros .ordem .controle { flex: 1; }
+    .busca, .busca input { min-width: 0; width: 100%; }
+    .cons-topo .campo, .cons-topo .busca { flex: 1 1 100%; }
+    .cons-topo .voltar { margin-left: 0; }
+    .formula { padding: var(--e-4); display: grid; gap: var(--e-2); }
+    .formula .op { justify-self: start; padding-left: var(--e-4); line-height: 1; }
+    dl.regras { grid-template-columns: minmax(0, 1fr); }
+    dl.regras dt { border-bottom: 0; padding-bottom: 0; }
+  }
+</style>
+</head>
+<body data-telas>
+
+<!-- Cabeçalho e barra superior: comum às telas da auditoria -->
+<template id="cabecalho">
+  <header class="cabecalho">
+    <div class="pagina">
+      <div class="cab-topo">
+        <img class="logo" src="../../public/logo-spt.png" alt="Suprema Poker Tour" width="2729" height="948">
+        <h1>Auditoria do Ranking</h1>
+      </div>
+      <form class="barra" onsubmit="return false">
+        <div class="campo">
+          <label for="etapa-SUF">Etapa</label>
+          <select id="etapa-SUF" class="controle"><option>Etapa 2 — Vale Suíço Resort</option><option>Etapa 1 — Tauá Resort Atibaia (referência)</option></select>
+        </div>
+        <div class="principal"><button type="button" class="btn">Auditar etapa</button></div>
+        <div class="acoes">
+          <button type="button" class="btn sec" data-icone="enviar">Enviar planilha</button>
+          <button type="button" class="btn sec" data-icone="baixar">Baixar relatório</button>
+          <button type="button" class="btn sec" data-icone="baixar">Exportar dados</button>
+        </div>
+        <div class="consolidado"><button type="button" class="btn sec">Consolidado</button></div>
+      </form>
+      <div class="confianca">
+        <span>Dados do site de <b>21/10/2026, 23:09</b> (Brasília)</span>
+        <span>Identificador <b>fd672b34</b></span>
+        <span>Acordos aplicados: 1 torneio(s)</span>
+        <span class="selo" data-icone="correto">Conta conferida por dois cálculos independentes</span>
+      </div>
+    </div>
+  </header>
+</template>
+
+<template id="abas">
+  <div class="abas" role="tablist" aria-label="Abas da auditoria">
+    <button class="aba" role="tab" aria-selected="ABA-resumo">Resumo</button>
+    <button class="aba" role="tab" aria-selected="ABA-erros">Erros <span class="cont">7</span></button>
+    <button class="aba" role="tab" aria-selected="false">Divergências de inscritos <span class="cont">0</span></button>
+    <button class="aba" role="tab" aria-selected="false">Jogadores <span class="cont">208</span></button>
+    <button class="aba" role="tab" aria-selected="false">Torneios <span class="cont">9</span></button>
+    <button class="aba" role="tab" aria-selected="false">Aguardando regra <span class="cont">126</span></button>
+    <button class="aba" role="tab" aria-selected="ABA-regras">Regras</button>
+  </div>
+</template>
+
+<!-- ============ RESUMO ============ -->
+<div data-tela="resumo" hidden>
+  <div data-cabecalho="resumo"></div>
+  <main class="pagina">
+    <div data-abas="resumo"></div>
+
+    <p class="veredito"><b>Etapa 2:</b> 7 resultados com pontuação diferente da regra, afetando 7 jogadores (488,65 pontos em discordância). 126 resultados aguardam definição de regra.</p>
+
+    <section class="bloco" aria-label="Indicadores">
+      <div class="placar">
+        <button type="button" class="placar-num">
+          <span class="espacado"><span class="ficha"></span>Erros</span>
+          <span class="valor erro">7</span>
+        </button>
+        <button type="button" class="placar-num">
+          <span class="espacado"><span class="ficha"></span>Pontos em discordância</span>
+          <span class="valor">488,65</span>
+        </button>
+        <div class="faixa">
+          <button type="button" class="faixa-item"><span class="txt"><span class="num">7</span><span class="rot">Jogadores afetados</span></span></button>
+          <button type="button" class="faixa-item"><span class="txt"><span class="num">0</span><span class="rot">Divergências de inscritos</span></span></button>
+          <button type="button" class="faixa-item"><span class="txt"><span class="num">126</span><span class="rot">Aguardando regra</span></span></button>
+          <button type="button" class="faixa-item"><span class="txt"><span class="num">95,1%</span><span class="rot">Resultados corretos (entre os conferidos)</span></span><span data-anel="8,7,32" data-anel-rotulo="7 de 8 fichas: 95,1% corretos"></span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="bloco" aria-labelledby="t-comp">
+      <h2 id="t-comp" class="titulo-secao"><span class="ficha"></span>Como ficaram os 270 resultados</h2>
+      <ul class="situacoes">
+        <li><span class="estado correto" data-icone="correto">Corretos</span><span class="trilho"><i style="width:50.7%;background:var(--correto)"></i></span><span class="qtd">137</span><span class="pct">50,7%</span></li>
+        <li><span class="estado correto-site" data-icone="correto-site">Corretos com inscritos do site</span><span class="trilho"><i style="width:0;min-width:0"></i></span><span class="qtd">0</span><span class="pct">0%</span></li>
+        <li><span class="estado erro" data-icone="erro">Erros</span><span class="trilho"><i style="width:2.6%;background:var(--erro)"></i></span><span class="qtd">7</span><span class="pct">2,6%</span></li>
+        <li><span class="estado atencao" data-icone="atencao">Revisar</span><span class="trilho"><i style="width:0;min-width:0"></i></span><span class="qtd">0</span><span class="pct">0%</span></li>
+        <li><span class="estado pendente" data-icone="pendente">Aguardando regra</span><span class="trilho"><i style="width:46.7%;background:var(--pendente)"></i></span><span class="qtd">126</span><span class="pct">46,7%</span></li>
+      </ul>
+      <p class="nota">Porcentagens sobre os 270 resultados da etapa. Satélites não pontuam.</p>
+    </section>
+
+    <div class="dois">
+      <section class="bloco" aria-labelledby="t-causas">
+        <h2 id="t-causas" class="titulo-secao"><span class="ficha"></span>Principais causas (hipóteses)</h2>
+        <ul class="lista">
+          <li><button type="button" class="linha"><span><span class="t">10 pontos fixos em vez de 10 × fatores</span><br><span class="s">5 casos</span></span><span class="num">99,85 pts</span></button></li>
+          <li><button type="button" class="linha"><span><span class="t">Campeão com valor igual ao de um 2º colocado</span><br><span class="s">2 casos</span></span><span class="num">388,80 pts</span></button></li>
+        </ul>
+      </section>
+      <section class="bloco" aria-labelledby="t-prob">
+        <h2 id="t-prob" class="titulo-secao"><span class="ficha"></span>Torneios com problema</h2>
+        <ul class="lista">
+          <li><button type="button" class="linha"><span class="t">EV #8 CHAMPIONSHIP SUPER HIGH ROLLER 200K</span><span class="estado erro" data-icone="erro">3 erros</span></button></li>
+          <li><button type="button" class="linha"><span class="t">EV #2 200K PLO 5 K.O</span><span class="estado erro" data-icone="erro">1 erro</span></button></li>
+          <li><button type="button" class="linha"><span class="t">EV #6 8-GAME</span><span class="estado erro" data-icone="erro">1 erro</span></button></li>
+          <li><button type="button" class="linha"><span class="t">EV #11 HIGH ROLLER 50K</span><span class="estado erro" data-icone="erro">1 erro</span></button></li>
+          <li><button type="button" class="linha"><span class="t">Main Event SPT — Dia Final</span><span class="estado erro" data-icone="erro">1 erro</span></button></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ ERROS ============ -->
+<div data-tela="erros" hidden>
+  <div data-cabecalho="erros"></div>
+  <main class="pagina">
+    <div data-abas="erros"></div>
+    <p class="apoio" style="margin-bottom:var(--e-4)">Clique em um resultado para ver a conta passo a passo. As causas são hipóteses.</p>
+
+    <div class="filtros" role="group" aria-label="Filtros">
+      <label class="vh" for="f-causa">Causa</label>
+      <select id="f-causa" class="controle"><option>Causa: todas (7)</option><option selected>Causa: 10 pontos fixos em vez de 10 × fatores (5)</option><option>Causa: Campeão com valor igual ao de um 2º colocado (2)</option></select>
+      <label class="vh" for="f-torneio">Torneio</label>
+      <select id="f-torneio" class="controle"><option>Torneio: todos</option></select>
+      <span class="sep"></span>
+      <span class="ordem"><label for="f-ordem">Ordenar por</label>
+        <select id="f-ordem" class="controle"><option>Maior diferença</option><option>Jogador</option><option>Torneio</option></select></span>
+    </div>
+    <div class="ativos">
+      <span class="etiqueta"><span class="texto"><span class="chave">Causa:</span> 10 pontos fixos em vez de 10 × fatores</span><button type="button" aria-label="Remover filtro de causa" data-icone="fechar"></button></span>
+      <span>5 resultados</span>
+    </div>
+
+    <ul class="lista erros">
+      <li><button type="button" class="linha"><span><span class="t">Edson Santos Ribeiro</span><br><span class="s">Main Event SPT — Dia Final · 64º</span></span><span class="s">10 pontos fixos, sem multiplicar pelos fatores</span><span class="d"><span class="comparativo">Site <b>10</b> → Correto <b>38,1</b></span><span class="dif neg">−28,1</span></span></button></li>
+      <li><button type="button" class="linha"><span><span class="t">LEONARDO DURANTE DOMINGUES</span><br><span class="s">EV #8 CHAMPIONSHIP SUPER HIGH ROLLER 200K · 16º</span></span><span class="s">10 pontos fixos, sem multiplicar pelos fatores</span><span class="d"><span class="comparativo">Site <b>10</b> → Correto <b>33</b></span><span class="dif neg">−23</span></span></button></li>
+      <li><button type="button" class="linha"><span><span class="t">Ramon Victor fernandes ambrozio</span><br><span class="s">EV #8 CHAMPIONSHIP SUPER HIGH ROLLER 200K · 14º</span></span><span class="s">10 pontos fixos, sem multiplicar pelos fatores</span><span class="d"><span class="comparativo">Site <b>10</b> → Correto <b>33</b></span><span class="dif neg">−23</span></span></button></li>
+      <li><button type="button" class="linha"><span><span class="t">Diones da Silva lopes</span><br><span class="s">EV #8 CHAMPIONSHIP SUPER HIGH ROLLER 200K · 15º</span></span><span class="s">10 pontos fixos, sem multiplicar pelos fatores</span><span class="d"><span class="comparativo">Site <b>10</b> → Correto <b>33</b></span><span class="dif neg">−23</span></span></button></li>
+      <li><button type="button" class="linha"><span><span class="t">Renan Esteves</span><br><span class="s">EV #11 HIGH ROLLER 50K · 8º</span></span><span class="s">10 pontos fixos, sem multiplicar pelos fatores</span><span class="d"><span class="comparativo">Site <b>10</b> → Correto <b>12,75</b></span><span class="dif neg">−2,75</span></span></button></li>
+    </ul>
+  </main>
+</div>
+
+<!-- ============ CONSOLIDADO ============ -->
+<div data-tela="consolidado" hidden>
+  <div data-cabecalho="consolidado"></div>
+  <main class="pagina" style="padding-top:var(--e-8)">
+    <h2 class="titulo-secao" style="font-size:var(--t-h2);margin-bottom:var(--e-6)"><span class="ficha"></span>Consolidado</h2>
+    <div class="cons-topo">
+      <div class="campo"><label for="c-etapa">Etapa</label>
+        <select id="c-etapa" class="controle"><option>Etapa 1</option><option selected>Etapa 2</option><option disabled>Etapa 3 — Sem dados nesta etapa</option></select></div>
+      <div class="campo busca"><label for="c-busca">Buscar jogador</label>
+        <span style="position:relative;display:block"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <input id="c-busca" class="controle" type="search" placeholder="Nome do jogador"></span></div>
+      <button type="button" class="btn sec voltar">Voltar à auditoria</button>
+    </div>
+    <p class="aviso" data-icone="pendente"><span>328 resultados aguardando regra não entram na soma <span class="apoio">(Etapa 1: 202 · Etapa 2: 126)</span></span></p>
+    <div class="tabela-quadro">
+      <table>
+        <thead><tr><th>Posição</th><th>Jogador</th><th class="n">Pontos acumulados</th><th class="n">Etapa 1</th><th class="n">Etapa 2</th></tr></thead>
+        <tbody>
+          <tr><td class="pos top">1º</td><td>Rafael Bryan</td><td class="n total">7.092,55</td><td class="n">2.571,55</td><td class="n">4.521,00</td></tr>
+          <tr><td class="pos top">2º</td><td>Joao Victor Sanchez</td><td class="n total">6.227,25</td><td class="n">4.571,25</td><td class="n">1.656,00</td></tr>
+          <tr><td class="pos top">3º</td><td>Arnaldo Fernandes</td><td class="n total">5.710,75</td><td class="n">5.137,00</td><td class="n">573,75</td></tr>
+          <tr><td class="pos">4º</td><td>Auro Damazio De Assis</td><td class="n total">4.779,00</td><td class="n">2.139,00</td><td class="n">2.640,00</td></tr>
+          <tr><td class="pos">5º</td><td>Fernando Luiz Braga dos santos</td><td class="n total">4.176,00</td><td class="n">3.795,00</td><td class="n">381,00</td></tr>
+          <tr><td class="pos">6º</td><td>Rogério da Silva Mota</td><td class="n total">4.130,45</td><td class="n">2.598,65</td><td class="n">1.531,80</td></tr>
+          <tr><td class="pos">7º</td><td>Felipe Urban</td><td class="n total">3.681,00</td><td class="n apoio">—</td><td class="n">3.681,00</td></tr>
+          <tr><td class="pos">8º</td><td>Vinicius Biesek</td><td class="n total">3.565,50</td><td class="n">3.565,50</td><td class="n apoio">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="nota">Mostrando 8 de 416 jogadores. Desempate pelo regulamento: mais primeiros lugares.</p>
+  </main>
+</div>
+
+<!-- ============ REGRAS ============ -->
+<div data-tela="regras" hidden>
+  <div data-cabecalho="regras"></div>
+  <main class="pagina">
+    <div data-abas="regras"></div>
+    <section class="bloco">
+      <h2 class="titulo-secao"><span class="ficha"></span>A fórmula</h2>
+      <div class="formula" role="img" aria-label="Pontos = Base da posição × Fator de participantes × Fator de buy-in">
+        <span class="termo"><span class="espacado">Base da posição</span><b>1º = 1.000</b></span><span class="op">×</span>
+        <span class="termo"><span class="espacado">Fator de participantes</span><b>inscritos ÷ 100 + 0,5</b></span><span class="op">×</span>
+        <span class="termo"><span class="espacado">Fator de buy-in</span><b>1 a 2,5</b></span><span class="op">=</span>
+        <span class="termo total"><span class="espacado">Pontos corretos</span><b>Pontos</b></span>
+      </div>
+    </section>
+    <section class="bloco texto-regra">
+      <h2 class="titulo-secao"><span class="ficha"></span>Participação nos flights</h2>
+      <p>Os flights pagam 10 × fator de participantes × fator de buy-in, com o campo do flight igual às ações (buy-ins + re-entries). Exemplo: 126 ações e buy-in R$ 1.000 dão 10 × 1,76 × 1 = 17,6. Quando as ações do flight não são conhecidas, o resultado aguarda regra.</p>
+      <p class="apoio">Fonte: decisão do responsável do ranking, confirmada em 21/10/2026. O site contou só buy-ins na Etapa 2; segundo a decisão, o campo correto é ações.</p>
+    </section>
+    <div class="tres">
+      <section class="bloco">
+        <h2 class="titulo-secao"><span class="ficha"></span>Base da posição</h2>
+        <div class="tabela-quadro"><table>
+          <thead><tr><th>Posição</th><th class="n">Pontos</th></tr></thead>
+          <tbody><tr><td>1º</td><td class="n">1.000</td></tr><tr><td>2º</td><td class="n">800</td></tr><tr><td>3º</td><td class="n">700</td></tr><tr><td>4º</td><td class="n">600</td></tr><tr><td>5º</td><td class="n">500</td></tr><tr><td>6º</td><td class="n">450</td></tr><tr><td>7º</td><td class="n">400</td></tr><tr><td>8º</td><td class="n">350</td></tr><tr><td>9º</td><td class="n">300</td></tr><tr><td>10º a 12º</td><td class="n">250</td></tr><tr><td>13º a 18º</td><td class="n">200</td></tr><tr><td>19º em diante (premiados)</td><td class="n">100</td></tr></tbody>
+        </table></div>
+      </section>
+      <section class="bloco">
+        <h2 class="titulo-secao"><span class="ficha"></span>Fator de buy-in</h2>
+        <div class="tabela-quadro"><table>
+          <thead><tr><th>Faixa</th><th class="n">Fator</th></tr></thead>
+          <tbody><tr><td>abaixo de R$ 500</td><td class="n">1</td></tr><tr><td>de R$ 500 a R$ 1.000</td><td class="n">1</td></tr><tr><td>de R$ 1.001 a R$ 1.999</td><td class="n">1,2</td></tr><tr><td>de R$ 2.000 a R$ 2.999</td><td class="n">1,5</td></tr><tr><td>R$ 3.000 ou mais</td><td class="n">2,5</td></tr></tbody>
+        </table></div>
+      </section>
+      <section class="bloco">
+        <h2 class="titulo-secao"><span class="ficha"></span>Regras usadas nesta auditoria</h2>
+        <dl class="regras">
+          <div><dt>Satélites</dt><dd>Satélites não pontuam</dd></div>
+          <div><dt>Campo do torneio</dt><dd>Inscritos (só buy-ins)</dd></div>
+          <div><dt>Quem fica fora da premiação</dt><dd>10 pontos × os fatores (como no regulamento)</dd></div>
+          <div><dt>Premiados depois do 18º lugar</dt><dd>100 pontos de base para todos</dd></div>
+          <div><dt>Diferença aceita como arredondamento</dt><dd>0,01 ponto(s)</dd></div>
+          <div><dt>Buy-in do Dia Final quando vem zerado no site</dt><dd>R$ 1.000</dd></div>
+          <div><dt>Fator de buy-in abaixo de R$ 500</dt><dd>1</dd></div>
+        </dl>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ============ NÃO ALTERAR: painel lateral e aba Jogadores ============ -->
+<div data-tela="protegidas" hidden>
+  <main class="pagina" style="padding-block:var(--e-8)">
+    <div class="com-painel">
+      <div class="nao-alterar"><b>Aba Jogadores</b><span>Não alterar. Continua como está hoje no app.</span></div>
+      <div class="nao-alterar"><b>Painel lateral do resultado</b><span>Conta, acordo e botões. Não alterar. Continua como está hoje no app.</span></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  // Monta o cabeçalho e as abas de cada tela a partir dos modelos (mesmos nomes e ordem da estrutura travada).
+  for (const alvo of document.querySelectorAll("[data-cabecalho]")) {
+    alvo.innerHTML = document.getElementById("cabecalho").innerHTML.replaceAll("SUF", alvo.dataset.cabecalho);
+  }
+  for (const alvo of document.querySelectorAll("[data-abas]")) {
+    alvo.innerHTML = document.getElementById("abas").innerHTML
+      .replaceAll(`"ABA-${alvo.dataset.abas}"`, '"true"').replace(/"ABA-[a-z]+"/g, '"false"');
+  }
+</script>
+<script src="marca.js"></script>
+</body>
+</html>

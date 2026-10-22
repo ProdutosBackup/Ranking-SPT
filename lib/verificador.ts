@@ -84,18 +84,14 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       if (motivo == null && !particip && !satelite && !/^cancel/i.test(t.status ?? "") && t.status === "FINISHED" && !(buyIn > 0)) motivo = "SEM_BUYIN";
       const pendente = motivo != null;
       const itm = !pendente && pos != null && pos <= np && r.prize != null && r.prize > 0;
-      const base = satelite ? 0 : itm ? (pos! <= 18 ? TABELA[pos!] : regras.aposDecimoOitavo === "base10" ? 10 : 100) : 10;
+      const baseDe = (p: number) => (p <= 18 ? TABELA[p] : regras.aposDecimoOitavo === "base10" ? 10 : 100);
+      // Acordo: as posições 1 a K pontuam como o Kº colocado (a base da colocação K com os fatores normais), reescrito aqui.
+      const acK = acordos[t.id] ?? 0;
+      const acordo = acK >= 2 && !satelite && !particip && !pendente && pos != null && pos <= acK;
+      const base = satelite ? 0 : acordo ? baseDe(acK) : itm ? baseDe(pos!) : 10;
       let f100 = Math.round(regras.fatorBuyInAbaixo500 * 100);
       for (const [min, f] of FAIXAS) if (buyIn >= min) { f100 = f; break; }
-      // Acordo: as posições 1 a N dividem igualmente a soma dos pontos das posições 1 a N (centésimos, metade para cima), reescrito aqui.
-      const acN = acordos[t.id] ?? 0;
-      const acordo = acN >= 2 && !satelite && !particip && !pendente && pos != null && pos <= acN;
-      let acCent = 0;
-      if (acordo) {
-        let soma = 0;
-        for (let p = 1; p <= acN; p++) soma += centavos(p <= 18 ? TABELA[p] : regras.aposDecimoOitavo === "base10" ? 10 : 100, field, f100);
-        acCent = Math.floor((2 * soma + acN) / (2 * acN));
-      }
+      const acCent = acordo ? centavos(base, field, f100) : 0;
       const comPremio = r.prize != null && r.prize > 0;
       const suspeito = !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({

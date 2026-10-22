@@ -154,9 +154,8 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
 }
 
 const conta = (l: LinhaAud) =>
-  l.acordo
-    ? `${ACORDO.rotulo} entre ${l.acordo.n}: (${l.acordo.passos.map((p) => n(p.cent / 100)).join(" + ")}) ÷ ${l.acordo.n} = ${n(l.acordo.valorCent / 100)}`
-    : (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : `10 pontos fixos = ${n(l.esperado)}`);
+  (l.acordo != null ? `${ACORDO.conta(l.acordo)}: ` : "") +
+  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : `10 pontos fixos = ${n(l.esperado)}`);
 const aguarda = (l: LinhaAud) => l.classe === "aguarda";
 
 /** Colunas de "Todos os cálculos" (a Exportação usa as mesmas). */
@@ -172,7 +171,7 @@ function linhasCalculos(linhas: LinhaAud[]): Linha[] {
     v: [
       l.jogador, l.torneio, l.posicao, l.premioInferido ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
-      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo ? `${ACORDO.rotulo} entre ${l.acordo.n}` : l.acordoN != null ? `Torneio com acordo entre ${l.acordoN}` : "", l.hipotese?.texto ?? "",
+      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? ACORDO.marca(l.acordo) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
     ],
   }));
 }
@@ -439,7 +438,7 @@ function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     const v = porT.get(t.id) ?? { ok: 0, site: 0, erro: 0, revisar: 0, ag: 0, pts: 0 };
     return {
       classe: CLASSE[t.estado],
-      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo), t.acordo != null ? `${t.acordo} pessoas` : ""],
+      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo), t.acordo != null ? ACORDO.marca(t.acordo) : ""],
     };
   });
   tabela(ws, cols, linhas, rodape, { semCor: false, barraDif: 13 });
@@ -599,7 +598,7 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
       : ([["Data dos dados do site", `${dataBrasilia(r.updatedAt.ranking)} (Brasília)`]] as [string, string][])),
     ["Identificador", id.sha256.slice(0, 8)],
     ["Identificador completo", id.sha256],
-    ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordo != null).map((t) => `${t.nome} (${t.acordo} pessoas)`).join("; ")}`]] as [string, string][]) : []),
+    ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordo != null).map((t) => `${t.nome} (${ACORDO.marca(t.acordo!).toLowerCase()})`).join("; ")}`]] as [string, string][]) : []),
     ["Resultados", String(r.linhas.length)],
     ["Arquivo gerado em", `${dataBrasilia(new Date())} (Brasília)`],
   ];

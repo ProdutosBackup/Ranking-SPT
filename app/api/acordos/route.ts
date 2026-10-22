@@ -1,5 +1,5 @@
 // Imports relativos (não "@/"), para os testes importarem esta rota direto.
-import { validarN } from "../../../lib/acordo";
+import { validarK } from "../../../lib/acordo";
 import { armazenamentoAcordos, chaveAcordo, lerAcordos, MSG_SEM_ARMAZENAMENTO_ACORDOS, type Acordos } from "../../../lib/acordos";
 import { executar, respostaErro } from "../../../lib/executar";
 
@@ -24,19 +24,19 @@ export async function GET(request: Request) {
   }
 }
 
-/** Grava (ou troca) o acordo de um torneio: corpo { etapa, torneioId, n }. N: inteiro, de 2 até o número de premiados do torneio. */
+/** Grava (ou troca) o acordo de um torneio: corpo { etapa, torneioId, k }. K (pontuam como qual colocação): inteiro, de 2 até o número de premiados do torneio. */
 export async function PUT(request: Request) {
   try {
-    const b = (await request.json().catch(() => null)) as { etapa?: unknown; torneioId?: unknown; n?: unknown } | null;
-    if (!b || typeof b.etapa !== "string" || !b.etapa || typeof b.torneioId !== "string" || !b.torneioId) return erro("Informe a etapa, o torneio e o número de pessoas do acordo.");
+    const b = (await request.json().catch(() => null)) as { etapa?: unknown; torneioId?: unknown; k?: unknown } | null;
+    if (!b || typeof b.etapa !== "string" || !b.etapa || typeof b.torneioId !== "string" || !b.torneioId) return erro("Informe a etapa, o torneio e a colocação do acordo.");
     // O número de premiados vem da própria auditoria da etapa (a mesma leitura e o mesmo cache das telas).
     const { aud } = await executar(new Request(`http://localhost/api/auditoria?stage=${encodeURIComponent(b.etapa)}`));
     const torneio = aud.torneios.find((t) => t.torneioId === b.torneioId);
     if (!torneio) return erro("Torneio não encontrado nesta etapa.");
-    const msg = validarN(b.n, torneio.premiados);
+    const msg = validarK(b.k, torneio.premiados);
     if (msg) return erro(msg);
     const todos = await lerAcordos();
-    const acordo = { etapa: b.etapa, torneioId: b.torneioId, n: b.n as number, atualizadoEm: new Date().toISOString() };
+    const acordo = { etapa: b.etapa, torneioId: b.torneioId, k: b.k as number, atualizadoEm: new Date().toISOString() };
     await armazenamentoAcordos().gravar({ ...todos, [chaveAcordo(b.etapa, b.torneioId)]: acordo });
     return Response.json({ acordo });
   } catch (e) {

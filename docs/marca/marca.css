@@ -1,0 +1,148 @@
+/* Quadro de marca da Suprema Poker Tour — direção visual proposta para a Auditoria do Ranking.
+   Cores-base extraídas do arquivo public/logo-spt.png por amostragem de pixels (moda por hex):
+   dourado das fichas #daa763 · creme da faixa SUPREMA #f3f0eb · grafite do fundo #1a1c1e (topo) e #222427 (base) ·
+   preto das letras #1a1c1e (igual ao grafite do topo).
+   Proposta para aprovação: nada aqui altera o app. */
+
+:root {
+  color-scheme: dark;
+
+  /* ---------- cores-base (do logo) ---------- */
+  --grafite-0: #1a1c1e;      /* fundo da página = fundo do logo (topo) = letras SUPREMA */
+  --grafite-1: #222427;      /* superfície = fundo do logo (base da onda) */
+  --grafite-2: #2c2f33;      /* superfície elevada, trilho das barras */
+  --grafite-3: #363a3f;      /* passar o mouse sobre superfícies */
+  --creme: #f3f0eb;          /* texto principal = faixa SUPREMA */
+  --creme-apoio: #aeaaa3;    /* texto de apoio */
+  --linha: rgba(243, 240, 235, 0.12);
+  --linha-forte: #7a7873;    /* borda de campos e controles (3:1 ou mais) */
+  --dourado: #daa763;        /* ação principal, marcadores, fichas = fichas do logo */
+  --dourado-claro: #e6bd85;  /* passar o mouse e anel de foco */
+  --dourado-fundo: #3a3123;  /* fundo de etiqueta ativa */
+
+  /* ---------- estados (sempre cor + ícone + texto) ---------- */
+  --correto: #8ccaa0;        --correto-fundo: #22322a;
+  --correto-site: #c3dcae;   /* correto com inscritos do site */
+  --erro: #f28b82;           --erro-fundo: #3b2523;
+  --erro-forte: #a3302a;     /* fundo de ação destrutiva, com texto creme */
+  --atencao: #e8c766;        --atencao-fundo: #37321f;
+  --pendente: #a7abb2;       --pendente-fundo: #2c2f33;
+
+  /* ---------- tipografia ---------- */
+  --f-titulo: "Lexend", "Segoe UI", system-ui, sans-serif;
+  --f-texto: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --t-meta: 12px;
+  --t-apoio: 14px;
+  --t-corpo: 16px;
+  --t-h3: 20px;
+  --t-h2: 25px;
+  --t-h1: 31px;
+  --t-display: 39px;
+  --t-placar: 61px;
+  --p-texto: 400;
+  --p-medio: 500;
+  --p-forte: 600;
+  --lh-titulo: 1.15;
+  --lh-texto: 1.55;
+  --espacado: 0.18em;        /* caixa-alta espaçada, como "SUPREMA" */
+
+  /* ---------- espaçamento (grade de 8, 4 nos detalhes) ---------- */
+  --e-1: 4px; --e-2: 8px; --e-3: 12px; --e-4: 16px; --e-6: 24px; --e-8: 32px; --e-12: 48px; --e-16: 64px;
+
+  /* ---------- raios (a ficha do logo: retângulo de cantos arredondados) ---------- */
+  --r-ficha: 6px;
+  --r-controle: 10px;
+  --r-superficie: 16px;
+
+  /* ---------- movimento ---------- */
+  --m-100: 100ms; --m-150: 150ms; --m-200: 200ms;
+  --ease-saida: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--grafite-0); color: var(--creme);
+  font: var(--p-texto) var(--t-corpo) / var(--lh-texto) var(--f-texto);
+  font-variant-numeric: tabular-nums;
+}
+h1, h2, h3, h4 { font-family: var(--f-titulo); font-weight: var(--p-forte); line-height: var(--lh-titulo); margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+a { color: var(--dourado); text-underline-offset: 3px; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--dourado-claro); outline-offset: 2px; border-radius: 4px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.apoio { color: var(--creme-apoio); }
+.meta { font-size: var(--t-meta); color: var(--creme-apoio); }
+.num { font-family: var(--f-titulo); font-weight: var(--p-forte); font-variant-numeric: tabular-nums; }
+.espacado { font-family: var(--f-titulo); font-weight: var(--p-medio); font-size: var(--t-meta); letter-spacing: var(--espacado); text-transform: uppercase; }
+
+/* ---------- ficha: o motivo da marca ---------- */
+.ficha { display: inline-block; width: 12px; height: 9px; border-radius: 3px; background: var(--dourado); flex: none; }
+.ficha.vazia { background: var(--grafite-3); }
+.titulo-secao { display: flex; align-items: center; gap: var(--e-3); }
+.titulo-secao .ficha { transform: translateY(1px); }
+.divisor { display: flex; align-items: center; gap: var(--e-2); margin: 0; border: 0; }
+.divisor::after { content: ""; flex: 1; height: 1px; background: var(--linha); }
+.anel { display: block; flex: none; }
+.anel .f { fill: var(--grafite-3); }
+.anel .f.cheia { fill: var(--dourado); }
+.anel.estado-correto .f.cheia { fill: var(--correto); }
+
+/* ---------- botões ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--e-2);
+  min-height: 44px; padding: 0 var(--e-4); border-radius: var(--r-controle);
+  border: 1px solid var(--dourado); background: var(--dourado); color: var(--grafite-0);
+  font-family: var(--f-titulo); font-weight: var(--p-medio); font-size: var(--t-apoio); letter-spacing: 0.01em;
+  cursor: pointer; white-space: nowrap; transition: background-color var(--m-150) var(--ease-saida), border-color var(--m-150) var(--ease-saida);
+}
+.btn:hover { background: var(--dourado-claro); border-color: var(--dourado-claro); }
+.btn.sec { background: transparent; color: var(--creme); border-color: var(--linha-forte); }
+.btn.sec:hover { background: var(--grafite-2); }
+.btn.perigo { background: var(--erro-forte); border-color: var(--erro-forte); color: var(--creme); }
+.btn.texto { border-color: transparent; background: none; color: var(--creme-apoio); padding: 0 var(--e-2); text-decoration: underline; text-underline-offset: 3px; }
+.btn.texto:hover { color: var(--creme); }
+.btn[aria-disabled="true"] { background: transparent; border-color: var(--linha); color: var(--creme-apoio); cursor: not-allowed; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+
+/* ---------- campos ---------- */
+.campo { display: grid; gap: var(--e-1); min-width: 0; }
+.campo > label, .campo > .rotulo { font-size: var(--t-meta); color: var(--creme-apoio); }
+.controle {
+  min-height: 44px; padding: 0 var(--e-3); border-radius: var(--r-controle); border: 1px solid var(--linha-forte);
+  background: var(--grafite-1); color: var(--creme); max-width: 100%;
+}
+select.controle { padding-right: var(--e-8); appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23aeaaa3' stroke-width='1.6' fill='none'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; }
+
+/* ---------- selo de conferência e estados ---------- */
+.selo { display: inline-flex; align-items: center; gap: var(--e-2); font-size: var(--t-apoio); color: var(--correto); }
+.selo svg { width: 16px; height: 16px; flex: none; }
+.estado { display: inline-flex; align-items: center; gap: 6px; font-size: var(--t-apoio); font-weight: var(--p-medio); line-height: 1.3; }
+.estado svg { width: 16px; height: 16px; flex: none; }
+.estado.correto { color: var(--correto); }
+.estado.correto-site { color: var(--correto-site); }
+.estado.erro { color: var(--erro); }
+.estado.atencao { color: var(--atencao); }
+.estado.pendente { color: var(--pendente); }
+.dif { font-family: var(--f-titulo); font-weight: var(--p-medio); font-size: var(--t-apoio); padding: 2px var(--e-2); border-radius: var(--r-ficha); }
+.dif.neg { color: var(--erro); background: var(--erro-fundo); }
+.dif.zero { color: var(--correto); background: var(--correto-fundo); }
+
+/* ---------- etiqueta removível (filtro ativo) ---------- */
+.etiqueta {
+  display: inline-flex; align-items: center; gap: var(--e-1); min-height: 32px; padding: 0 var(--e-1) 0 var(--e-3);
+  border-radius: var(--r-ficha); background: var(--dourado-fundo); border: 1px solid color-mix(in srgb, var(--dourado) 40%, transparent);
+  color: var(--creme); font-size: var(--t-apoio); max-width: 100%;
+}
+.etiqueta .texto { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etiqueta .chave { color: var(--dourado); }
+.etiqueta button { display: inline-grid; place-items: center; width: 44px; height: 44px; margin: -6px -4px -6px 0; border: 0; background: none; color: var(--creme-apoio); cursor: pointer; border-radius: var(--r-ficha); }
+.etiqueta button:hover { color: var(--creme); }
+.etiqueta button svg { width: 14px; height: 14px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

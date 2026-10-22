@@ -287,12 +287,13 @@ O Compêndio registrava que não havia buy-in abaixo de R$ 500 na etapa 1. A API
 
 ### 6.9 Acordo [CONFIRMADO pelo usuário em 21/10/2026]
 
-- **Regra [CONFIRMADO 21/10/2026]:** num torneio com **acordo** entre N jogadores, os N que restam na mesa (posições 1 a N) dividem igualmente os pontos das posições 1 a N. Valor de cada um = (soma dos pontos corretos das posições 1 a N, cada uma pela fórmula normal: base da posição × fator de participantes × fator de buy-in × multiplicador do torneio) ÷ N. O mesmo valor para os N. Exemplo do usuário: dois jogadores dividem os pontos da 1ª e da 2ª posição, e cada um recebe a metade da soma.
-- **Conta no Dia Final da etapa 2** (fator de participantes 3,81, fator de buy-in 1, multiplicador 1,0; o teste confere a conta, não conclui que houve acordo): N=2 → 3.429,00 cada; N=3 → 3.175,00 cada; N=4 → 2.952,75 cada.
-- **Quem entra:** N é inteiro, de 2 até o número de premiados (ITM) do torneio. Posições acima de N não mudam. A posição e o prêmio publicados continuam como estão.
-- **Como a ferramenta guarda:** o acordo é marcado por torneio, salvo para todos, sem login, e qualquer pessoa pode desfazer. Ele entra no identificador dos dados e na chave do cache. A linha mostra a etiqueta "Acordo", e o resultado (Correto ou Erro, sem tolerância de arredondamento) usa o valor dividido.
-- **[INFERIDO] Arredondamento:** a divisão é feita em centésimos inteiros e arredondada a 2 casas, **metade para cima**, com o mesmo valor para os N. É uma hipótese, porque a regra de arredondamento do site está **[PENDENTE]** (seção 6.1). Pode sobrar ou faltar um centésimo na soma dos N.
-- **[PENDENTE] Desempate:** o Compêndio (seção 3.5) não define como o acordo conta no critério "maior número de primeiros lugares" (por exemplo, se os dois que dividem a 1ª e a 2ª posição têm cada um um primeiro lugar). A ferramenta **não altera** o desempate: as posições seguem como publicadas. Decisão para o responsável do ranking.
+- **Regra [CONFIRMADO pelo usuário em 21/10/2026]:** num torneio com **acordo**, a pergunta é uma só: "Pontuam como qual colocação?" (K). Os jogadores das posições 1 a K pontuam **todos com a pontuação da colocação K**. Valor de cada um = base da colocação K × fator de participantes × fator de buy-in × multiplicador do torneio (a fórmula normal; só a base muda).
+- **Por que as posições 1 a K [CONFIRMADO pelo usuário em 21/10/2026]:** quem faz o acordo são os jogadores que restam na mesa, e eles pontuam como a colocação em que o acordo foi fechado. Por isso, nesta versão, o número de pessoas no acordo (N) é **sempre igual a K**.
+- **Conta no Dia Final da etapa 2** (fator de participantes 3,81, fator de buy-in 1, multiplicador 1,0; o teste confere a conta, não conclui que houve acordo): K=2 → 800 × 3,81 = 3.048,00 cada; K=3 → 700 × 3,81 = 2.667,00 cada; K=4 → 600 × 3,81 = 2.286,00 cada (exemplo do usuário). Com K=4, os quatro primeiros, que têm 2.286 registrados, ficam Corretos. Isso só confirma a conta; não prova que houve acordo (seção 7.6).
+- **Quem entra:** K é inteiro, de 2 até o número de premiados (ITM) do torneio. Posições acima de K não mudam. A posição e o prêmio publicados continuam como estão.
+- **Como a ferramenta guarda:** o acordo é marcado por torneio, salvo para todos, sem login, e qualquer pessoa pode remover. O registro guarda só K. Ele entra no identificador dos dados e na chave do cache. A linha mostra a etiqueta "Acordo", e o resultado (Correto ou Erro, sem tolerância de arredondamento) usa o valor da colocação K. Registros da regra anterior (com N, sem K) são descartados ao ler.
+- ~~**Regra anterior, substituída em 21/10/2026:** os N jogadores dividiam igualmente a soma dos pontos das posições 1 a N (com a hipótese de arredondamento a 2 casas, metade para cima). A pergunta "Acordo entre quantas pessoas?" e essa hipótese de arredondamento foram removidas.~~ **[SUBSTITUÍDO pela regra acima]**
+- **[PENDENTE] Desempate:** o Compêndio (seção 3.5) não define como o acordo conta no critério "maior número de primeiros lugares" (por exemplo, se os jogadores que pontuam como Kº colocado têm cada um um primeiro lugar). A ferramenta **não altera** o desempate: as posições seguem como publicadas. Decisão para o responsável do ranking.
 
 ## 7. Dados de referência da etapa 1
 
@@ -422,7 +423,7 @@ Nenhum jogador tem mais de uma linha no mesmo torneio. Nenhuma linha tem `tourna
 - **Buy-in do Dia Final:** a API traz `buyIn = 0`. Interpretação registrada em 18/10: usar R$ 1.000, o mesmo valor dos flights e do Final Main Event da etapa 1 (fator 1,0, também por ser Main Event). **[INFERIDO, confirmar]**
 - **Field do Dia Final:** Rafael Bryan, 7º, 1.524 pontos. 1524 ÷ 400 = 3,81 → field 331. A soma dos `players` dos cinco flights é 96 + 50 + 64 + 67 + 54 = **331**. Indica que o field do Dia Final é a soma dos flights, e não os 92 do campo `players`. **[INFERIDO]**
 - Na etapa 1, o field deduzido do Final Main Event é 334; a soma dos flights da API (1A, 1C, 1D, 1E) é 202, e não há Dia 1B. Diferença de 132. **[INFERIDO]**: pode corresponder ao Dia 1B ausente; não verificado.
-- **Posições 1 a 4 do Dia Final com 2.286 pontos cada:** 2286 ÷ 3,81 = 600, que é a base do 4º lugar. Pelo regulamento, 1º = 3.810, 2º = 3.048, 3º = 2.667, 4º = 2.286. Candidato forte a erro (ou acordo entre jogadores não registrado). **[INFERIDO]**
+- **Posições 1 a 4 do Dia Final com 2.286 pontos cada:** 2286 ÷ 3,81 = 600, que é a base do 4º lugar. Pelo regulamento, 1º = 3.810, 2º = 3.048, 3º = 2.667, 4º = 2.286. Candidato forte a erro (ou acordo entre jogadores não registrado: pela regra da seção 6.9, um acordo com K=4 dá exatamente 2.286 para os quatro). **[INFERIDO]**
 - Posições 19 a 63 com 381 pontos cada (base 100 × 3,81). **[OBSERVADO]**
 - Posição 64 e 126 jogadores sem posição com 10 pontos fixos (seção 6.7). **[OBSERVADO]**
 - 190 linhas de resultado contra 92 em `players` e 331 na soma dos flights. **[OBSERVADO]**
@@ -466,7 +467,7 @@ Comportamento confirmado na inspeção de 18/10/2026 **[OBSERVADO]**:
 - **[CONFIRMADO 21/10/2026]** Flights: 10 × fatores com o campo em ações; sem as ações, aguardando regra (seção 6.4). "10 pontos fixos" foi substituído.
 - **[PENDENTE]** Fator buy-in abaixo de R$ 500 (seção 6.8).
 - **[CONFIRMADO 21/10/2026]** Satélites não pontuam (seção 6.6).
-- **[PENDENTE]** Regra de arredondamento exibida no site (seção 6.1). O acordo usa, como hipótese, metade para cima (seção 6.9).
+- **[PENDENTE]** Regra de arredondamento exibida no site (seção 6.1).
 - **[PENDENTE]** Como o acordo conta nos "primeiros lugares" do desempate (seção 6.9).
 - Pontos 6.3 e 6.5. **[PENDENTE]**
 

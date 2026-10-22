@@ -17,7 +17,7 @@
   --peach: #f8d3a8;
   --cream: #fcebd6;
   --caneta: #c40f14;
-  /* cores de fundo da logo (o PNG tem fundo opaco): topo e base da imagem */
+  /* cores de fundo do PNG original da logo: não são mais usadas na tela; o Excel (lib/excel.ts) e tests/excel.test.ts ainda leem estes valores */
   --logo-fundo-topo: #1a1c1e;
   --logo-fundo-base: #222427;
 
@@ -111,8 +111,9 @@ b { font-variant-numeric: tabular-nums; font-weight: var(--peso-forte); }
 
 /* ---------- cabeçalho com a logo ---------- */
 .topo { width: min(1440px, 100% - 2 * var(--gutter)); margin: 0 auto; padding: var(--e-5) 0 var(--e-4); display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-3) var(--e-4); }
-/* O PNG da logo tem fundo opaco: a moldura usa as mesmas cores do fundo da imagem, sem emenda visível. */
-.logo { display: block; height: 64px; width: auto; aspect-ratio: 2729 / 948; border-radius: var(--r-bloco); border: 1px solid var(--linha); background: linear-gradient(var(--logo-fundo-topo), var(--logo-fundo-base)); }
+/* Logo solto sobre o fundo (PNG transparente, recortado rente ao desenho). O respiro mínimo é a altura da letra "S" de
+   SUPREMA (6,86% da largura); o espaçamento do cabeçalho (32 px em cima, 24 embaixo, 24 até o título, margem lateral da página) já o supera. */
+.logo { --logo-w: 140px; display: block; width: var(--logo-w); height: auto; aspect-ratio: 560 / 195; }
 .topo h1 { font-size: var(--fs-titulo); }
 
 /* ---------- estado vazio: como começar ---------- */
@@ -388,21 +389,33 @@ details.expandivel[open] { padding-bottom: 12px; }
 
 .marca-dif { color: var(--peach); }
 
-/* ---------- acordo ---------- */
-.acordo { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: end; gap: var(--e-2) var(--e-3); padding-top: var(--e-2); border-top: 1px solid var(--linha); }
-.acordo-caixa { display: inline-flex; align-items: center; gap: var(--e-2); min-height: 44px; cursor: pointer; font-weight: var(--peso-medio); }
-.acordo-caixa input { width: 24px; height: 24px; accent-color: var(--destaque); margin: 0; }
+/* ---------- acordo: cartão no corpo do painel, logo abaixo de "Conta correta" ---------- */
+.acordo-cartao { display: grid; gap: var(--e-2); }
+.acordo-cartao h4 { margin: 0; }
+.acordo-cartao.ativo { border-color: color-mix(in srgb, var(--peach) 45%, transparent); }
+.acordo-caixa { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; font-weight: var(--peso-medio); justify-self: start; }
+.acordo-caixa input { width: 20px; height: 20px; accent-color: var(--destaque); margin: 0; flex: none; }
 .acordo-caixa input:focus-visible, .acordo-campo input:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; }
-.acordo-campo { display: flex; flex-wrap: wrap; align-items: end; gap: var(--e-2) var(--e-3); }
-.acordo-campo input { width: 88px; }
-.acordo-confirma { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e-2); }
-.acordo-erro { flex: 1 1 100%; margin: 0; font-size: var(--fs-apoio); color: var(--estado-erro-texto); }
+.acordo-campo { display: grid; gap: var(--e-2); padding-top: 12px; border-top: 1px solid var(--linha); }
+.acordo-campo > label { font-size: var(--fs-apoio); }
+.acordo-linha { display: flex; flex-wrap: wrap; gap: var(--e-2); }
+.acordo-campo input { width: 96px; font-variant-numeric: tabular-nums; }
+.acordo-campo input[aria-invalid="true"] { border-color: var(--estado-erro-texto); }
+.acordo-dica, .acordo-erro { margin: 0; font-size: var(--fs-apoio); }
+.acordo-dica { color: var(--mist-2); }
+.acordo-erro { color: var(--estado-erro-texto); }
+.acordo-resumo { margin: 0; font-size: var(--fs-corpo); font-weight: var(--peso-medio); line-height: var(--entrelinha-texto); color: var(--peach); }
+.acordo-resumo:focus { outline: none; }
+.acordo-resumo:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; border-radius: 4px; }
+.acordo-link { justify-self: start; min-height: 44px; padding: 0; border: 0; background: none; color: var(--mist-2); font-size: var(--fs-apoio); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.acordo-link:hover { color: var(--mist); }
+.acordo-link:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; border-radius: 4px; }
+.acordo-confirma { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-3); padding-top: var(--e-2); border-top: 1px solid var(--linha); font-size: var(--fs-apoio); }
+.acordo-botoes { display: flex; gap: var(--e-2); }
+.btn.perigo { background: var(--estado-erro); border-color: var(--estado-erro); color: var(--mist); }
+.btn.perigo:hover { background: color-mix(in srgb, var(--estado-erro) 85%, var(--mist)); border-color: transparent; }
 .aviso-acordo { margin: 0 0 var(--e-3); padding: var(--e-2) var(--e-3); border-left: 3px solid var(--peach); background: var(--camada-2); border-radius: var(--r-pequeno); font-weight: var(--peso-medio); }
-.conta-acordo { display: grid; gap: var(--e-2); }
-.passos-acordo { list-style: none; margin: 0; padding: 0; display: grid; }
-.passos-acordo li { display: grid; grid-template-columns: minmax(0, 7em) minmax(0, 1fr) auto; gap: var(--e-2); align-items: baseline; padding: var(--e-1) 0; border-bottom: 1px solid var(--linha); font-variant-numeric: tabular-nums; }
-.passos-acordo .muted { overflow-wrap: anywhere; }
-.soma-acordo { margin: 0; font-size: var(--fs-corpo); }
+.conta-acordo { margin: 0 0 12px; font-weight: var(--peso-medio); color: var(--peach); }
 .acordo-torneio { color: var(--peach); }
 
 /* sem movimento: tudo aparece direto, sem deslocamento */
@@ -417,7 +430,7 @@ details.expandivel[open] { padding-bottom: 12px; }
   .campo.etapa select { width: 100%; min-width: 0; }
   fieldset.campo { flex: 1 1 auto; }
   .btn { padding: 0 var(--e-3); height: 44px; }
-  .logo { height: 56px; }
+  .logo { --logo-w: 112px; }
   .topo { padding-top: var(--e-4); }
   .comecar { margin-top: var(--e-6); }
   .passos { grid-template-columns: minmax(0, 1fr); margin-top: var(--e-5); }

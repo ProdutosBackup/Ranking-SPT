@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 import ExcelJS from "exceljs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, PUT } from "../app/api/acordos/route";
-import { assinaturaAcordos, dividirAcordo, validarN } from "../lib/acordo";
-import { AcordosBlob, AcordosLocal, acordosDaEtapa, chaveAcordo, trocarArmazenamentoAcordos, type Acordos } from "../lib/acordos";
+import { assinaturaAcordos, validarK } from "../lib/acordo";
+import { AcordosBlob, AcordosLocal, acordosDaEtapa, armazenamentoAcordos, chaveAcordo, lerAcordos, trocarArmazenamentoAcordos, type Acordos } from "../lib/acordos";
 import { buscarDados, type DadosSpt } from "../lib/api-spt";
 import { auditar } from "../lib/auditoria";
 import { consolidar } from "../lib/consolidado";
@@ -51,83 +51,80 @@ afterEach(() => {
   blobs.clear();
 });
 
-describe("divisão do acordo", () => {
-  it("arredonda a 2 casas, metade para cima, igual para os N", () => {
-    expect(dividirAcordo(685800, 2)).toBe(342900); // 6.858,00 ÷ 2
-    expect(dividirAcordo(100, 3)).toBe(33); // 1,00 ÷ 3 = 0,3333
-    expect(dividirAcordo(101, 3)).toBe(34); // 1,01 ÷ 3 = 0,3367
-    expect(dividirAcordo(5, 2)).toBe(3); // 0,05 ÷ 2 = 0,025: metade sobe
-    expect(dividirAcordo(1, 4)).toBe(0); // 0,01 ÷ 4 = 0,0025
-    expect(dividirAcordo(2, 4)).toBe(1); // 0,02 ÷ 4 = 0,005: metade sobe
+describe("regra do acordo", () => {
+  it("validação de K: inteiro, de 2 até os premiados", () => {
+    expect(validarK(2, 63)).toBeNull();
+    expect(validarK(63, 63)).toBeNull();
+    expect(validarK(1.5, 63)).toBe("Informe a colocação como um número inteiro.");
+    expect(validarK("3", 63)).toBe("Informe a colocação como um número inteiro.");
+    expect(validarK(null, 63)).toBe("Informe a colocação como um número inteiro.");
+    expect(validarK(1, 63)).toBe("A colocação do acordo vai de 2 para cima.");
+    expect(validarK(0, 63)).toBe("A colocação do acordo vai de 2 para cima.");
+    expect(validarK(64, 63)).toBe("A colocação não pode passar dos premiados: este torneio tem 63.");
+    expect(validarK(2, 1)).toBe("Este torneio tem menos de 2 premiados, então não dá para fazer acordo.");
   });
 
-  it("validação de N: inteiro, de 2 até os premiados", () => {
-    expect(validarN(2, 63)).toBeNull();
-    expect(validarN(63, 63)).toBeNull();
-    expect(validarN(1.5, 63)).toBe("O número de pessoas do acordo deve ser um número inteiro.");
-    expect(validarN("3", 63)).toBe("O número de pessoas do acordo deve ser um número inteiro.");
-    expect(validarN(1, 63)).toBe("O acordo é entre 2 ou mais pessoas.");
-    expect(validarN(0, 63)).toBe("O acordo é entre 2 ou mais pessoas.");
-    expect(validarN(64, 63)).toBe("O acordo não pode ter mais pessoas do que premiados: este torneio tem 63.");
-    expect(validarN(2, 1)).toBe("Este torneio tem menos de 2 premiados, então não dá para fazer acordo.");
-  });
-
-  it("assinatura estável e vazia sem acordos", () => {
+  it("assinatura estável, marcada com K, e vazia sem acordos", () => {
     expect(assinaturaAcordos({})).toBe("");
-    expect(assinaturaAcordos({ b: 3, a: 2 })).toBe("a:2,b:3");
+    expect(assinaturaAcordos({ b: 3, a: 2 })).toBe("a:k2,b:k3");
   });
 });
 
 describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0)", () => {
   it.each([
-    [2, 3429, 6858],
-    [3, 3175, 9525],
-    [4, 2952.75, 11811],
-  ])("N=%i: cada um recebe %f", async (n, valor, soma) => {
+    [2, 800, 3048],
+    [3, 700, 2667],
+    [4, 600, 2286],
+  ])("K=%i: os K primeiros pontuam como Kº colocado (base %i × 3,81 = %f)", async (k, base, valor) => {
     const d = await fixture(E2);
     const final = diaFinal(d);
-    const aud = conferido(d, { [final.id]: n });
-    const linhas = aud.linhas.filter((l) => l.torneioId === final.id && l.acordo);
-    expect(linhas).toHaveLength(n);
-    expect(linhas.map((l) => l.posicao).sort()).toEqual(Array.from({ length: n }, (_, i) => i + 1));
-    expect(linhas.every((l) => l.esperado === valor && l.acordo!.valorCent === valor * 100 && l.acordoN === n)).toBe(true);
-    expect(linhas[0].acordo!.somaCent).toBe(soma * 100);
-    expect(linhas[0].acordo!.passos.map((p) => p.cent)).toEqual([381000, 304800, 266700, 228600].slice(0, n));
-    // situação: usa o valor do acordo; os registrados (2.286, 2.286, 2.286…) não batem, então Erro
-    expect(linhas.every((l) => l.situacao === "ERRO" && l.causaCodigo === "ACORDO")).toBe(true);
-    // posições acima de N não mudam, e a posição e o prêmio publicados continuam como estão
-    const acima = aud.linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao > n && !l.participacao);
-    expect(acima.every((l) => l.acordo == null && l.acordoN === n)).toBe(true);
+    const aud = conferido(d, { [final.id]: k });
+    const linhas = aud.linhas.filter((l) => l.torneioId === final.id && l.acordo != null);
+    expect(linhas).toHaveLength(k);
+    expect(linhas.map((l) => l.posicao).sort()).toEqual(Array.from({ length: k }, (_, i) => i + 1));
+    expect(linhas.every((l) => l.esperado === valor && l.esperadoCent === valor * 100 && l.base === base && l.acordo === k && l.acordoK === k)).toBe(true);
+    expect(linhas[0].fatorParticipantes).toBe(3.81);
+    expect(linhas[0].conta).toBe(`${base} × 3,81 × 1`);
+    // posições acima de K não mudam, e a posição e o prêmio publicados continuam como estão
+    const acima = aud.linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao > k && !l.participacao);
+    expect(acima.every((l) => l.acordo == null && l.acordoK === k)).toBe(true);
     const antes = auditar(d, REGRAS_PADRAO);
-    expect(acima.map((l) => [l.esperadoCent, l.situacao])).toEqual(antes.linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao > n && !l.participacao).map((l) => [l.esperadoCent, l.situacao]));
+    expect(acima.map((l) => [l.esperadoCent, l.situacao])).toEqual(antes.linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao > k && !l.participacao).map((l) => [l.esperadoCent, l.situacao]));
     expect(aud.linhas.filter((l) => l.torneioId === final.id && l.posicao === 1)[0].prize).toBe(antes.linhas.filter((l) => l.torneioId === final.id && l.posicao === 1)[0].prize);
   });
 
-  it("registrado igual ao valor do acordo é Correto (sem tolerância de arredondamento)", async () => {
-    const d = structuredClone(await fixture(E2));
-    const final = diaFinal(d);
-    for (const j of d.jogadores)
-      for (const r of j.resultados) if (r.tournamentId === final.id && r.position != null && r.position <= 3) {
-        j.rankingPoints = Math.round((j.rankingPoints - r.points + 3175) * 100) / 100;
-        r.points = 3175;
-      }
-    const aud = conferido(d, { [final.id]: 3 });
-    expect(aud.linhas.filter((l) => l.acordo).every((l) => l.situacao === "CORRETO")).toBe(true);
-    // 3.175,01 já é Erro
-    const j = d.jogadores.find((x) => x.resultados.some((r) => r.tournamentId === final.id && r.position === 2))!;
-    const r = j.resultados.find((x) => x.tournamentId === final.id && x.position === 2)!;
-    j.rankingPoints = Math.round((j.rankingPoints - r.points + 3175.01) * 100) / 100;
-    r.points = 3175.01;
-    expect(conferido(d, { [final.id]: 3 }).linhas.find((l) => l.jogador === j.name && l.torneioId === final.id)!.situacao).toBe("ERRO");
-  });
-
-  it("o verificador independente pega um motor que ignorasse o acordo", async () => {
+  it("K=4: os 2.286 registrados passam a Correto (só confirma a conta, não conclui que houve acordo)", async () => {
     const d = await fixture(E2);
     const final = diaFinal(d);
-    const aud = auditar(d, REGRAS_PADRAO, { [final.id]: 3 });
-    expect(verificar(d, REGRAS_PADRAO, aud.linhas, aud.torneios, { [final.id]: 3 })).toEqual([]);
+    const antes = auditar(d, REGRAS_PADRAO).linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao <= 4);
+    expect(antes.map((l) => l.registrado)).toEqual([2286, 2286, 2286, 2286]);
+    expect(antes.filter((l) => l.situacao === "ERRO")).toHaveLength(3);
+    const depois = conferido(d, { [final.id]: 4 }).linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao <= 4);
+    expect(depois.every((l) => l.situacao === "CORRETO" && l.diferenca === 0)).toBe(true);
+  });
+
+  it("registrado diferente do valor do acordo é Erro, sem tolerância de arredondamento", async () => {
+    const d = structuredClone(await fixture(E2));
+    const final = diaFinal(d);
+    const j = d.jogadores.find((x) => x.resultados.some((r) => r.tournamentId === final.id && r.position === 2))!;
+    const r = j.resultados.find((x) => x.tournamentId === final.id && x.position === 2)!;
+    j.rankingPoints = Math.round((j.rankingPoints - r.points + 2286.01) * 100) / 100;
+    r.points = 2286.01;
+    const l = conferido(d, { [final.id]: 4 }).linhas.find((x) => x.jogador === j.name && x.torneioId === final.id)!;
+    expect([l.situacao, l.causaCodigo]).toEqual(["ERRO", "ACORDO"]);
+  });
+
+  it("o verificador independente concorda com o motor e pega um motor que errasse o acordo", async () => {
+    const d = await fixture(E2);
+    const final = diaFinal(d);
+    for (const k of [2, 3, 4]) {
+      const aud = auditar(d, REGRAS_PADRAO, { [final.id]: k });
+      expect(verificar(d, REGRAS_PADRAO, aud.linhas, aud.torneios, { [final.id]: k })).toEqual([]);
+    }
     const semAcordo = auditar(d, REGRAS_PADRAO);
     expect(verificar(d, REGRAS_PADRAO, semAcordo.linhas, semAcordo.torneios, { [final.id]: 3 }).length).toBeGreaterThan(0);
+    const outroK = auditar(d, REGRAS_PADRAO, { [final.id]: 4 });
+    expect(verificar(d, REGRAS_PADRAO, outroK.linhas, outroK.torneios, { [final.id]: 3 }).length).toBeGreaterThan(0);
   });
 
   it("sem acordo, o identificador e os resultados são idênticos aos de antes", async () => {
@@ -139,23 +136,24 @@ describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0
     expect(identificador(d, { [final.id]: 3 }).sha256).not.toBe(identificador(d, { [final.id]: 4 }).sha256);
   });
 
-  it("totais e KPIs seguem o acordo; o painel traz o torneio marcado e a conta", async () => {
+  it("K=4: totais e KPIs; o painel traz o torneio marcado e a hipótese", async () => {
     const d = await fixture(E2);
     const final = diaFinal(d);
     const antes = montarResposta(E2, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d)).painel;
-    const aud = conferido(d, { [final.id]: 3 });
-    const r = montarResposta(E2, d, REGRAS_PADRAO, aud, identificador(d, { [final.id]: 3 }));
+    const aud = conferido(d, { [final.id]: 4 });
+    const r = montarResposta(E2, d, REGRAS_PADRAO, aud, identificador(d, { [final.id]: 4 }));
     expect(r.acordos).toEqual({ aplicados: 1 });
-    expect(r.painel.torneios.find((t) => t.id === final.id)!.acordo).toBe(3);
-    expect(r.painel.torneios.filter((t) => t.acordo != null)).toHaveLength(1);
-    // O acordo só redistribui: os 3 primeiros do Dia Final já eram erros e o registrado (2.286 cada) soma o mesmo que o valor dividido em 3 vezes 3.175 contra 3.810 + 3.048 + 2.667; os totais coincidem, a diferença por jogador não.
-    expect(r.painel.indicadores.erros).toBe(antes.indicadores.erros);
-    expect(r.painel.indicadores.pontosEmDiscordancia).toBe(antes.indicadores.pontosEmDiscordancia);
+    expect(r.painel.torneios.find((t) => t.id === final.id)!.acordo).toBe(4);
+    // Os 3 primeiros deixam de ser erro: 3.810 + 3.048 + 2.667 − 3 × 2.286 = 2.667 pontos a menos em discordância.
+    expect(r.painel.indicadores.erros).toBe(antes.indicadores.erros - 3);
+    expect(Math.round((antes.indicadores.pontosEmDiscordancia - r.painel.indicadores.pontosEmDiscordancia) * 100)).toBe(266700);
     const antesJ = Object.fromEntries(antes.jogadores.map((j) => [j.nome, j.diferenca]));
     expect(r.painel.jogadores.filter((j) => j.diferenca !== antesJ[j.nome])).toHaveLength(3);
-    const l1 = r.linhas.find((l) => l.torneioId === final.id && l.posicao === 1)!;
-    expect([l1.esperado, l1.registrado, l1.diferenca]).toEqual([3175, 2286, -889]);
-    expect(l1.hipotese!.texto).toBe("Acordo entre 3 jogadores: cada um recebe 3.175");
+    // Com K=3, o 1º pontua 2.667 contra 2.286 registrados; a hipótese diz a regra
+    const r3 = montarResposta(E2, d, REGRAS_PADRAO, conferido(d, { [final.id]: 3 }), identificador(d, { [final.id]: 3 }));
+    const l1 = r3.linhas.find((l) => l.torneioId === final.id && l.posicao === 1)!;
+    expect([l1.esperado, l1.registrado, l1.diferenca]).toEqual([2667, 2286, -381]);
+    expect(l1.hipotese!.texto).toBe("Acordo: os 3 primeiros pontuam como 3º colocado, 2.667 cada");
   });
 
   it("o Consolidado soma o valor do acordo", async () => {
@@ -169,15 +167,15 @@ describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0
       return Object.fromEntries(c.jogadores.map((j) => [j.nome, j.totalCent]));
     };
     const sem = total({});
-    const com = total({ [final.id]: 3 });
+    const com = total({ [final.id]: 4 });
     const campeao = d.jogadores.find((j) => j.resultados.some((r) => r.tournamentId === final.id && r.position === 1))!.name;
-    expect(com[campeao] - sem[campeao]).toBe(317500 - 381000);
+    expect(com[campeao] - sem[campeao]).toBe(228600 - 381000);
     expect(Object.keys(com).filter((k) => com[k] !== sem[k])).toHaveLength(3);
   });
 });
 
 describe("armazenamento", () => {
-  const exemplo: Acordos = { [chaveAcordo(E2, "t1")]: { etapa: E2, torneioId: "t1", n: 3, atualizadoEm: "2026-10-21T12:00:00.000Z" } };
+  const exemplo: Acordos = { [chaveAcordo(E2, "t1")]: { etapa: E2, torneioId: "t1", k: 3, atualizadoEm: "2026-10-21T12:00:00.000Z" } };
   for (const [nome, criar] of [
     ["pasta local", () => new AcordosLocal(join(pasta, "ciclo"))],
     ["Vercel Blob (simulado)", () => new AcordosBlob()],
@@ -187,14 +185,19 @@ describe("armazenamento", () => {
       expect(await a.ler()).toEqual({});
       await a.gravar(exemplo);
       expect(await a.ler()).toEqual(exemplo);
-      await a.gravar({ ...exemplo, [chaveAcordo(E2, "t2")]: { etapa: E2, torneioId: "t2", n: 2, atualizadoEm: "x" } });
+      await a.gravar({ ...exemplo, [chaveAcordo(E2, "t2")]: { etapa: E2, torneioId: "t2", k: 2, atualizadoEm: "x" } });
       expect(Object.keys(await a.ler())).toHaveLength(2);
       await a.gravar({});
       expect(await a.ler()).toEqual({});
     });
-  it("acordosDaEtapa filtra pela etapa e devolve torneioId → N", () => {
-    const todos = { ...exemplo, [chaveAcordo("outra", "t9")]: { etapa: "outra", torneioId: "t9", n: 4, atualizadoEm: "x" } };
+  it("acordosDaEtapa filtra pela etapa e devolve torneioId → K", () => {
+    const todos = { ...exemplo, [chaveAcordo("outra", "t9")]: { etapa: "outra", torneioId: "t9", k: 4, atualizadoEm: "x" } };
     expect(acordosDaEtapa(todos, E2)).toEqual({ t1: 3 });
+  });
+  it("registros da regra antiga (com N, sem K) são descartados em silêncio", async () => {
+    const antigo = { etapa: E2, torneioId: "t2", n: 3, atualizadoEm: "x" } as unknown as Acordos[string];
+    await armazenamentoAcordos().gravar({ ...exemplo, [chaveAcordo(E2, "t2")]: antigo });
+    expect(await lerAcordos()).toEqual(exemplo);
   });
 });
 
@@ -209,13 +212,13 @@ describe("rota /api/acordos e cache", () => {
     const antes = await auditoria();
     const final = antes.dados.torneios.find((t) => t.role === "FINAL")!;
     expect(await lista()).toEqual([]);
-    const r = await put({ etapa: E2, torneioId: final.id, n: 3 });
+    const r = await put({ etapa: E2, torneioId: final.id, k: 3 });
     expect(r.status).toBe(200);
-    expect(await lista()).toMatchObject([{ etapa: E2, torneioId: final.id, n: 3 }]);
+    expect(await lista()).toMatchObject([{ etapa: E2, torneioId: final.id, k: 3 }]);
     const com = await auditoria();
     expect(com.aud.linhas.filter((l) => l.acordo)).toHaveLength(3);
     expect(com.id.sha256).not.toBe(antes.id.sha256);
-    await put({ etapa: E2, torneioId: final.id, n: 2 }); // trocar
+    await put({ etapa: E2, torneioId: final.id, k: 2 }); // trocar
     expect((await auditoria()).aud.linhas.filter((l) => l.acordo)).toHaveLength(2);
     expect((await (await apagar(E2, final.id)).json())).toEqual({ removido: true });
     const depois = await auditoria();
@@ -225,27 +228,28 @@ describe("rota /api/acordos e cache", () => {
     expect((await (await apagar(E2, final.id)).json())).toEqual({ removido: false });
   });
 
-  it("N inválido: mensagem clara em português e nada é salvo", async () => {
+  it("K inválido: mensagem clara em português e nada é salvo", async () => {
     fixtureStub();
     const { dados } = await auditoria();
     const final = dados.torneios.find((t) => t.role === "FINAL")!;
-    for (const [n, msg] of [
-      [1, "O acordo é entre 2 ou mais pessoas."],
-      [0, "O acordo é entre 2 ou mais pessoas."],
-      [-3, "O acordo é entre 2 ou mais pessoas."],
-      [2.5, "O número de pessoas do acordo deve ser um número inteiro."],
-      ["três", "O número de pessoas do acordo deve ser um número inteiro."],
-      [null, "O número de pessoas do acordo deve ser um número inteiro."],
-      [64, "O acordo não pode ter mais pessoas do que premiados: este torneio tem 63."],
+    for (const [k, msg] of [
+      [1, "A colocação do acordo vai de 2 para cima."],
+      [0, "A colocação do acordo vai de 2 para cima."],
+      [-3, "A colocação do acordo vai de 2 para cima."],
+      [2.5, "Informe a colocação como um número inteiro."],
+      ["três", "Informe a colocação como um número inteiro."],
+      [null, "Informe a colocação como um número inteiro."],
+      [64, "A colocação não pode passar dos premiados: este torneio tem 63."],
     ] as const) {
-      const r = await put({ etapa: E2, torneioId: final.id, n });
+      const r = await put({ etapa: E2, torneioId: final.id, k });
       expect([r.status, (await r.json()).erro]).toEqual([400, msg]);
     }
-    expect((await put({ etapa: E2, torneioId: "nao-existe", n: 2 })).status).toBe(400);
+    expect((await put({ etapa: E2, torneioId: "nao-existe", k: 2 })).status).toBe(400);
+    expect((await put({ etapa: E2, torneioId: final.id, n: 3 })).status).toBe(400); // o formato antigo (N) não é aceito
     expect((await put({ etapa: E2 })).status).toBe(400);
     expect((await PUT(new Request("http://x", { method: "PUT", body: "não é json" }))).status).toBe(400);
     expect(await lista()).toEqual([]);
-    expect((await put({ etapa: E2, torneioId: final.id, n: 63 })).status).toBe(200); // o limite (premiados) vale
+    expect((await put({ etapa: E2, torneioId: final.id, k: 63 })).status).toBe(200); // o limite (premiados) vale
   });
 
   it("o cache é invalidado quando o acordo muda: o id antigo não devolve os números antigos", async () => {
@@ -254,7 +258,7 @@ describe("rota /api/acordos e cache", () => {
     const final = a.dados.torneios.find((t) => t.role === "FINAL")!;
     expect((await auditoria(a.id.sha256)).mudou).toBe(false);
     expect((await auditoria(a.id.sha256)).aud).toBe(a.aud); // sem acordo novo, o cache serve
-    await put({ etapa: E2, torneioId: final.id, n: 3 });
+    await put({ etapa: E2, torneioId: final.id, k: 3 });
     const b = await auditoria(a.id.sha256);
     expect(b.aud).not.toBe(a.aud);
     expect(b.mudou).toBe(true);
@@ -276,11 +280,11 @@ function fixtureStub() {
 }
 
 describe("Excel: Relatório e Exportação trazem o acordo", () => {
-  it("marca nas linhas, conta passo a passo, coluna no Torneios, faixa do Resumo e Identificação", async () => {
+  it("marca nas linhas, conta com a base de K, coluna no Torneios, faixa do Resumo e Identificação", async () => {
     const { exportacaoXlsx, relatorioXlsx } = await import("../lib/excel");
     const d = await fixture(E2);
     const final = diaFinal(d);
-    const ac = { [final.id]: 3 };
+    const ac = { [final.id]: 4 };
     const aud = conferido(d, ac);
     const id = identificador(d, ac);
     const abrir = async (buf: Buffer) => {
@@ -300,25 +304,25 @@ describe("Excel: Relatório e Exportação trazem o acordo", () => {
       ws.eachRow((row, i) => {
         if (i === 1) return;
         const m = texto(row.getCell(colAcordo).value);
-        if (m === "Acordo entre 3") {
+        if (m === "Os 4 primeiros, como 4º colocado") {
           marcas.push(m);
           contas.push(texto(row.getCell(colConta).value));
         }
       });
-      expect(marcas).toHaveLength(3);
-      expect(contas[0]).toBe("Acordo entre 3: (3.810 + 3.048 + 2.667) ÷ 3 = 3.175");
+      expect(marcas).toHaveLength(4);
+      expect(contas[0]).toBe("Acordo: pontua como 4º colocado: 600 × 3,81 × 1 = 2.286");
     }
     const rel = await abrir(await relatorioXlsx(E2, d, aud, REGRAS_PADRAO, id));
     const torneios = rel.getWorksheet("Torneios")!;
     const colT = (torneios.getRow(1).values as unknown[]).map(texto).indexOf("Acordo");
     const linhasT: string[] = [];
     torneios.eachRow((row, i) => i > 1 && texto(row.getCell(colT).value) && linhasT.push(texto(row.getCell(1).value) + ":" + texto(row.getCell(colT).value)));
-    expect(linhasT).toEqual(["Main Event SPT — Dia Final:3 pessoas"]);
+    expect(linhasT).toEqual(["Main Event SPT — Dia Final:Os 4 primeiros, como 4º colocado"]);
     expect(texto(rel.getWorksheet("Resumo")!.getCell(4, 8).value)).toContain("Acordos aplicados: 1 torneio(s)");
     const exp = await abrir(await exportacaoXlsx(d, aud, id, REGRAS_PADRAO));
     const ident: string[] = [];
     exp.getWorksheet("Identificação")!.eachRow((row) => ident.push(texto(row.getCell(1).value) + "=" + texto(row.getCell(2).value)));
-    expect(ident.some((x) => x.startsWith("Acordos aplicados=1 torneio(s): Main Event SPT — Dia Final (3 pessoas)"))).toBe(true);
+    expect(ident.some((x) => x.startsWith("Acordos aplicados=1 torneio(s): Main Event SPT — Dia Final (os 4 primeiros, como 4º colocado)"))).toBe(true);
     // sem acordo, nada disso aparece
     const limpo = await abrir(await relatorioXlsx(E2, d, auditar(d, REGRAS_PADRAO), REGRAS_PADRAO, identificador(d)));
     expect(texto(limpo.getWorksheet("Resumo")!.getCell(4, 8).value)).not.toContain("Acordos aplicados");
