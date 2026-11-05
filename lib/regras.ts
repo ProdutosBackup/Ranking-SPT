@@ -10,8 +10,8 @@ export type Regras = {
   field: "players" | "acoes";
   /** Buy-in usado quando um torneio role=FINAL vem com buyIn 0 (seção 7.6). */
   buyInDiaFinalZero: number;
-  /** Fator buy-in para buy-in abaixo de R$ 500 (seção 6.8). */
-  fatorBuyInAbaixo500: number;
+  /** Fator da faixa de buy-in de R$ 0 a R$ 1.000 (seções 3.4 e 6.8). Padrão 1,0 [CONFIRMADO 05/11/2026]. */
+  fatorFaixaAte1000: number;
   /** Premiados depois do 18º: base 100 para todos (seção 6.3, como a calculadora) ou base 10. */
   aposDecimoOitavo: "base100TodosItm" | "base10";
   /** Diferença (em pontos) até a qual o desvio é tratado como arredondamento (seção 2). */
@@ -19,13 +19,13 @@ export type Regras = {
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "1.4";
+export const VERSAO_REGRAS = "1.6";
 
 export const REGRAS_PADRAO: Regras = {
   foraDoItm: "base10xFatores",
   field: "players",
   buyInDiaFinalZero: 1000,
-  fatorBuyInAbaixo500: 1.0,
+  fatorFaixaAte1000: 1.0,
   aposDecimoOitavo: "base100TodosItm",
   toleranciaArredondamento: 0.01,
 };

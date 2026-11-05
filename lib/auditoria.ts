@@ -1,5 +1,5 @@
 import type { DadosSpt, Torneio } from "./api-spt";
-import { BASES_TABELA, calcular, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
+import { BASES_TABELA, buyInParaFator, calcular, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
 import { ACORDO } from "./acordo";
 import { PARTICIPACAO } from "./participacao";
 import type { Regras } from "./regras";
@@ -47,6 +47,12 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     for (const r of j.resultados)
       if (r.prize != null && r.prize > 0) premiados.set(r.tournamentId, (premiados.get(r.tournamentId) ?? 0) + 1);
 
+  // `buyIn` é o exibido. `buyInFator` escolhe o fator (em MYSTERY, buy-in + bounty). `somaMystery`: o bounty somado, só quando a soma foi aplicada.
+  const buyInDe = (t: Torneio) => {
+    const buyIn = t.role === "FINAL" && t.buyIn === 0 ? regras.buyInDiaFinalZero : t.buyIn;
+    const buyInFator = buyInParaFator({ ...t, buyIn });
+    return { buyIn, buyInFator, somaMystery: buyInFator !== buyIn ? (t.bountyAmount as number) : null };
+  };
   const contexto = (t: Torneio) => ({
     // Dia Final: soma dos flights, em qualquer opção. Flight com ações conhecidas: as ações (a regra dos flights). Demais: inscritos ou, na opção "ações", as ações quando conhecidas.
     field:
@@ -57,7 +63,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
           : regras.field === "acoes" && t.role !== "FINAL" && acoesDe(t) != null
             ? acoesDe(t)!
             : t.players,
-    buyIn: t.role === "FINAL" && t.buyIn === 0 ? regras.buyInDiaFinalZero : t.buyIn,
+    ...buyInDe(t),
     premiados: premiados.get(t.id) ?? 0,
   });
 
@@ -69,7 +75,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     j.resultados.map((r) => {
       const t = torneios.get(r.tournamentId)!;
       const ctx = contexto(t);
-      const entrada = { posicao: r.position, prize: r.prize, buyIn: ctx.buyIn, field: ctx.field, premiados: ctx.premiados };
+      const entrada = { posicao: r.position, prize: r.prize, buyIn: ctx.buyIn, buyInFator: ctx.buyInFator, field: ctx.field, premiados: ctx.premiados };
 
       let motivoPendente: string | null = null;
       let pendencia: Pendencia | null = null;
@@ -129,7 +135,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     const ls = pre.filter((p) => p.t.id === t.id && !p.motivoPendente && !p.fixo);
     const conta = new Map<number, number>();
     for (const p of ls) {
-      const f = fieldQueReproduz(p.c.base, fb100(p.ctx.buyIn, regras), centDe(p.r.points));
+      const f = fieldQueReproduz(p.c.base, fb100(p.ctx.buyInFator, regras), centDe(p.r.points));
       if (f != null) conta.set(f, (conta.get(f) ?? 0) + 1);
     }
     const usado = contexto(t).field;
@@ -167,7 +173,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     let causaCodigo: "FIXOS10" | "CAMPO" | "BASE" | "SEM_CAUSA" | "SUSPEITO" | "INSCRITOS_SITE" | "SATELITE" | "PARTICIPACAO" | "ACORDO" | null = null;
     let baseUsada: number | null = null;
     if (situacao === "ERRO" || situacao === "SUSPEITO" || situacao === "CORRETO_SITE") {
-      const fb = fb100(ctx.buyIn, regras);
+      const fb = fb100(ctx.buyInFator, regras);
       const fixos10 = situacao === "ERRO" && r.points === 10 && c.esperado !== 10;
       // 10 pontos fixos não permitem deduzir inscritos nem comparar bases.
       inverso = sat || part || acordo != null
@@ -218,6 +224,9 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       posicao: r.position,
       prize: r.prize,
       buyIn: ctx.buyIn,
+      buyInFator: ctx.buyInFator,
+      /** Bounty Mystery somado ao buy-in para escolher o fator; null quando não houve soma. */
+      somaMystery: ctx.somaMystery,
       field,
       fieldApi: ctx.field,
       premiados: ctx.premiados,
@@ -263,7 +272,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       buyIns: t.buyIns ?? null,
       reentries: t.reentries ?? null,
       acordo: acordoDe(t),
-      fatorTotalEsperado: arred(fatorParticipantes(ctx.field) * fatorBuyIn(ctx.buyIn, regras)),
+      fatorTotalEsperado: arred(fatorParticipantes(ctx.field) * fatorBuyIn(ctx.buyInFator, regras)),
       fieldDeduzido: melhor?.field ?? null,
       fieldBateu: melhor ? melhor.field === ctx.field : null,
       melhorCandidato: melhor,

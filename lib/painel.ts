@@ -45,14 +45,14 @@ const EXPLICACAO: Record<string, string> = {
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
 };
 
+// Faixas pelo limite superior (inclusivo); `amostra` é um valor dentro da faixa, usado para ler o fator. Centavos acima do limite passam para a seguinte.
 const FAIXAS_BUYIN = [
-  { min: 3000, rotulo: "R$ 3.000 ou mais" },
-  { min: 2000, rotulo: "de R$ 2.000 a R$ 2.999" },
-  { min: 1001, rotulo: "de R$ 1.001 a R$ 1.999" },
-  { min: 500, rotulo: "de R$ 500 a R$ 1.000" },
-  { min: 0, rotulo: "abaixo de R$ 500" },
+  { max: 1000, amostra: 0, rotulo: "de R$ 0 a R$ 1.000" },
+  { max: 1999, amostra: 1001, rotulo: "de R$ 1.001 a R$ 1.999" },
+  { max: 2999, amostra: 2000, rotulo: "de R$ 2.000 a R$ 2.999" },
+  { max: Infinity, amostra: 3000, rotulo: "R$ 3.000 ou mais" },
 ];
-const faixaDe = (buyIn: number) => (FAIXAS_BUYIN.find((f) => buyIn >= f.min) ?? FAIXAS_BUYIN[4]).rotulo;
+export const faixaDe = (buyIn: number) => (FAIXAS_BUYIN.find((f) => buyIn <= f.max) ?? FAIXAS_BUYIN[3]).rotulo;
 
 const ETAPA: Record<string, number> = { "taua-2026": 1, "vale-suico-2026": 2, "bendito-cacao-2026": 3 };
 
@@ -131,7 +131,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   const premioInferido = origem?.tipo === "planilha" && origem.premiadosInferidos === true;
   const linhas = aud.linhas.map((l) => {
     const r = ROTULO[l.situacao];
-    return { ...l, prize: premioInferido ? null : l.prize, premioInferido, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyIn) };
+    return { ...l, prize: premioInferido ? null : l.prize, premioInferido, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyInFator), buyInParaFator: l.somaMystery != null ? `buy-in para o fator: R$ ${n(l.buyInFator)} (${n(l.buyIn)} + ${n(l.somaMystery)} Mystery)` : null };
   });
 
   // Erros agrupados pela causa.
@@ -284,7 +284,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     },
     { titulo: "Diferença aceita como arredondamento", valor: `${n(regras.toleranciaArredondamento)} ponto(s)` },
     { titulo: "Buy-in do Dia Final quando vem zerado no site", valor: `R$ ${n(regras.buyInDiaFinalZero)}` },
-    { titulo: "Fator de buy-in abaixo de R$ 500", valor: n(regras.fatorBuyInAbaixo500) },
+    { titulo: "Fator de buy-in de R$ 0 a R$ 1.000", valor: n(regras.fatorFaixaAte1000) },
   ];
 
   const r = aud.resumo as unknown as Record<string, number>;
@@ -314,7 +314,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   const tabelas = {
     bases,
     foraDaPremiacao: regras.foraDoItm === "10fixos" ? "10 pontos fixos" : "10 pontos × os fatores",
-    buyIn: [...FAIXAS_BUYIN].reverse().map((f) => ({ faixa: f.rotulo, fator: fb100(f.min, regras) / 100 })),
+    buyIn: FAIXAS_BUYIN.map((f) => ({ faixa: f.rotulo, fator: fb100(f.amostra, regras) / 100 })),
   };
 
   return {

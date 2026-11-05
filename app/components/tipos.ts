@@ -32,6 +32,8 @@ export type Linha = {
   inverso: { fatorTotal: number; fieldImplicito: number | null; candidatos: { base: number; field: number }[] } | null;
   hipotese: { texto: string; conta: string | null } | null;
   faixaBuyIn: string;
+  /** Só nas linhas de Mystery em que o bounty foi somado ao buy-in para escolher o fator. */
+  buyInParaFator: string | null;
 };
 
 export type Achado = { fieldApi: number; fieldSite: number; diferenca: number; linhasExplicadas: number };

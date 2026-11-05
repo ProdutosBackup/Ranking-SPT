@@ -4,6 +4,8 @@ export type EntradaCalculo = {
   posicao: number | null;
   prize: number | null;
   buyIn: number;
+  /** Buy-in que escolhe o fator, quando difere do exibido (Mystery: buy-in + bounty). Sem ele, vale `buyIn`. */
+  buyInFator?: number;
   field: number;
   premiados: number;
 };
@@ -25,9 +27,10 @@ export const BASES_TABELA = [1000, 800, 700, 600, 500, 450, 400, 350, 300, 250, 
 // Aritmética exata: fatores em inteiros. Participantes em 1/10000 (field/100 + 0,5 → field×100 + 5000);
 // buy-in em 1/100 (1,2 → 120). Base × fp4 × fb100 = pontos × 1.000.000.
 export const fp4 = (n: number) => Math.round(n * 100) + 5000;
+// Faixas pelo limite superior (inclusivo): até 1.000 = fator da faixa (padrão 1,0), até 1.999 = 1,2, até 2.999 = 1,5, acima = 2,5.
+// Buy-in com centavos acima do limite passa para a faixa seguinte (1.000,50 → 1,2) [CONFIRMADO 05/11/2026].
 export const fb100 = (buyIn: number, r: Regras): number => {
-  if (buyIn < 500) return Math.round(r.fatorBuyInAbaixo500 * 100);
-  if (buyIn <= 1000) return 100;
+  if (buyIn <= 1000) return Math.round(r.fatorFaixaAte1000 * 100);
   if (buyIn <= 1999) return 120;
   if (buyIn <= 2999) return 150;
   return 250;
@@ -49,6 +52,13 @@ export function fieldQueReproduz(base: number, fb: number, cent: number): number
   return null;
 }
 
+/**
+ * Buy-in que escolhe o fator: em torneio MYSTERY vale o total (buy-in + bounty) [CONFIRMADO 30/10/2026].
+ * KO fica de fora (regra pendente). MYSTERY sem `bountyAmount`: provisório, mantém só o buy-in até a regra ser decidida.
+ */
+export const buyInParaFator = (t: { buyIn: number; bountyType?: string | null; bountyAmount?: number | null }): number =>
+  t.bountyType === "MYSTERY" && typeof t.bountyAmount === "number" ? t.buyIn + t.bountyAmount : t.buyIn;
+
 export const fatorParticipantes = (n: number) => fp4(n) / 10000;
 export const fatorBuyIn = (buyIn: number, r: Regras) => fb100(buyIn, r) / 100;
 
@@ -60,11 +70,11 @@ const fmt = (x: number) => String(x).replace(".", ",");
 export function calcular(e: EntradaCalculo, r: Regras): ResultadoCalculo {
   const itm = e.posicao != null && e.posicao <= e.premiados && e.prize != null && e.prize > 0;
   const fp = fatorParticipantes(e.field);
-  const fb = fatorBuyIn(e.buyIn, r);
+  const fb = fatorBuyIn(e.buyInFator ?? e.buyIn, r);
   const base = itm ? baseDaPosicao(e.posicao as number, r) : 10;
   if (!itm && r.foraDoItm === "10fixos")
     return { itm, base, fatorParticipantes: fp, fatorBuyIn: fb, conta: "10 fixos (sem fatores)", esperado: 10, esperadoCent: 1000 };
-  const cent = paraCent(base * fp4(e.field) * fb100(e.buyIn, r));
+  const cent = paraCent(base * fp4(e.field) * fb100(e.buyInFator ?? e.buyIn, r));
   return {
     itm,
     base,

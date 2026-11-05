@@ -29,7 +29,7 @@ const porTexto = (a: unknown, b: unknown) => {
  */
 export function identificador(d: DadosSpt, acordos: Record<string, number> = {}) {
   const torneios = d.torneios
-    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status])
+    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null])
     .sort(porTexto);
   const jogadores = d.jogadores
     .map((j) => [

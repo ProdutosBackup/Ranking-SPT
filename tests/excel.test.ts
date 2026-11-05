@@ -24,7 +24,7 @@ function dadosDe(stage: string): DadosSpt {
 }
 
 const ABAS = ["Resumo", "Erros", "Divergências de inscritos", "Jogadores", "Torneios", "Aguardando regra", "Regras", "Todos os cálculos"];
-const PROIBIDOS_TEXTO = ["foraDoItm", "base10xFatores", "10fixos", "field", "buyInDiaFinalZero", "fatorBuyInAbaixo500", "aposDecimoOitavo", "satelitesPontuam", "toleranciaArredondamento", "CORRETO_SITE", "PENDENTE_REGRA", "updatedAt", "SHA-256", "UTC"];
+const PROIBIDOS_TEXTO = ["foraDoItm", "base10xFatores", "10fixos", "field", "buyInDiaFinalZero", "fatorBuyInAbaixo500", "fatorFaixaAte1000", "aposDecimoOitavo", "satelitesPontuam", "toleranciaArredondamento", "CORRETO_SITE", "PENDENTE_REGRA", "updatedAt", "SHA-256", "UTC"];
 const PROIBIDOS_PALAVRA = ["TRUE", "FALSE", "STANDALONE", "FLIGHT", "FINAL", "PARENT"].map((p) => new RegExp(`\\b${p}\\b`));
 const proibidos = (t: string) => [...PROIBIDOS_TEXTO.filter((p) => t.includes(p)), ...PROIBIDOS_PALAVRA.filter((r) => r.test(t)).map((r) => r.source)];
 const txt = (v: ExcelJS.CellValue): string => (v == null ? "" : typeof v === "object" ? ("richText" in v ? v.richText.map((x) => x.text).join("") : String((v as { text?: string }).text ?? "")) : String(v));
@@ -63,8 +63,8 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     const rs = wb.getWorksheet("Resumo")!;
     const achar = (t: string) => { let c: ExcelJS.Cell | undefined; rs.eachRow((row) => row.eachCell((x) => { if (!c && txt(x.value) === t) c = x; })); return c; };
     const abaixo = (t: string) => rs.getCell(achar(t)!.row + 1, achar(t)!.col).value;
-    expect([abaixo("Erros"), abaixo("Pontos em discordância"), abaixo("Jogadores afetados"), abaixo("Divergências de inscritos"), abaixo("Aguardando regra"), abaixo("Resultados corretos (entre os conferidos)")]).toEqual([10, 3155.65, 10, 0, 126, 93.1]);
-    expect(achar("Etapa 2: 10 resultados com pontuação diferente da regra, afetando 10 jogadores (3.155,65 pontos em discordância). 126 resultados aguardam definição de regra.")).toBeDefined();
+    expect([abaixo("Erros"), abaixo("Pontos em discordância"), abaixo("Jogadores afetados"), abaixo("Divergências de inscritos"), abaixo("Aguardando regra"), abaixo("Resultados corretos (entre os conferidos)")]).toEqual([16, 3908.95, 15, 0, 126, 88.9]);
+    expect(achar("Etapa 2: 16 resultados com pontuação diferente da regra, afetando 15 jogadores (3.908,95 pontos em discordância). 126 resultados aguardam definição de regra.")).toBeDefined();
     expect(txt(rs.getCell(4, 8).value)).toContain(`Identificador ${id.sha256.slice(0, 8)}`);
     expect(rs.pageSetup).toMatchObject({ fitToPage: true, fitToWidth: 1, fitToHeight: 1, orientation: "landscape", paperSize: 9 });
     expect(rs.getImages()).toHaveLength(4); // logo + 3 gráficos
@@ -73,7 +73,7 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(tc.rowCount - 1).toBe(270);
     const cont: Record<string, number> = {};
     for (let i = 2; i <= tc.rowCount; i++) { const s = txt(tc.getCell(i, 15).value); cont[s] = (cont[s] ?? 0) + 1; }
-    expect(cont).toEqual({ Correto: 134, Erro: 10, "Aguardando: Dia Final sem posição": 126 });
+    expect(cont).toEqual({ Correto: 128, Erro: 16, "Aguardando: Dia Final sem posição": 126 });
     const categorias = new Set<string>();
     for (let i = 2; i <= tc.rowCount; i++) if (txt(tc.getCell(i, 16).value)) categorias.add(txt(tc.getCell(i, 16).value));
     expect([...categorias]).toEqual(["Participação de flight"]);
@@ -81,7 +81,7 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     const erros = wb.getWorksheet("Erros")!;
     const nomes: string[] = [];
     erros.eachRow((row, i) => { if (i > 1 && typeof row.getCell(4).value === "number") nomes.push(txt(row.getCell(2).value)); });
-    expect(nomes).toHaveLength(10);
+    expect(nomes).toHaveLength(16);
     expect(nomes).toContain("Emerson Rocha Sheik");
 
     expect(await termosProibidos(buf, wb)).toEqual([]);
@@ -89,8 +89,8 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     // gráficos: a soma dos dados é a soma da tabela correspondente
     const g = dadosDosGraficos(r);
     const soma = (xs: { valor: number }[]) => Math.round(xs.reduce((a, x) => a + x.valor, 0) * 100) / 100;
-    expect(soma(g.torneios)).toBe(3155.65);
-    expect(soma(g.causas)).toBe(3155.65);
+    expect(soma(g.torneios)).toBe(3908.95);
+    expect(soma(g.causas)).toBe(3908.95);
     const tt = wb.getWorksheet("Torneios")!;
     let porTorneio = 0;
     for (let i = 2; i <= tt.rowCount; i++) porTorneio += Number(tt.getCell(i, 14).value) || 0;

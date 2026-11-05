@@ -95,6 +95,7 @@ export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNod
                 <span className="rot">{CONTA_BLOCOS.buyIn}</span>
                 <b>{n(l.fatorBuyIn, 4)}</b>
                 <span className="muted">buy-in {l.faixaBuyIn}</span>
+                {l.buyInParaFator && <span className="muted">{l.buyInParaFator}</span>}
               </div>
               <span className="op" aria-hidden="true">=</span>
               <div className="fator total">

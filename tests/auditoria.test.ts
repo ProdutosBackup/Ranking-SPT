@@ -33,7 +33,7 @@ describe("etapa 2 (vale-suico-2026), regras padrão", () => {
     aud.linhas.find((l) => l.jogador === jogador && l.torneio.includes(torneio) && l.posicao === pos)!;
 
   it("contagens", () => {
-    expect(aud.resumo).toMatchObject({ total: 270, CORRETO: 134, ERRO: 10, ARREDONDAMENTO: 0, SUSPEITO: 0, PENDENTE_REGRA: 126 });
+    expect(aud.resumo).toMatchObject({ total: 270, CORRETO: 128, ERRO: 16, ARREDONDAMENTO: 0, SUSPEITO: 0, PENDENTE_REGRA: 126 });
   });
   it("Rafael Bryan", () => {
     const rb = aud.linhas.filter((l) => l.jogador.startsWith("Rafael Bryan"));
@@ -127,16 +127,35 @@ describe("etapa 1 (taua-2026), a referência correta", () => {
 });
 
 describe("etapa 2: sem divergência de inscritos", () => {
-  it("0 achados; os mesmos 10 erros", async () => {
+  it("0 achados; os 10 erros de antes mais as 6 linhas do Omaha Mystery (fator 1,5)", async () => {
     const dados = await fixture("vale-suico-2026");
     const aud = auditar(dados, REGRAS_PADRAO);
     expect(torn(aud).filter((t) => t.achado)).toHaveLength(0);
-    expect(aud.resumo).toMatchObject({ ERRO: 10, CORRETO: 134, CORRETO_SITE: 0, PENDENTE_REGRA: 126 });
+    expect(aud.resumo).toMatchObject({ ERRO: 16, CORRETO: 128, CORRETO_SITE: 0, PENDENTE_REGRA: 126 });
     const erros = aud.linhas.filter((l) => l.situacao === "ERRO").map((l) => `${l.torneio.slice(0, 7)}|${l.posicao}|${l.registrado}|${l.esperado}`).sort();
     expect(erros).toEqual([
-      "EV #11 |8|10|12.75", "EV #2 2|1|1008|1260", "EV #6 8|1|547.2|684", "EV #8 C|14|10|33", "EV #8 C|15|10|33", "EV #8 C|16|10|33",
+      "EV #11 |8|10|12.75", "EV #2 2|1|1008|1260",
+      "EV #5 1|1|744|930", "EV #5 1|2|595.2|744", "EV #5 1|3|520.8|651", "EV #5 1|4|446.4|558", "EV #5 1|5|372|465", "EV #5 1|6|334.8|418.5",
+      "EV #6 8|1|547.2|684", "EV #8 C|14|10|33", "EV #8 C|15|10|33", "EV #8 C|16|10|33",
       "Main Ev|1|2286|3810", "Main Ev|2|2286|3048", "Main Ev|3|2286|2667", "Main Ev|64|10|38.1",
     ]);
+  });
+  it("Omaha Mystery (1500 + 1000): fator 1,5, buy-in exibido 1500, só ele soma o bounty, verificador concorda", async () => {
+    const dados = await fixture("vale-suico-2026");
+    const aud = auditar(dados, REGRAS_PADRAO);
+    const mystery = aud.linhas.filter((l) => l.torneio.includes("OMAHA MYSTERY")).sort((a, b) => a.posicao! - b.posicao!);
+    expect(mystery.map((l) => [l.posicao, l.buyIn, l.buyInFator, l.fatorBuyIn, l.fatorParticipantes, l.esperado, l.situacao])).toEqual([
+      [1, 1500, 2500, 1.5, 0.62, 930, "ERRO"], [2, 1500, 2500, 1.5, 0.62, 744, "ERRO"], [3, 1500, 2500, 1.5, 0.62, 651, "ERRO"],
+      [4, 1500, 2500, 1.5, 0.62, 558, "ERRO"], [5, 1500, 2500, 1.5, 0.62, 465, "ERRO"], [6, 1500, 2500, 1.5, 0.62, 418.5, "ERRO"],
+    ]);
+    expect(mystery.every((l) => l.somaMystery === 1000)).toBe(true);
+    // KO: só o buy-in (EV #2 2000 + 1000 → 1,5; Super K.O 500 + 500 → 1,0) e sem soma.
+    for (const [nome, fb] of [["EV #2", 1.5], ["SUPER K.O", 1]] as const) {
+      const ls = aud.linhas.filter((l) => l.torneio.includes(nome));
+      expect(ls.length).toBeGreaterThan(0);
+      expect(ls.every((l) => l.fatorBuyIn === fb && l.somaMystery == null && l.buyInFator === l.buyIn)).toBe(true);
+    }
+    expect(verificar(dados, REGRAS_PADRAO, aud.linhas, aud.torneios)).toEqual([]);
   });
 });
 

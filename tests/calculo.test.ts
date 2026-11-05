@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calcular } from "../lib/calculo";
+import { buyInParaFator, calcular, fatorBuyIn } from "../lib/calculo";
 import { REGRAS_PADRAO, type Regras } from "../lib/regras";
 
 const fixos: Regras = { ...REGRAS_PADRAO, foraDoItm: "10fixos" };
@@ -49,6 +49,29 @@ describe("padrão base10xFatores (etapa 1)", () => {
     [1000, 334, 76, 38.4],
     [2500, 26, 12, 11.4],
   ])("buy-in %i field %i pos %i sem prêmio → %d", (b, f, p, esp) => expect(fora(b, f, p)).toBe(esp));
+});
+
+describe("fator de buy-in do torneio Mystery (buy-in + bounty)", () => {
+  const fatorDe = (t: { buyIn: number; bountyType?: string | null; bountyAmount?: number | null }) => fatorBuyIn(buyInParaFator(t), REGRAS_PADRAO);
+  it("MYSTERY 1500 + 1000 → total 2500, fator 1,5", () => {
+    expect(buyInParaFator({ buyIn: 1500, bountyType: "MYSTERY", bountyAmount: 1000 })).toBe(2500);
+    expect(fatorDe({ buyIn: 1500, bountyType: "MYSTERY", bountyAmount: 1000 })).toBe(1.5);
+  });
+  it("KO 2000 + 1000 → só o buy-in, fator 1,5 (regra do KO pendente)", () => {
+    expect(fatorDe({ buyIn: 2000, bountyType: "KO", bountyAmount: 1000 })).toBe(1.5);
+    expect(fatorDe({ buyIn: 500, bountyType: "KO", bountyAmount: 500 })).toBe(1);
+  });
+  it("NONE 2500 → fator 1,5", () => expect(fatorDe({ buyIn: 2500, bountyType: "NONE", bountyAmount: null })).toBe(1.5));
+  // Provisório: a decisão para MYSTERY sem bountyAmount fica para a próxima tarefa. Hoje mantém só o buy-in (1.500 → 1,2).
+  it("MYSTERY sem bountyAmount → comportamento anterior (provisório)", () => {
+    expect(fatorDe({ buyIn: 1500, bountyType: "MYSTERY", bountyAmount: null })).toBe(1.2);
+    expect(fatorDe({ buyIn: 1500, bountyType: "MYSTERY" })).toBe(1.2);
+  });
+  it("calcular usa buyInFator e mantém o buy-in exibido", () => {
+    const c = calcular({ posicao: 1, prize: 1, buyIn: 1500, buyInFator: 2500, field: 12, premiados: 6 }, REGRAS_PADRAO);
+    expect(c.fatorBuyIn).toBe(1.5);
+    expect(c.esperado).toBe(930);
+  });
 });
 
 describe("aritmética exata", () => {

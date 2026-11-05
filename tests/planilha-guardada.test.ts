@@ -211,12 +211,12 @@ describe("Etapas 1 e 2 não mudam", () => {
   };
   const semArmazenamento: Armazenamento = { salvar: proibido, ler: proibido, estado: proibido, remover: proibido };
 
-  it("Etapa 2: 10 erros e 3.155,65 pontos, sem tocar na planilha", async () => {
+  it("Etapa 2: 16 erros e 3.908,95 pontos, sem tocar na planilha", async () => {
     trocarArmazenamento(semArmazenamento);
     const { stage, dados, aud, regras, id } = await auditoria("vale-suico-2026");
     const r = montarResposta(stage, dados, regras, aud, id);
     const ind = r.painel.indicadores;
-    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([10, 3155.65, 10, 126]);
+    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([16, 3908.95, 15, 126]);
     expect(r.origem).toEqual({ tipo: "site" });
   });
 

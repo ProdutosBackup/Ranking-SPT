@@ -9,8 +9,16 @@ const TABELA: Record<number, number> = {
   1: 1000, 2: 800, 3: 700, 4: 600, 5: 500, 6: 450, 7: 400, 8: 350, 9: 300,
   10: 250, 11: 250, 12: 250, 13: 200, 14: 200, 15: 200, 16: 200, 17: 200, 18: 200,
 };
-// Faixas de buy-in (limite inferior inclusivo) → fator ×100.
-const FAIXAS: [number, number][] = [[3000, 250], [2000, 150], [1001, 120], [500, 100]];
+// Faixas de buy-in acima de R$ 1.000, pelo limite superior inclusivo → fator ×100. Até R$ 1.000 vale o fator da faixa (regras).
+// Acima de um limite, mesmo por centavos, vale a faixa seguinte; acima do último limite, 2,5. Escrito aqui, sem importar o motor.
+const LIMITES: [number, number][] = [[1999, 120], [2999, 150]];
+const FATOR_ACIMA = 250;
+/** Fator de buy-in ×100 do verificador (exportado só para o teste de concordância das cópias). */
+export function fatorBuyIn100(buyIn: number, faixaAte1000: number): number {
+  if (buyIn <= 1000) return Math.round(faixaAte1000 * 100);
+  for (const [max, f] of LIMITES) if (buyIn <= max) return f;
+  return FATOR_ACIMA;
+}
 const MAX_INSCRITOS = 20000;
 const MIN_LINHAS_ACHADO = 3;
 
@@ -65,6 +73,8 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       // Campo: Dia Final = soma dos flights; flight com ações = as ações; opção "ações" = as ações quando conhecidas; senão os inscritos.
       const field = final && somaFlights > 0 ? somaFlights : acoes != null && (flight || (regras.field === "acoes" && !final)) ? acoes : t.players;
       const buyIn = final && t.buyIn === 0 ? regras.buyInDiaFinalZero : t.buyIn;
+      // Fator de buy-in: em MYSTERY com bounty informado vale buy-in + bounty (KO fica só com o buy-in; MYSTERY sem bounty: provisório, só o buy-in).
+      const buyInFator = t.bountyType === "MYSTERY" && typeof t.bountyAmount === "number" ? buyIn + t.bountyAmount : buyIn;
       const np = premiados[t.id] ?? 0;
       const pos = r.position;
       // Motivo da pendência, na mesma ordem de precedência da regra (reescrita aqui, de forma independente).
@@ -89,8 +99,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const acK = acordos[t.id] ?? 0;
       const acordo = acK >= 2 && !satelite && !particip && !pendente && pos != null && pos <= acK;
       const base = satelite ? 0 : acordo ? baseDe(acK) : itm ? baseDe(pos!) : 10;
-      let f100 = Math.round(regras.fatorBuyInAbaixo500 * 100);
-      for (const [min, f] of FAIXAS) if (buyIn >= min) { f100 = f; break; }
+      const f100 = fatorBuyIn100(buyInFator, regras.fatorFaixaAte1000);
       const acCent = acordo ? centavos(base, field, f100) : 0;
       const comPremio = r.prize != null && r.prize > 0;
       const suspeito = !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
