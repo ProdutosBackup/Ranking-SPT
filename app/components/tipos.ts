@@ -32,7 +32,7 @@ export type Linha = {
   inverso: { fatorTotal: number; fieldImplicito: number | null; candidatos: { base: number; field: number }[] } | null;
   hipotese: { texto: string; conta: string | null } | null;
   faixaBuyIn: string;
-  /** Só nas linhas de Mystery em que o bounty foi somado ao buy-in para escolher o fator. */
+  /** Só nas linhas de torneios com bounty (K.O ou Mystery) em que o bounty foi somado ao buy-in para escolher o fator. */
   buyInParaFator: string | null;
 };
 

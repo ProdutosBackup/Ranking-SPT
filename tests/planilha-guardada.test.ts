@@ -216,7 +216,7 @@ describe("Etapas 1 e 2 não mudam", () => {
     const { stage, dados, aud, regras, id } = await auditoria("vale-suico-2026");
     const r = montarResposta(stage, dados, regras, aud, id);
     const ind = r.painel.indicadores;
-    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([16, 3908.95, 15, 126]);
+    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([27, 8822.95, 22, 126]);
     expect(r.origem).toEqual({ tipo: "site" });
   });
 

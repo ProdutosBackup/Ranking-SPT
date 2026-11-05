@@ -356,7 +356,7 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
         rules: [{ type: "colorScale", cfvo: [{ type: "min" }, { type: "max" }], color: [{ argb: C.branco }, { argb: cor }], priority: 1 } as ExcelJS.ColorScaleRuleType],
       });
   }
-  mesclar(rt + 1, 1, rt + 1, NCOL, "Satélites não pontuam", { size: 10, wrap: false });
+  mesclar(rt + 1, 1, rt + 1, NCOL, "Satélites, Ladies e All in or Fold não pontuam", { size: 10, wrap: false });
   impressao(ws, rodape, true);
   ws.pageSetup.printArea = `A1:X${rt + 1}`;
 }

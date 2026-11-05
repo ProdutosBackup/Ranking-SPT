@@ -33,7 +33,7 @@ const comAcoes = (d: DadosSpt, nome: RegExp, buyIns: number, reentries: number) 
 };
 
 describe("flights: 10 × fatores com o campo em ações", () => {
-  it("a versão das regras é 1.6", () => expect(VERSAO_REGRAS).toBe("1.6"));
+  it("a versão das regras é 1.8", () => expect(VERSAO_REGRAS).toBe("1.8"));
 
   it("sem as ações do flight, a linha aguarda regra, com o motivo claro", async () => {
     const d = await fixture("taua-2026");
@@ -97,10 +97,10 @@ describe("Dia Final sem posição aguarda regra", () => {
     expect(dia.filter((l) => !l.participacao)).toHaveLength(64);
     const t = aud.torneios.find((x) => x.torneio.includes("Dia Final"))!;
     expect([t.comPosicao, t.participacao]).toEqual([64, 126]);
-    expect(aud.resumo).toMatchObject({ CORRETO: 128, ERRO: 16, PENDENTE_REGRA: 126 });
+    expect(aud.resumo).toMatchObject({ CORRETO: 117, ERRO: 27, PENDENTE_REGRA: 126 });
     const r = montarResposta("vale-suico-2026", d, REGRAS_PADRAO, aud, identificador(d));
     expect(r.painel.aguardandoGrupos[0]).toMatchObject({ codigo: "FINAL_SEM_POSICAO", titulo: PARTICIPACAO.tituloDiaFinal, total: 126 });
-    expect(r.painel.indicadores.percentualCorretos).toBe(88.9);
+    expect(r.painel.indicadores.percentualCorretos).toBe(81.3);
   });
 });
 

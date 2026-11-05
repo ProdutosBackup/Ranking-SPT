@@ -4,7 +4,7 @@ export type EntradaCalculo = {
   posicao: number | null;
   prize: number | null;
   buyIn: number;
-  /** Buy-in que escolhe o fator, quando difere do exibido (Mystery: buy-in + bounty). Sem ele, vale `buyIn`. */
+  /** Buy-in que escolhe o fator, quando difere do exibido (torneio com bounty: buy-in + bounty). Sem ele, vale `buyIn`. */
   buyInFator?: number;
   field: number;
   premiados: number;
@@ -53,11 +53,12 @@ export function fieldQueReproduz(base: number, fb: number, cent: number): number
 }
 
 /**
- * Buy-in que escolhe o fator: em torneio MYSTERY vale o total (buy-in + bounty) [CONFIRMADO 30/10/2026].
- * KO fica de fora (regra pendente). MYSTERY sem `bountyAmount`: provisório, mantém só o buy-in até a regra ser decidida.
+ * Buy-in que escolhe o fator: em todo torneio com bounty (K.O e Mystery) vale o total, buy-in + bounty [CONFIRMADO 05/11/2026].
+ * Sem bounty (`bountyType` NONE, nulo ou ausente) não soma nada: na Etapa 1 o `buyIn` da API já é o total.
+ * Com bounty mas sem `bountyAmount`: provisório, mantém só o buy-in.
  */
 export const buyInParaFator = (t: { buyIn: number; bountyType?: string | null; bountyAmount?: number | null }): number =>
-  t.bountyType === "MYSTERY" && typeof t.bountyAmount === "number" ? t.buyIn + t.bountyAmount : t.buyIn;
+  t.bountyType != null && t.bountyType !== "NONE" && typeof t.bountyAmount === "number" ? t.buyIn + t.bountyAmount : t.buyIn;
 
 export const fatorParticipantes = (n: number) => fp4(n) / 10000;
 export const fatorBuyIn = (buyIn: number, r: Regras) => fb100(buyIn, r) / 100;

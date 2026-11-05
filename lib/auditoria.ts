@@ -33,7 +33,14 @@ export type Pendencia = "NAO_FINALIZADO" | "CANCELADO" | "FLIGHT" | "FINAL_SEM_P
 const ehFlight = (t: Torneio) => t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
 /** Ações do torneio (buy-ins + re-entries), só quando a planilha informa as duas. */
 export const acoesDe = (t: Torneio) => (t.buyIns != null && t.reentries != null ? t.buyIns + t.reentries : null);
-const ehSatelite = (t: Torneio) => /sat[eé]lite/i.test(t.name);
+/**
+ * Torneios que não pontuam, reconhecidos pelo nome (sem diferenciar maiúsculas e acentos) [CONFIRMADO 05/11/2026]:
+ * satélite, Ladies e ALL IN OR FOLD (decisão do usuário). Devolve o motivo, que aparece ao usuário, ou null se o torneio pontua.
+ */
+export const motivoNaoPontua = (nome: string): "Satélite" | "Ladies" | "All in or Fold" | null => {
+  const n = nome.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
+  return /satelite/.test(n) ? "Satélite" : /\bladies\b/.test(n) ? "Ladies" : /\ball in or fold\b/.test(n) ? "All in or Fold" : null;
+};
 
 /**
  * `acordos`: `torneioId → K`. Num torneio com acordo, os jogadores das posições 1 a K pontuam todos como o Kº colocado:
@@ -47,11 +54,13 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     for (const r of j.resultados)
       if (r.prize != null && r.prize > 0) premiados.set(r.tournamentId, (premiados.get(r.tournamentId) ?? 0) + 1);
 
-  // `buyIn` é o exibido. `buyInFator` escolhe o fator (em MYSTERY, buy-in + bounty). `somaMystery`: o bounty somado, só quando a soma foi aplicada.
+  // `buyIn` é o exibido. `buyInFator` escolhe o fator (em torneio com bounty, K.O ou Mystery, buy-in + bounty).
+  // `somaBounty`: o bounty somado, só quando a soma foi aplicada; `tipoBounty`: o tipo (KO ou MYSTERY) nesse caso.
   const buyInDe = (t: Torneio) => {
     const buyIn = t.role === "FINAL" && t.buyIn === 0 ? regras.buyInDiaFinalZero : t.buyIn;
     const buyInFator = buyInParaFator({ ...t, buyIn });
-    return { buyIn, buyInFator, somaMystery: buyInFator !== buyIn ? (t.bountyAmount as number) : null };
+    const somou = buyInFator !== buyIn;
+    return { buyIn, buyInFator, somaBounty: somou ? (t.bountyAmount as number) : null, tipoBounty: somou ? (t.bountyType as string) : null };
   };
   const contexto = (t: Torneio) => ({
     // Dia Final: soma dos flights, em qualquer opção. Flight com ações conhecidas: as ações (a regra dos flights). Demais: inscritos ou, na opção "ações", as ações quando conhecidas.
@@ -80,6 +89,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       let motivoPendente: string | null = null;
       let pendencia: Pendencia | null = null;
       let sat = false;
+      const motivoNP = motivoNaoPontua(t.name);
       let part = false; // participação de flight (flight ou Dia Final sem posição)
       let flightComAcoes = false; // flight com ações conhecidas: 10 × fatores com campo = ações
       if (/^cancel/i.test(t.status ?? "")) {
@@ -88,8 +98,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       } else if (t.status !== "FINISHED") {
         motivoPendente = `torneio não finalizado (situação: ${t.status ?? "desconhecida"})`;
         pendencia = "NAO_FINALIZADO";
-      } else if (ehSatelite(t)) {
-        sat = true; // satélite nunca pontua: o esperado é 0
+      } else if (motivoNP) {
+        sat = true; // satélite, Ladies e All in or Fold nunca pontuam: o esperado é 0
       } else if (ehFlight(t)) {
         part = true;
         if (acoesDe(t) != null) flightComAcoes = true;
@@ -113,7 +123,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       const tAcordo = acordoDe(t);
       const acordo = tAcordo != null && !sat && !part && !motivoPendente && r.position != null && r.position <= tAcordo ? tAcordo : null;
       const c = sat
-        ? { ...c0, itm: false, base: 0, conta: "Satélite não pontua", esperado: 0, esperadoCent: 0 }
+        ? { ...c0, itm: false, base: 0, conta: `${motivoNP} não pontua`, esperado: 0, esperadoCent: 0 }
         : acordo != null
           ? calcular({ ...entrada, posicao: acordo, prize: 1, premiados: Math.max(acordo, ctx.premiados) }, regras)
           : c0;
@@ -125,7 +135,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         (r.position == null && r.prize != null && r.prize > 0) ||
         // prêmio em posição além do número de premiados: a posição ou o prêmio estão errados
         (r.position != null && r.position > ctx.premiados && r.prize != null && r.prize > 0));
-      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, part, acordo, tAcordo };
+      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, motivoNP, part, acordo, tAcordo };
     }),
   );
 
@@ -151,7 +161,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
 
   // Passo 3: classificação final. Linhas explicadas por um achado são recalculadas com os inscritos do site.
   const linhas = pre.map((p) => {
-    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, part, acordo, tAcordo } = p;
+    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, motivoNP, part, acordo, tAcordo } = p;
     const achado = deducao.get(t.id)!.achado;
     const explicada = achado != null && !motivoPendente && !fixo;
     const field = explicada ? achado.fieldSite : ctx.field;
@@ -199,7 +209,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         causa = PARTICIPACAO.causa;
       } else if (sat) {
         causaCodigo = "SATELITE";
-        causa = "Satélite com pontos registrados";
+        causa = `${motivoNP} com pontos registrados`;
       } else if (fixos10) {
         causaCodigo = "FIXOS10";
         causa = "10 pontos fixos, sem multiplicar pelos fatores (como na calculadora do site)";
@@ -225,8 +235,10 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       prize: r.prize,
       buyIn: ctx.buyIn,
       buyInFator: ctx.buyInFator,
-      /** Bounty Mystery somado ao buy-in para escolher o fator; null quando não houve soma. */
-      somaMystery: ctx.somaMystery,
+      /** Bounty (K.O ou Mystery) somado ao buy-in para escolher o fator; null quando não houve soma. */
+      somaBounty: ctx.somaBounty,
+      /** Tipo do bounty somado (KO ou MYSTERY); null quando não houve soma. */
+      tipoBounty: ctx.tipoBounty,
       field,
       fieldApi: ctx.field,
       premiados: ctx.premiados,
@@ -248,6 +260,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       baseUsada,
       pendencia,
       participacao: part,
+      /** Motivo de o torneio não pontuar (Satélite, Ladies ou All in or Fold), reconhecido pelo nome; null se pontua. */
+      naoPontua: sat ? motivoNP : null,
       /** K do acordo, nas linhas das posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
       acordo,
       /** K do acordo do torneio (em todas as linhas dele, também fora das posições 1 a K). */

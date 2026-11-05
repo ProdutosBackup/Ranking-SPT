@@ -68,7 +68,7 @@ export function Resumo({ d, navegar }: { d: Resposta; navegar: Navegar }) {
           ))}
         </ul>
         <p className="muted small">Porcentagens sobre os {n(total)} resultados da etapa.</p>
-        <p className="muted small">Satélites não pontuam</p>
+        <p className="muted small">Satélites, Ladies e All in or Fold não pontuam</p>
       </section>
 
       {grupos.length > 0 && (

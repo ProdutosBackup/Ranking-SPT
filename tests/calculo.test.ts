@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buyInParaFator, calcular, fatorBuyIn } from "../lib/calculo";
+import { buyInTotalVerificador } from "../lib/verificador";
 import { REGRAS_PADRAO, type Regras } from "../lib/regras";
 
 const fixos: Regras = { ...REGRAS_PADRAO, foraDoItm: "10fixos" };
@@ -51,19 +52,46 @@ describe("padrão base10xFatores (etapa 1)", () => {
   ])("buy-in %i field %i pos %i sem prêmio → %d", (b, f, p, esp) => expect(fora(b, f, p)).toBe(esp));
 });
 
-describe("fator de buy-in do torneio Mystery (buy-in + bounty)", () => {
+describe("fator de buy-in dos torneios com bounty, K.O e Mystery (buy-in + bounty)", () => {
   const fatorDe = (t: { buyIn: number; bountyType?: string | null; bountyAmount?: number | null }) => fatorBuyIn(buyInParaFator(t), REGRAS_PADRAO);
   it("MYSTERY 1500 + 1000 → total 2500, fator 1,5", () => {
     expect(buyInParaFator({ buyIn: 1500, bountyType: "MYSTERY", bountyAmount: 1000 })).toBe(2500);
     expect(fatorDe({ buyIn: 1500, bountyType: "MYSTERY", bountyAmount: 1000 })).toBe(1.5);
   });
-  it("KO 2000 + 1000 → só o buy-in, fator 1,5 (regra do KO pendente)", () => {
-    expect(fatorDe({ buyIn: 2000, bountyType: "KO", bountyAmount: 1000 })).toBe(1.5);
+  it("KO 2000 + 1000 → total 3000, fator 2,5; Super K.O 500 + 500 → total 1000, fator 1,0", () => {
+    expect(buyInParaFator({ buyIn: 2000, bountyType: "KO", bountyAmount: 1000 })).toBe(3000);
+    expect(fatorDe({ buyIn: 2000, bountyType: "KO", bountyAmount: 1000 })).toBe(2.5);
+    expect(buyInParaFator({ buyIn: 500, bountyType: "KO", bountyAmount: 500 })).toBe(1000);
     expect(fatorDe({ buyIn: 500, bountyType: "KO", bountyAmount: 500 })).toBe(1);
   });
+  it("NONE com bountyAmount não soma (sem soma em dobro); Etapa 1: buyIn já é o total", () => {
+    expect(buyInParaFator({ buyIn: 3000, bountyType: "NONE", bountyAmount: null })).toBe(3000);
+    expect(buyInParaFator({ buyIn: 3000, bountyType: "NONE", bountyAmount: 1000 })).toBe(3000);
+    expect(buyInParaFator({ buyIn: 3000 })).toBe(3000);
+    expect(buyInParaFator({ buyIn: 3000, bountyType: null, bountyAmount: 1000 })).toBe(3000);
+  });
+  it("KO ou MYSTERY sem bountyAmount → só o buy-in (provisório)", () => {
+    expect(buyInParaFator({ buyIn: 2000, bountyType: "KO", bountyAmount: null })).toBe(2000);
+    expect(buyInParaFator({ buyIn: 2000, bountyType: "KO" })).toBe(2000);
+    expect(fatorDe({ buyIn: 2000, bountyType: "KO" })).toBe(1.5);
+  });
+  it("o verificador (cópia independente) concorda com o motor em todos os casos", () => {
+    const casos = [
+      { buyIn: 2000, bountyType: "KO", bountyAmount: 1000 },
+      { buyIn: 500, bountyType: "KO", bountyAmount: 500 },
+      { buyIn: 1500, bountyType: "MYSTERY", bountyAmount: 1000 },
+      { buyIn: 3000, bountyType: "NONE", bountyAmount: null },
+      { buyIn: 3000, bountyType: "NONE", bountyAmount: 1000 },
+      { buyIn: 3000 },
+      { buyIn: 3000, bountyType: null, bountyAmount: 1000 },
+      { buyIn: 2000, bountyType: "KO", bountyAmount: null },
+      { buyIn: 1500, bountyType: "MYSTERY" },
+    ];
+    for (const c of casos) expect(buyInTotalVerificador(c), JSON.stringify(c)).toBe(buyInParaFator(c));
+  });
   it("NONE 2500 → fator 1,5", () => expect(fatorDe({ buyIn: 2500, bountyType: "NONE", bountyAmount: null })).toBe(1.5));
-  // Provisório: a decisão para MYSTERY sem bountyAmount fica para a próxima tarefa. Hoje mantém só o buy-in (1.500 → 1,2).
-  it("MYSTERY sem bountyAmount → comportamento anterior (provisório)", () => {
+  // Provisório: bounty sem bountyAmount mantém só o buy-in (1.500 → 1,2).
+  it("MYSTERY sem bountyAmount → só o buy-in (provisório)", () => {
     expect(fatorDe({ buyIn: 1500, bountyType: "MYSTERY", bountyAmount: null })).toBe(1.2);
     expect(fatorDe({ buyIn: 1500, bountyType: "MYSTERY" })).toBe(1.2);
   });

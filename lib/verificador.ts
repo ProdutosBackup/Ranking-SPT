@@ -49,6 +49,14 @@ type TorneioMotor = {
   melhorCandidato: { field: number; linhas: number; de: number } | null;
   achado: { fieldApi: number; fieldSite: number; diferenca: number; linhasExplicadas: number } | null;
 };
+/** Buy-in que escolhe o fator: o total (buy-in + bounty) em todo torneio com bounty; sem bounty, só o buy-in. Escrito aqui, sem importar o motor; exportado só para o teste. */
+export const buyInTotalVerificador = (t: { buyIn: number; bountyType?: string | null; bountyAmount?: number | null }): number =>
+  t.bountyType != null && t.bountyType !== "NONE" && typeof t.bountyAmount === "number" ? t.buyIn + t.bountyAmount : t.buyIn;
+/** Torneio que não pontua, pelo nome (sem maiúsculas e acentos): satélite, Ladies ou All in or Fold. Escrito aqui, sem importar o motor; exportado só para o teste. */
+export const naoPontuaVerificador = (nome: string): boolean => {
+  const n = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return n.includes("satelite") || /(^|[^a-z])ladies([^a-z]|$)/.test(n) || /all\s+in\s+or\s+fold/.test(n);
+};
 export type Divergencia = { jogador: string; torneio: string; posicao: number | null; campo: string; motor: unknown; verificador: unknown };
 
 type Bruta = {
@@ -73,8 +81,8 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       // Campo: Dia Final = soma dos flights; flight com ações = as ações; opção "ações" = as ações quando conhecidas; senão os inscritos.
       const field = final && somaFlights > 0 ? somaFlights : acoes != null && (flight || (regras.field === "acoes" && !final)) ? acoes : t.players;
       const buyIn = final && t.buyIn === 0 ? regras.buyInDiaFinalZero : t.buyIn;
-      // Fator de buy-in: em MYSTERY com bounty informado vale buy-in + bounty (KO fica só com o buy-in; MYSTERY sem bounty: provisório, só o buy-in).
-      const buyInFator = t.bountyType === "MYSTERY" && typeof t.bountyAmount === "number" ? buyIn + t.bountyAmount : buyIn;
+      // Fator de buy-in: em torneio com bounty (K.O ou Mystery) informado vale buy-in + bounty; sem bounty ou com bounty sem valor (provisório), só o buy-in.
+      const buyInFator = buyInTotalVerificador({ buyIn, bountyType: t.bountyType, bountyAmount: t.bountyAmount });
       const np = premiados[t.id] ?? 0;
       const pos = r.position;
       // Motivo da pendência, na mesma ordem de precedência da regra (reescrita aqui, de forma independente).
@@ -83,7 +91,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       let particip = false; // participação de flight: 10 pontos fixos
       if (/^cancel/i.test(t.status ?? "")) motivo = "CANCELADO";
       else if (t.status !== "FINISHED") motivo = "NAO_FINALIZADO";
-      else if (/sat[eé]lite/i.test(t.name)) satelite = true;
+      else if (naoPontuaVerificador(t.name)) satelite = true;
       else if (flight) {
         particip = true;
         if (acoes == null) motivo = "FLIGHT"; // faltam as ações do flight

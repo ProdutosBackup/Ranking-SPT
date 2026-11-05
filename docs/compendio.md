@@ -294,6 +294,7 @@ A calculadora do site dá base 100 a todos os premiados depois do 18º. No Dia F
 
 - **[CONFIRMADO 05/11/2026]** Nenhum satélite pontua; a ferramenta o reconhece pelo nome (etapa 2: "Satélite PLO 200K" e "SATELITE CHAMPIONSHIP"). Isso encerra a opção temporária de perguntar se satélites pontuam; o requisito foi removido (seção 2, item 5).
 - **[CONFIRMADO 05/11/2026]** O Ladies não pontua: "EV #7 LADIES ESPECIAL" da etapa 2 e o EV 7 da etapa 3. É o único torneio do calendário, fora os satélites, que não pontua. Antes: "por que o Ladies não tem resultado" era [PENDENTE]; agora é explicado, pois não pontua.
+- **[CONFIRMADO 05/11/2026, usuário]** "ALL IN OR FOLD CHAMPIONSHIP" e "ALL IN OR FOLD CHAMPIONSHIP 2" (etapa 3, R$ 300, 10 jogadores) não pontuam; a ferramenta os reconhece pelo nome, como os satélites e o Ladies.
 - **[CONFIRMADO 05/11/2026]** O HORSE da etapa 2 (EV #4) teve 12 inscritos e 3 premiados e **pontua**. **[PENDENTE]** Dado ausente: o resultado dele não existe no site (por isso a API não traz linhas); sem estimar.
 - **[CONFIRMADO 05/11/2026]** Torneio cancelado não pontua; quais foram cancelados e como saber é **[PENDENTE]** (seção 3.5).
 

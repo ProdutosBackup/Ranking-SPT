@@ -39,7 +39,7 @@ const EXPLICACAO: Record<string, string> = {
   CAMPO: "É uma hipótese: os pontos registrados batem com um número de inscritos diferente do usado na conta.",
   BASE: "É uma hipótese: os pontos registrados batem com o valor de outra posição, e a causa real não é conhecida.",
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
-  SATELITE: "Satélites não pontuam, mas este resultado tem pontos registrados.",
+  SATELITE: "Este torneio não pontua (satélite, Ladies ou All in or Fold), mas este resultado tem pontos registrados.",
   PARTICIPACAO: "Participação de flight vale 10 pontos fixos, mas o valor registrado é outro.",
   ACORDO: "Num torneio com acordo, os jogadores das posições 1 a K pontuam como o Kº colocado, mas o registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
@@ -111,7 +111,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       case "FIXOS10":
         return { texto: "10 pontos fixos, sem multiplicar pelos fatores", conta: "10 pontos fixos = 10" };
       case "SATELITE":
-        return { texto: "Satélite com pontos registrados", conta: null };
+        return { texto: `${l.naoPontua ?? "Satélite"} com pontos registrados`, conta: null };
       case "ACORDO":
         return { texto: ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
       case "PARTICIPACAO":
@@ -131,14 +131,14 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   const premioInferido = origem?.tipo === "planilha" && origem.premiadosInferidos === true;
   const linhas = aud.linhas.map((l) => {
     const r = ROTULO[l.situacao];
-    return { ...l, prize: premioInferido ? null : l.prize, premioInferido, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyInFator), buyInParaFator: l.somaMystery != null ? `buy-in para o fator: R$ ${n(l.buyInFator)} (${n(l.buyIn)} + ${n(l.somaMystery)} Mystery)` : null };
+    return { ...l, prize: premioInferido ? null : l.prize, premioInferido, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyInFator), buyInParaFator: l.somaBounty != null ? `buy-in para o fator: R$ ${n(l.buyInFator)} (${n(l.buyIn)} + ${n(l.somaBounty)} ${l.tipoBounty === "KO" ? "K.O" : l.tipoBounty === "MYSTERY" ? "Mystery" : "bounty"})` : null };
   });
 
   // Erros agrupados pela causa.
   const porCausa = new Map<string, number[]>();
   linhas.forEach((l, i) => {
     if (!ehProblema(l)) return;
-    const cod = l.causaCodigo === "BASE" ? `BASE_${l.baseUsada}` : (l.causaCodigo ?? "SEM_CAUSA");
+    const cod = l.causaCodigo === "BASE" ? `BASE_${l.baseUsada}` : l.causaCodigo === "SATELITE" && l.naoPontua !== "Satélite" ? `SATELITE_${l.naoPontua}` : (l.causaCodigo ?? "SEM_CAUSA");
     porCausa.set(cod, [...(porCausa.get(cod) ?? []), i]);
   });
   const grupos = [...porCausa.entries()]
@@ -148,7 +148,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       const explicacao = EXPLICACAO[primeira.causaCodigo ?? "SEM_CAUSA"];
       if (primeira.causaCodigo === "FIXOS10") titulo = "10 pontos fixos em vez de 10 × fatores";
       else if (primeira.causaCodigo === "CAMPO") titulo = "Valor compatível com outro número de inscritos";
-      else if (primeira.causaCodigo === "SATELITE") titulo = "Satélite com pontos registrados";
+      else if (primeira.causaCodigo === "SATELITE") titulo = `${primeira.naoPontua ?? "Satélite"} com pontos registrados`;
       else if (primeira.causaCodigo === "PARTICIPACAO") titulo = PARTICIPACAO.causa;
       else if (primeira.causaCodigo === "ACORDO") titulo = "Valor diferente do acordo";
       else if (primeira.causaCodigo === "SUSPEITO") titulo = "Posição e prêmio não concordam";
@@ -272,7 +272,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
 
   const sn = (b: boolean) => (b ? "Sim" : "Não");
   const regrasTexto = [
-    { titulo: "Satélites", valor: "Satélites não pontuam" },
+    { titulo: "Torneios que não pontuam", valor: "Satélites, Ladies e All in or Fold não pontuam" },
     { titulo: CAMPO.rotulo, valor: regras.field === "acoes" ? `${CAMPO.acoes}; ${CAMPO.semAcoes}` : CAMPO.inscritos },
     {
       titulo: "Quem fica fora da premiação",
