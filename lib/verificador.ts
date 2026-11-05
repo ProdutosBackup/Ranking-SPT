@@ -57,6 +57,10 @@ export const naoPontuaVerificador = (nome: string): boolean => {
   const n = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   return n.includes("satelite") || /(^|[^a-z])ladies([^a-z]|$)/.test(n) || /all\s+in\s+or\s+fold/.test(n);
 };
+/** Main Event, escrito aqui sem importar o motor: flight, Dia Final e a ordem dos flights (1A, 1B, 1C…). Exportado só para o teste. */
+export const ehFlightV = (t: { role: string; name: string }) => t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
+export const ehFinalV = (t: { role: string; name: string }) => t.role === "FINAL" || (t.role === "STANDALONE" && /^final main event/i.test(t.name));
+const ordemV = (t: { name: string; flightLabel: string | null }) => (/(?:^|dia\s*)1\s*([a-z])/i.exec(t.flightLabel ?? t.name)?.[1] ?? t.name).toUpperCase();
 export type Divergencia = { jogador: string; torneio: string; posicao: number | null; campo: string; motor: unknown; verificador: unknown };
 
 type Bruta = {
@@ -65,7 +69,20 @@ type Bruta = {
 };
 
 export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneiosMotor: TorneioMotor[], acordos: Record<string, number> = {}): Divergencia[] {
-  const somaFlights = d.torneios.filter((t) => t.role === "FLIGHT").reduce((a, t) => a + t.players, 0);
+  // Participantes do Main Event: soma das entradas (players) dos flights. Uma pontuação por jogador: o Dia Final vale só ele; sem Dia Final, só o primeiro flight.
+  const somaFlights = d.torneios.filter(ehFlightV).reduce((a, t) => a + t.players, 0);
+  const comFinal = new Set<unknown>();
+  const primeiro = new Map<unknown, string>();
+  for (const j of d.jogadores) {
+    let melhor: (typeof d.torneios)[number] | null = null;
+    for (const r of j.resultados) {
+      const t = d.torneios.find((x) => x.id === r.tournamentId);
+      if (!t) continue;
+      if (ehFinalV(t)) comFinal.add(j);
+      else if (ehFlightV(t) && (melhor == null || ordemV(t) < ordemV(melhor))) melhor = t;
+    }
+    if (melhor) primeiro.set(j, melhor.id);
+  }
   const premiados: Record<string, number> = {};
   for (const j of d.jogadores)
     for (const r of j.resultados) if (r.prize != null && r.prize > 0) premiados[r.tournamentId] = (premiados[r.tournamentId] ?? 0) + 1;
@@ -75,12 +92,12 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     for (const r of j.resultados) {
       const t = d.torneios.find((x) => x.id === r.tournamentId);
       if (!t) throw new Error(`verificador: torneio ${r.tournamentId} inexistente`);
-      const final = t.role === "FINAL";
-      const flight = t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
+      const final = ehFinalV(t);
+      const flight = ehFlightV(t);
       const acoes = t.buyIns != null && t.reentries != null ? t.buyIns + t.reentries : null; // buy-ins + re-entries, se a planilha informa
-      // Campo: Dia Final = soma dos flights; flight com ações = as ações; opção "ações" = as ações quando conhecidas; senão os inscritos.
-      const field = final && somaFlights > 0 ? somaFlights : acoes != null && (flight || (regras.field === "acoes" && !final)) ? acoes : t.players;
-      const buyIn = final && t.buyIn === 0 ? regras.buyInDiaFinalZero : t.buyIn;
+      // Campo: Main Event (flights e Dia Final) = soma dos flights; opção "ações" = as ações quando conhecidas; senão os inscritos.
+      const field = (final || flight) && somaFlights > 0 ? somaFlights : acoes != null && regras.field === "acoes" && !final && !flight ? acoes : t.players;
+      const buyIn = t.buyIn;
       // Fator de buy-in: em torneio com bounty (K.O ou Mystery) informado vale buy-in + bounty; sem bounty ou com bounty sem valor (provisório), só o buy-in.
       const buyInFator = buyInTotalVerificador({ buyIn, bountyType: t.bountyType, bountyAmount: t.bountyAmount });
       const np = premiados[t.id] ?? 0;
@@ -88,18 +105,15 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       // Motivo da pendência, na mesma ordem de precedência da regra (reescrita aqui, de forma independente).
       let motivo: string | null = null;
       let satelite = false;
-      let particip = false; // participação de flight: 10 pontos fixos
+      let particip = false; // participação do Main Event: 10 × fatores
       if (/^cancel/i.test(t.status ?? "")) motivo = "CANCELADO";
       else if (t.status !== "FINISHED") motivo = "NAO_FINALIZADO";
       else if (naoPontuaVerificador(t.name)) satelite = true;
       else if (flight) {
-        particip = true;
-        if (acoes == null) motivo = "FLIGHT"; // faltam as ações do flight
-      } else if (final && pos == null) {
-        particip = true;
-        motivo = "FINAL_SEM_POSICAO"; // não se sabe em qual flight jogou
-      }
-      if (motivo == null && !particip && !satelite && !/^cancel/i.test(t.status ?? "") && t.status === "FINISHED" && !(buyIn > 0)) motivo = "SEM_BUYIN";
+        if (comFinal.has(j) || primeiro.get(j) !== t.id) satelite = true; // já pontua em outra linha do Main Event: vale 0
+        else particip = true;
+      } else if (final && pos == null) particip = true; // Dia Final sem posição: 10 × fatores
+      if (motivo == null && !particip && !satelite && !/^cancel/i.test(t.status ?? "") && t.status === "FINISHED" && !(final ? buyIn >= 0 : buyIn > 0)) motivo = "SEM_BUYIN"; // só o Dia Final aceita buy-in 0
       const pendente = motivo != null;
       const itm = !pendente && pos != null && pos <= np && r.prize != null && r.prize > 0;
       const baseDe = (p: number) => (p <= 18 ? TABELA[p] : regras.aposDecimoOitavo === "base10" ? 10 : 100);
@@ -123,7 +137,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
   const achados = new Map<string, number>(); // torneioId → inscritos do site
   for (const t of d.torneios) {
     const ls = brutas.filter((b) => b.torneioId === t.id && !b.pendente && !b.fixo);
-    const usado = brutas.find((b) => b.torneioId === t.id)?.field ?? (t.role === "FINAL" && somaFlights > 0 ? somaFlights : t.players);
+    const usado = brutas.find((b) => b.torneioId === t.id)?.field ?? ((ehFinalV(t) || ehFlightV(t)) && somaFlights > 0 ? somaFlights : t.players);
     let melhorF = 0;
     let melhorN = 0;
     for (let f = 1; f <= MAX_INSCRITOS && ls.length; f++) {

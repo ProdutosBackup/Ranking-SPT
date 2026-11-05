@@ -29,8 +29,6 @@ const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 const MOTIVO_TEXTO: Record<string, string> = {
   NAO_FINALIZADO: "torneio não finalizado",
   CANCELADO: "torneio cancelado",
-  FLIGHT: PARTICIPACAO.motivoFlight,
-  FINAL_SEM_POSICAO: "sem posição: não se sabe em qual flight o jogador jogou",
   SEM_BUYIN: "buy-in não informado",
 };
 
@@ -40,7 +38,8 @@ const EXPLICACAO: Record<string, string> = {
   BASE: "É uma hipótese: os pontos registrados batem com o valor de outra posição, e a causa real não é conhecida.",
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
   SATELITE: "Este torneio não pontua (satélite, Ladies ou All in or Fold), mas este resultado tem pontos registrados.",
-  PARTICIPACAO: "Participação de flight vale 10 pontos fixos, mas o valor registrado é outro.",
+  PARTICIPACAO: "Participação de flight vale 10 × fatores (campo: soma dos flights), mas o valor registrado é outro.",
+  FLIGHT_ZERO: "O jogador pontua uma vez só no Main Event: este flight vale 0, mas tem pontos registrados.",
   ACORDO: "Num torneio com acordo, os jogadores das posições 1 a K pontuam como o Kº colocado, mas o registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
 };
@@ -57,16 +56,6 @@ export const faixaDe = (buyIn: number) => (FAIXAS_BUYIN.find((f) => buyIn <= f.m
 const ETAPA: Record<string, number> = { "taua-2026": 1, "vale-suico-2026": 2, "bendito-cacao-2026": 3 };
 
 const PENDENCIA: Record<string, { titulo: string; pendente: string; decisao: string }> = {
-  FINAL_SEM_POSICAO: {
-    titulo: PARTICIPACAO.tituloDiaFinal,
-    pendente: PARTICIPACAO.pendenteDiaFinal,
-    decisao: PARTICIPACAO.decisaoDiaFinal,
-  },
-  FLIGHT: {
-    titulo: PARTICIPACAO.tituloFlight,
-    pendente: PARTICIPACAO.pendenteFlight,
-    decisao: PARTICIPACAO.decisaoFlight,
-  },
   NAO_FINALIZADO: {
     titulo: "Torneios não finalizados",
     pendente: "Estes torneios ainda não terminaram, então os resultados podem mudar.",
@@ -91,8 +80,6 @@ export type OrigemDados = { tipo: "site" } | { tipo: "planilha"; arquivo: string
 
 export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, aud: Aud, id: ReturnType<typeof identificador>) {
   const ROTULO_PENDENCIA: Record<string, string> = {
-    FLIGHT: "Aguardando: faltam as ações deste flight",
-    FINAL_SEM_POSICAO: "Aguardando: Dia Final sem posição",
     NAO_FINALIZADO: "Aguardando: torneio não finalizado",
     CANCELADO: "Aguardando: torneio cancelado",
     SEM_BUYIN: "Aguardando: buy-in não informado",
@@ -115,7 +102,9 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       case "ACORDO":
         return { texto: ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
       case "PARTICIPACAO":
-        return { texto: PARTICIPACAO.causa, conta: "10 pontos fixos = 10" };
+        return { texto: l.causaProvavel, conta: null };
+      case "FLIGHT_ZERO":
+        return { texto: l.causaProvavel, conta: null };
       case "SUSPEITO":
         return { texto: "Posição e prêmio não concordam", conta: null };
       case "SEM_CAUSA":
@@ -138,7 +127,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   const porCausa = new Map<string, number[]>();
   linhas.forEach((l, i) => {
     if (!ehProblema(l)) return;
-    const cod = l.causaCodigo === "BASE" ? `BASE_${l.baseUsada}` : l.causaCodigo === "SATELITE" && l.naoPontua !== "Satélite" ? `SATELITE_${l.naoPontua}` : (l.causaCodigo ?? "SEM_CAUSA");
+    const cod = l.causaCodigo === "BASE" ? `BASE_${l.baseUsada}` : l.causaCodigo === "SATELITE" && l.naoPontua !== "Satélite" ? `SATELITE_${l.naoPontua}` : l.causaCodigo === "FLIGHT_ZERO" ? `FLIGHT_ZERO_${l.causaProvavel.includes("Dia Final") ? "FINAL" : "PRIMEIRO"}` : (l.causaCodigo ?? "SEM_CAUSA");
     porCausa.set(cod, [...(porCausa.get(cod) ?? []), i]);
   });
   const grupos = [...porCausa.entries()]
@@ -150,6 +139,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       else if (primeira.causaCodigo === "CAMPO") titulo = "Valor compatível com outro número de inscritos";
       else if (primeira.causaCodigo === "SATELITE") titulo = `${primeira.naoPontua ?? "Satélite"} com pontos registrados`;
       else if (primeira.causaCodigo === "PARTICIPACAO") titulo = PARTICIPACAO.causa;
+      else if (primeira.causaCodigo === "FLIGHT_ZERO") titulo = primeira.causaProvavel.replace(/ \(campo: .*\)$/, "");
       else if (primeira.causaCodigo === "ACORDO") titulo = "Valor diferente do acordo";
       else if (primeira.causaCodigo === "SUSPEITO") titulo = "Posição e prêmio não concordam";
       else if (primeira.causaCodigo === "BASE") {
@@ -283,7 +273,6 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       valor: regras.aposDecimoOitavo === "base10" ? "10 pontos de base" : "100 pontos de base para todos",
     },
     { titulo: "Diferença aceita como arredondamento", valor: `${n(regras.toleranciaArredondamento)} ponto(s)` },
-    { titulo: "Buy-in do Dia Final quando vem zerado no site", valor: `R$ ${n(regras.buyInDiaFinalZero)}` },
     { titulo: "Fator de buy-in de R$ 0 a R$ 1.000", valor: n(regras.fatorFaixaAte1000) },
   ];
 

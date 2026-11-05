@@ -5,7 +5,7 @@ import { auditar } from "../lib/auditoria";
 import { conferir, identificador } from "../lib/integridade";
 import { montarResposta } from "../lib/painel";
 import { lerPlanilha } from "../lib/planilha";
-import { CAMPO, PARTICIPACAO } from "../lib/participacao";
+import { CAMPO } from "../lib/participacao";
 import { lerRegras, REGRAS_PADRAO, VERSAO_REGRAS, type Regras } from "../lib/regras";
 
 function fixture(stage: string) {
@@ -24,84 +24,9 @@ const conferido = (d: DadosSpt, regras: Regras = REGRAS_PADRAO) => {
   conferir(d, regras, aud); // o verificador independente concorda
   return aud;
 };
-/** Informa as ações (buy-ins + re-entries) de um torneio. */
-const comAcoes = (d: DadosSpt, nome: RegExp, buyIns: number, reentries: number) => {
-  const t = d.torneios.find((x) => nome.test(x.name))!;
-  t.buyIns = buyIns;
-  t.reentries = reentries;
-  return t;
-};
 
-describe("flights: 10 × fatores com o campo em ações", () => {
-  it("a versão das regras é 1.8", () => expect(VERSAO_REGRAS).toBe("1.8"));
-
-  it("sem as ações do flight, a linha aguarda regra, com o motivo claro", async () => {
-    const d = await fixture("taua-2026");
-    const aud = conferido(d);
-    const flights = aud.linhas.filter((l) => l.participacao);
-    expect(flights).toHaveLength(202);
-    expect(flights.every((l) => l.situacao === "PENDENTE_REGRA" && l.pendencia === "FLIGHT" && l.causaProvavel === PARTICIPACAO.motivoFlight)).toBe(true);
-    expect(aud.resumo).toMatchObject({ ERRO: 0, PENDENTE_REGRA: 202 });
-    const r = montarResposta("taua-2026", d, REGRAS_PADRAO, aud, identificador(d));
-    expect(r.linhas.find((l) => l.participacao)!.rotulo).toBe("Aguardando: faltam as ações deste flight");
-    expect(r.painel.aguardandoGrupos[0]).toMatchObject({ codigo: "FLIGHT", titulo: PARTICIPACAO.tituloFlight, total: 202 });
-  });
-
-  it("126 ações e buy-in R$ 1.000: esperado 17,6 (Dia 1A); 71 ações: 12,1 (Dia 1D)", async () => {
-    const d = structuredClone(await fixture("taua-2026"));
-    comAcoes(d, /dia 1a/i, 100, 26); // 126 ações
-    comAcoes(d, /dia 1d/i, 71, 0); // 71 ações
-    const aud = conferido(d);
-    const a = aud.linhas.filter((l) => l.torneio.includes("1A"));
-    expect(a).toHaveLength(83);
-    expect(a.every((l) => l.situacao === "CORRETO" && l.esperado === 17.6 && l.registrado === 17.6 && l.field === 126 && l.participacao)).toBe(true);
-    const dd = aud.linhas.filter((l) => /dia 1d/i.test(l.torneio));
-    expect(dd.every((l) => l.situacao === "CORRETO" && l.esperado === 12.1 && l.field === 71)).toBe(true);
-    // os outros flights seguem aguardando (1C e 1E sem ações)
-    expect(aud.resumo).toMatchObject({ ERRO: 0, PENDENTE_REGRA: 202 - 83 - 55 });
-  });
-
-  it("ações que não reproduzem o valor registrado: Erro, sem tolerância", async () => {
-    const d = structuredClone(await fixture("taua-2026"));
-    comAcoes(d, /dia 1a/i, 71, 0); // 71 ações → 12,1, mas o site pagou 17,6
-    const aud = conferido(d);
-    const l = aud.linhas.find((x) => x.torneio.includes("1A"))!;
-    expect([l.situacao, l.esperado, l.registrado, l.diferenca, l.causaCodigo, l.causaProvavel]).toEqual(["ERRO", 12.1, 17.6, 5.5, "PARTICIPACAO", PARTICIPACAO.causa]);
-    expect(l.inverso).toBeNull();
-    // 0,01 de diferença também é Erro (nada de arredondamento nos flights)
-    const e = structuredClone(await fixture("taua-2026"));
-    comAcoes(e, /dia 1a/i, 100, 26);
-    const j = e.jogadores.find((x) => x.resultados.some((r) => e.torneios.find((t) => t.id === r.tournamentId)!.name.includes("1A")))!;
-    const r = j.resultados.find((x) => e.torneios.find((t) => t.id === x.tournamentId)!.name.includes("1A"))!;
-    j.rankingPoints = Math.round((j.rankingPoints - r.points + 17.61) * 100) / 100;
-    r.points = 17.61;
-    expect(conferido(e).linhas.find((x) => x.jogador === j.name && x.torneio.includes("1A"))!.situacao).toBe("ERRO");
-  });
-
-  it("a regra do flight não depende da opção de fora da premiação", async () => {
-    const d = structuredClone(await fixture("taua-2026"));
-    comAcoes(d, /dia 1a/i, 100, 26);
-    const aud = conferido(d, { ...REGRAS_PADRAO, foraDoItm: "10fixos" });
-    expect(aud.linhas.filter((l) => l.torneio.includes("1A")).every((l) => l.situacao === "CORRETO" && l.esperado === 17.6)).toBe(true);
-  });
-});
-
-describe("Dia Final sem posição aguarda regra", () => {
-  it("126 linhas aguardando, com o motivo; com posição fica como antes", async () => {
-    const d = await fixture("vale-suico-2026");
-    const aud = conferido(d);
-    const dia = aud.linhas.filter((l) => l.torneio.includes("Dia Final"));
-    const sem = dia.filter((l) => l.participacao);
-    expect(sem).toHaveLength(126);
-    expect(sem.every((l) => l.posicao == null && l.situacao === "PENDENTE_REGRA" && l.pendencia === "FINAL_SEM_POSICAO" && l.causaProvavel === PARTICIPACAO.motivoDiaFinal)).toBe(true);
-    expect(dia.filter((l) => !l.participacao)).toHaveLength(64);
-    const t = aud.torneios.find((x) => x.torneio.includes("Dia Final"))!;
-    expect([t.comPosicao, t.participacao]).toEqual([64, 126]);
-    expect(aud.resumo).toMatchObject({ CORRETO: 117, ERRO: 27, PENDENTE_REGRA: 126 });
-    const r = montarResposta("vale-suico-2026", d, REGRAS_PADRAO, aud, identificador(d));
-    expect(r.painel.aguardandoGrupos[0]).toMatchObject({ codigo: "FINAL_SEM_POSICAO", titulo: PARTICIPACAO.tituloDiaFinal, total: 126 });
-    expect(r.painel.indicadores.percentualCorretos).toBe(81.3);
-  });
+describe("versão das regras", () => {
+  it("a versão das regras é 2.0", () => expect(VERSAO_REGRAS).toBe("2.0"));
 });
 
 describe("opção de regra: campo do torneio", () => {

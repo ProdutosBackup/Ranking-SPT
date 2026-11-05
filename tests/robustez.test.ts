@@ -170,19 +170,19 @@ describe("torneio não finalizado, cancelado, sem buy-in e prêmio fora dos prem
     const d = structuredClone(await carregar(E2));
     por(d, "EV #2").status = "RUNNING";
     const { aud, r } = painel(d);
-    expect(aud.resumo).toMatchObject({ ERRO: 9 + 6, PENDENTE_REGRA: 126 + 12 });
+    expect(aud.resumo).toMatchObject({ ERRO: 141, PENDENTE_REGRA: 12 });
     const ls = r.linhas.filter((l) => l.torneio.startsWith("EV #2"));
     expect(new Set(ls.map((l) => l.rotulo))).toEqual(new Set(["Aguardando: torneio não finalizado"]));
     expect(r.painel.avisos).toContain("Há torneios não finalizados nesta etapa.");
     expect(r.painel.aguardando.some((a) => a.texto === "12 resultados de EV #2 200K PLO 5 K.O: torneio não finalizado")).toBe(true);
-    expect(r.painel.indicadores.erros).toBe(15);
+    expect(r.painel.indicadores.erros).toBe(141);
   });
 
   it("cancelado com resultados: aguardando, motivo 'torneio cancelado'", async () => {
     const d = structuredClone(await carregar(E2));
     por(d, "EV #6").status = "CANCELED";
     const { aud, r } = painel(d);
-    expect(aud.resumo).toMatchObject({ ERRO: 9 + 6 + 11, PENDENTE_REGRA: 126 + 3 });
+    expect(aud.resumo).toMatchObject({ ERRO: 152, PENDENTE_REGRA: 3 });
     expect(r.linhas.filter((l) => l.torneio.startsWith("EV #6")).every((l) => l.rotulo === "Aguardando: torneio cancelado")).toBe(true);
     expect(r.painel.aguardando.some((a) => a.texto.endsWith("torneio cancelado"))).toBe(true);
     expect(r.painel.avisos).toContain("Há resultados registrados em torneio cancelado.");
@@ -192,7 +192,7 @@ describe("torneio não finalizado, cancelado, sem buy-in e prêmio fora dos prem
     const d = structuredClone(await carregar(E2));
     por(d, "EV #3").buyIn = 0;
     const { aud, r } = painel(d);
-    expect(aud.resumo).toMatchObject({ ERRO: 10 + 6 + 11, PENDENTE_REGRA: 126 + 9, CORRETO: 117 - 9 });
+    expect(aud.resumo).toMatchObject({ ERRO: 153, PENDENTE_REGRA: 9, CORRETO: 108 });
     expect(r.linhas.filter((l) => l.torneio.startsWith("EV #3")).every((l) => l.rotulo === "Aguardando: buy-in não informado")).toBe(true);
     expect(r.painel.avisos).toContain("Há torneios sem buy-in informado.");
   });
@@ -204,7 +204,7 @@ describe("torneio não finalizado, cancelado, sem buy-in e prêmio fora dos prem
     const ls = aud.linhas.filter((l) => l.torneio === "Satélite EV #3");
     expect(ls).toHaveLength(9);
     expect(ls.every((l) => l.situacao === "ERRO" && l.esperado === 0 && l.causaProvavel === "Satélite com pontos registrados")).toBe(true);
-    expect(aud.resumo).toMatchObject({ ERRO: 10 + 6 + 11 + 9, PENDENTE_REGRA: 126, CORRETO: 117 - 9 });
+    expect(aud.resumo).toMatchObject({ ERRO: 162, PENDENTE_REGRA: 0, CORRETO: 108 });
     // com pontos zerados a linha fecha como Correto, e o verificador concorda
     for (const j of d.jogadores) for (const r of j.resultados) if (r.tournamentId === por(d, "Satélite EV #3").id) r.points = 0;
     const zero = auditar(d, REGRAS_PADRAO);
@@ -212,10 +212,10 @@ describe("torneio não finalizado, cancelado, sem buy-in e prêmio fora dos prem
     expect(verificar(d, REGRAS_PADRAO, zero.linhas, zero.torneios)).toEqual([]);
   });
 
-  it("buy-in 0 no Dia Final continua usando o valor da regra", async () => {
+  it("buy-in 0 no Dia Final é válido: o buy-in exibido é R$ 0 e as contagens não mudam", async () => {
     const d = await carregar(E2);
     expect(por(d, "Main Event SPT — Dia Final").buyIn).toBe(0);
-    expect(auditar(d, regras).resumo).toMatchObject({ ERRO: 27, CORRETO: 117, PENDENTE_REGRA: 126 });
+    expect(auditar(d, regras).resumo).toMatchObject({ ERRO: 153, CORRETO: 117, PENDENTE_REGRA: 0 });
   });
 
   it("prêmio em posição maior que o número de premiados: SUSPEITO no motor e no verificador", async () => {
@@ -227,7 +227,7 @@ describe("torneio não finalizado, cancelado, sem buy-in e prêmio fora dos prem
     expect(res.prize).toBeGreaterThan(0);
     res.position = 99;
     const { aud, r } = painel(d); // conferir() passa: verificador e motor concordam
-    expect(aud.resumo).toMatchObject({ SUSPEITO: 1, CORRETO: 116, ERRO: 27 });
+    expect(aud.resumo).toMatchObject({ SUSPEITO: 1, CORRETO: 116, ERRO: 153 });
     expect(r.linhas.find((l) => l.posicao === 99)!.rotulo).toBe("Revisar");
     // o verificador pega um motor que ainda dissesse CORRETO para essa linha
     expect(verificar(d, regras, antes.linhas, aud.torneios).length).toBeGreaterThan(0);
@@ -257,26 +257,31 @@ describe("painel: indicadores e grupos das duas etapas", () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
     expect(r.painel.indicadores).toMatchObject({
-      auditados: 642, corretos: 440, divergenciasInscritos: { torneios: 5, resultadosExplicados: 386 }, erros: 0,
-      pontosEmDiscordancia: 0, jogadoresAfetados: 0, aguardando: 202, arredondamento: 0,
+      auditados: 642, corretos: 440, divergenciasInscritos: { torneios: 5, resultadosExplicados: 386 }, erros: 202,
+      pontosEmDiscordancia: 2389, jogadoresAfetados: 158, aguardando: 0, arredondamento: 0,
     });
-    expect(r.painel.grupos).toEqual([]);
-    expect(r.painel.impacto).toEqual([]);
+    // Main Event como um torneio só: 107 flights valem 10 × fatores (campo 202) e 95 valem 0 (o jogador já pontua em outra linha).
+    expect(r.painel.grupos.map((g) => [g.indices.length, g.titulo])).toEqual([
+      [107, "Participação de flight com pontos diferentes de 10 × fatores"],
+      [72, "Flight de jogador que chegou ao Dia Final: não pontua; vale o Dia Final"],
+      [23, "Jogou mais de um flight: vale só o primeiro"],
+    ]);
+    expect(r.painel.impacto).toHaveLength(158);
     expect(r.painel.divergencias).toHaveLength(5);
     expect(r.painel.divergencias[0].texto).toContain("não prova que o site esteja certo");
-    expect(r.painel.aguardando).toHaveLength(4);
-    expect(r.painel.aguardando.reduce((a, x) => a + x.indices.length, 0)).toBe(202);
-    expect(r.painel.aguardando[0].texto).toContain("faltam as ações deste flight");
+    expect(r.painel.aguardando).toEqual([]);
+    expect(r.painel.aguardandoGrupos).toEqual([]);
     expect(r.painel.avisos).toEqual([]);
   });
   it("Etapa 2", async () => {
     const d = await carregar(E2);
     const r = montarResposta(E2, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
     expect(r.painel.indicadores).toMatchObject({
-      auditados: 270, corretos: 117, erros: 27, jogadoresAfetados: 22, aguardando: 126, arredondamento: 0,
+      auditados: 270, corretos: 117, erros: 153, jogadoresAfetados: 143, aguardando: 0, arredondamento: 0,
       divergenciasInscritos: { torneios: 0, resultadosExplicados: 0 },
     });
     expect(r.painel.grupos.map((g) => [g.indices.length, g.titulo])).toEqual([
+      [126, "Participação de flight com pontos diferentes de 10 × fatores"],
       [15, "Diferença sem causa identificada"],
       [5, "10 pontos fixos em vez de 10 × fatores"],
       [3, "Valor igual ao de um 4º colocado"],
@@ -284,8 +289,8 @@ describe("painel: indicadores e grupos das duas etapas", () => {
       [1, "5º colocado com valor igual ao de um 7º colocado"],
       [1, "5º colocado com valor igual ao de um 9º colocado"],
     ]);
-    expect(r.painel.impacto).toHaveLength(22);
-    expect(r.painel.aguardando.map((a) => a.texto)).toEqual(["126 resultados de Main Event SPT — Dia Final: sem posição: não se sabe em qual flight o jogador jogou"]);
+    expect(r.painel.impacto).toHaveLength(143);
+    expect(r.painel.aguardando).toEqual([]);
     const dia = r.painel.torneios.find((t) => t.nome.includes("Dia Final"))!;
     expect([dia.comPosicao, dia.participacao, dia.resultados]).toEqual([64, 126, 190]);
     expect(r.painel.divergencias).toEqual([]);
@@ -297,24 +302,23 @@ describe("painel: dados entregues à tela", () => {
     const d = await carregar(E2);
     const r = montarResposta(E2, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
     const p = r.painel;
-    expect(p.veredito).toBe("Etapa 2: 27 resultados com pontuação diferente da regra, afetando 22 jogadores (8.822,95 pontos em discordância). 126 resultados aguardam definição de regra.");
-    expect(p.indicadores.composicao).toEqual({ corretos: 117, corretosSite: 0, erros: 27, aguardando: 126, revisar: 0 });
-    expect(p.indicadores.percentualCorretos).toBe(81.3);
+    expect(p.veredito).toBe("Etapa 2: 153 resultados com pontuação diferente da regra, afetando 143 jogadores (12.363,55 pontos em discordância).");
+    expect(p.indicadores.composicao).toEqual({ corretos: 117, corretosSite: 0, erros: 153, aguardando: 0, revisar: 0 });
+    expect(p.indicadores.percentualCorretos).toBe(43.3);
     const e = r.linhas.find((l) => l.jogador === "Emerson Rocha Sheik" && l.posicao === 1)!;
     expect([e.base, e.fatorParticipantes, e.fatorBuyIn, e.esperado, e.registrado, e.diferenca]).toEqual([1000, 3.81, 1, 3810, 2286, -1524]);
     expect(e.hipotese).toEqual({ texto: "Valor igual ao de um 4º colocado", conta: "600 × 3,81 × 1 = 2.286" });
     expect(e.faixaBuyIn).toBe("de R$ 0 a R$ 1.000");
-    expect(p.grupos).toHaveLength(6);
+    expect(p.grupos).toHaveLength(7);
     expect(p.grupos.reduce((a, g) => a + g.pontos, 0)).toBeCloseTo(p.indicadores.pontosEmDiscordancia, 2);
     expect(p.jogadores).toHaveLength(208);
-    expect(p.jogadores.filter((j) => j.erros > 0)).toHaveLength(22);
+    expect(p.jogadores.filter((j) => j.erros > 0)).toHaveLength(143);
     expect(p.jogadores.find((j) => j.nome === "Emerson Rocha Sheik")).toMatchObject({ pontosSite: 2286, pontosCorretos: 3810, diferenca: 1524 });
-    expect(p.aguardandoGrupos).toHaveLength(1);
-    expect(p.aguardandoGrupos[0]).toMatchObject({ codigo: "FINAL_SEM_POSICAO", total: 126 });
+    expect(p.aguardandoGrupos).toHaveLength(0);
     expect(p.tabelas.buyIn.map((b) => b.fator)).toEqual([1, 1.2, 1.5, 2.5]);
     expect(p.tabelas.bases[0]).toEqual({ posicao: "1º", pontos: 1000 });
     expect(p.tabelas.bases.at(-1)).toEqual({ posicao: "19º em diante (premiados)", pontos: 100 });
-    expect(p.torneios.filter((t) => t.estado === "erro")).toHaveLength(6);
+    expect(p.torneios.filter((t) => t.estado === "erro")).toHaveLength(6); // inclui o Dia Final, cujas 126 linhas sem posição valem 10 × 3,81
     expect(p.torneios.filter((t) => t.estado === "vazio").length).toBe(10);
   });
   it("Etapa 2: o texto do buy-in para o fator aparece só nas linhas com bounty (Mystery e K.O); o buy-in exibido não muda", async () => {
@@ -331,11 +335,11 @@ describe("painel: dados entregues à tela", () => {
     expect(superKo.every((l) => l.buyInParaFator === "buy-in para o fator: R$ 1.000 (500 + 500 K.O)" && l.faixaBuyIn === "de R$ 0 a R$ 1.000")).toBe(true);
     expect(r.linhas.filter((l) => !/OMAHA MYSTERY|EV #2|SUPER K\.O/.test(l.torneio)).every((l) => l.buyInParaFator == null)).toBe(true);
   });
-  it("Etapa 1: veredito sem erro, com divergências", async () => {
+  it("Etapa 1: veredito com os 202 flights em erro e as 5 divergências", async () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
-    expect(r.painel.veredito).toBe("Etapa 1: Nenhum erro de pontuação encontrado. 5 torneios têm inscritos diferentes da API (386 resultados explicados). 202 resultados aguardam definição de regra.");
-    expect(r.painel.indicadores.percentualCorretos).toBe(100);
+    expect(r.painel.veredito).toBe("Etapa 1: 202 resultados com pontuação diferente da regra, afetando 158 jogadores (2.389 pontos em discordância). 5 torneios têm inscritos diferentes da API (386 resultados explicados).");
+    expect(r.painel.indicadores.percentualCorretos).toBe(68.5);
     expect(r.painel.torneios.filter((t) => t.estado === "divergencia")).toHaveLength(5);
     expect(r.painel.divergencias.every((x) => x.torneioId)).toBe(true);
   });
