@@ -19,7 +19,7 @@ Não publica nem substitui o ranking do site: recalcula cada resultado com um se
 - Fonte dos dados: API pública do SPT (`supremapokertour.com/api/spt/`), chamada só por rotas do servidor (sem CORS no navegador). Etapa 1 (Tauá) é a referência; Etapa 2 (Vale Suíço); a Etapa 3 entra por planilha .xlsx enviada pela equipe.
 - Acesso: link compartilhado, sem login. Planilha enviada e acordos por torneio ficam salvos no servidor e valem para todos.
 - Saídas: tela de auditoria, Relatório e Exportação em Excel, Consolidado.
-- Regras ainda em decisão ficam em "Aguardando regra" (flights, Dia Final sem posição, campo do torneio) até o responsável do ranking decidir.
+- Flights e Dia Final sem posição pontuam 10 × fatores, uma vez por jogador, com o campo igual à soma das entradas dos flights (decisão confirmada em 05/11/2026). Nas 3 etapas nenhuma linha aguarda regra. Quando faltar uma regra ou um dado (por exemplo, buy-in ou bounty não informado), a linha fica em "Aguardando regra" até alguém decidir, sem valor inventado.
 
 ## Capabilities and Constraints
 - Estrutura da tela travada em `docs/interface.md`, `app/components/estrutura.ts` e `tests/interface.test.ts`: nomes, ordem, abas, seções, blocos, parâmetros do endereço e atalhos só mudam com autorização explícita do usuário na conversa. Mudanças de cor, espaçamento e acabamento são permitidas.

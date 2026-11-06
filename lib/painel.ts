@@ -289,11 +289,11 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     { titulo: "Torneios que não pontuam", valor: "Satélites, Ladies e All in or Fold não pontuam" },
     {
       titulo: "Quem fica fora da premiação",
-      valor: regras.foraDoItm === "10fixos" ? "10 pontos fixos (como na calculadora do site)" : "10 pontos × os fatores (como no regulamento)",
+      valor: "10 pontos × os fatores (como no regulamento)",
     },
     {
       titulo: "Premiados depois do 18º lugar",
-      valor: regras.aposDecimoOitavo === "base10" ? "10 pontos de base" : "100 pontos de base para todos",
+      valor: "100 pontos de base para todos",
     },
     { titulo: "Diferença aceita como arredondamento", valor: `${n(regras.toleranciaArredondamento)} ponto(s)` },
     { titulo: "Fator de buy-in de R$ 0 a R$ 1.000", valor: n(regras.fatorFaixaAte1000) },
@@ -317,15 +317,15 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   // Tabelas do regulamento, lidas das mesmas funções da conta (uma única fonte).
   const bases: { posicao: string; pontos: number }[] = [];
   for (let p = 1; p <= 18; p++) {
-    const b = baseDaPosicao(p, regras);
+    const b = baseDaPosicao(p);
     const ult = bases[bases.length - 1];
     if (ult && ult.pontos === b) ult.posicao = `${ult.posicao.split(" a ")[0]} a ${p}º`;
     else bases.push({ posicao: `${p}º`, pontos: b });
   }
-  bases.push({ posicao: "19º em diante (premiados)", pontos: baseDaPosicao(19, regras) });
+  bases.push({ posicao: "19º em diante (premiados)", pontos: baseDaPosicao(19) });
   const tabelas = {
     bases,
-    foraDaPremiacao: regras.foraDoItm === "10fixos" ? "10 pontos fixos" : "10 pontos × os fatores",
+    foraDaPremiacao: "10 pontos × os fatores",
     buyIn: FAIXAS_BUYIN.map((f) => ({ faixa: f.rotulo, fator: fb100(f.amostra, regras) / 100 })),
   };
 

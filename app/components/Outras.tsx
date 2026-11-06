@@ -279,20 +279,6 @@ export function Regras({ d, opcoes }: { d: Resposta; opcoes: Opcoes }) {
         <p className="muted small">Mudam a forma de conferir. Clique em “Auditar etapa” de novo para aplicar.</p>
         <div className="adv">
           <div className="campo">
-            <label htmlFor="fora">Quem fica fora da premiação</label>
-            <select id="fora" value={opcoes.foraPremiacao} onChange={(e) => opcoes.setForaPremiacao(e.target.value)}>
-              <option value="base10xFatores">10 pontos × os fatores (regulamento)</option>
-              <option value="10fixos">10 pontos fixos (calculadora do site)</option>
-            </select>
-          </div>
-          <div className="campo">
-            <label htmlFor="apos18">Premiados depois do 18º lugar</label>
-            <select id="apos18" value={opcoes.apos18} onChange={(e) => opcoes.setApos18(e.target.value)}>
-              <option value="base100TodosItm">100 pontos de base para todos</option>
-              <option value="base10">10 pontos de base</option>
-            </select>
-          </div>
-          <div className="campo">
             <label htmlFor="tol">Diferença aceita como arredondamento (pontos)</label>
             <input id="tol" type="text" inputMode="decimal" size={6} value={opcoes.tolerancia} onChange={(e) => opcoes.setTolerancia(e.target.value)} />
           </div>

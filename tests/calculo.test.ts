@@ -3,14 +3,13 @@ import { buyInParaFator, calcular, fatorBuyIn } from "../lib/calculo";
 import { buyInTotalVerificador } from "../lib/verificador";
 import { REGRAS_PADRAO, type Regras } from "../lib/regras";
 
-const fixos: Regras = { ...REGRAS_PADRAO, foraDoItm: "10fixos" };
 // premiados alto = todo mundo no ITM; premiados 0 / prize 0 = fora do ITM.
 const itm = (buyIn: number, field: number, posicao: number, r = REGRAS_PADRAO, premiados = 9999) =>
   calcular({ posicao, prize: 1, buyIn, field, premiados }, r).esperado;
 const fora = (buyIn: number, field: number, posicao: number, r = REGRAS_PADRAO) =>
   calcular({ posicao, prize: 0, buyIn, field, premiados: 0 }, r).esperado;
 
-describe("foraDoItm=10fixos (calculadora do site)", () => {
+describe("posições premiadas: base da tabela × fatores", () => {
   it.each([
     [1500, 137, 20, 224.4],
     [3000, 67, 9, 877.5],
@@ -25,10 +24,10 @@ describe("foraDoItm=10fixos (calculadora do site)", () => {
     [1000, 100, 13, 300],
     [1000, 100, 18, 300],
     [1000, 100, 19, 150],
-  ])("buy-in %i field %i pos %i → %d", (b, f, p, esp) => expect(itm(b, f, p, fixos)).toBe(esp));
-  it("fora do ITM → 10", () => {
-    const c = calcular({ posicao: 50, prize: 0, buyIn: 1000, field: 100, premiados: 20 }, fixos);
-    expect(c.esperado).toBe(10);
+  ])("buy-in %i field %i pos %i → %d", (b, f, p, esp) => expect(itm(b, f, p)).toBe(esp));
+  it("fora do ITM → 10 × fatores (nunca 10 fixos)", () => {
+    const c = calcular({ posicao: 50, prize: 0, buyIn: 1000, field: 100, premiados: 20 }, REGRAS_PADRAO);
+    expect(c.esperado).toBe(15); // 10 × (100/100 + 0,5) × 1,0
   });
 });
 

@@ -151,7 +151,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       if (motivo == null && !particip && !satelite && !/^cancel/i.test(t.status ?? "") && t.status === "FINISHED" && !(final ? buyIn >= 0 : buyIn > 0)) motivo = "SEM_BUYIN"; // só o Dia Final aceita buy-in 0
       const pendente = motivo != null;
       const itm = !pendente && pos != null && pos <= np && (daPlanilha || (r.prize != null && r.prize > 0));
-      const baseDe = (p: number) => (p <= 18 ? TABELA[p] : regras.aposDecimoOitavo === "base10" ? 10 : 100);
+      const baseDe = (p: number) => (p <= 18 ? TABELA[p] : 100);
       // Acordo: as posições 1 a K pontuam como o Kº colocado (a base da colocação K com os fatores normais), reescrito aqui.
       const acK = acordos[t.id] ?? 0;
       const acordo = acK >= 2 && !satelite && !particip && !pendente && pos != null && pos <= acK; // o automático entra depois do laço
@@ -162,13 +162,13 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const suspeito = !daPlanilha && !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
         ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && somaFlights > 0 ? somaFlights : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acDe: acordo ? 1 : null, acAte: acordo ? acK : null, acOrigem: acordo ? "informado" : null, acCent, pendente, motivo, itm, suspeito,
-        fixo: satelite || acordo || (particip && !pendente) || (!pendente && !itm && regras.foraDoItm === "10fixos"), reg: Math.round(r.points * 100), prize: r.prize,
+        fixo: satelite || acordo || (particip && !pendente), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }
 
   // Acordo detectado automaticamente, reescrito aqui: posições consecutivas e diferentes, dentro dos premiados, que pontuaram igual (±0,01) e cujas
   // bases da tabela não são todas iguais. Mesma posição repetida e posições de mesma base não são acordo. Onde há K informado, o informado vale.
-  const baseV = (p: number) => (p <= 18 ? TABELA[p] : regras.aposDecimoOitavo === "base10" ? 10 : 100);
+  const baseV = (p: number) => (p <= 18 ? TABELA[p] : 100);
   const detectados = new Map<string, { de: number; ate: number; cent: number }[]>();
   for (const t of d.torneios) {
     const alvo = brutas.filter((b) => b.torneioId === t.id && !b.pendente && !b.satelite && !b.particip && b.pos != null && b.pos <= b.np);
@@ -268,13 +268,13 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     const explicada = site != null && !b.pendente && !b.fixo;
     const field = explicada ? site : b.field;
     const flightComAcoes = b.particip && !b.pendente;
-    const cent = b.satelite ? 0 : b.acordo ? b.acCent : flightComAcoes ? centavos(10, field, b.f100) : b.fixo ? 1000 : centavos(b.base, field, b.f100);
+    const cent = b.satelite ? 0 : b.acordo ? b.acCent : flightComAcoes ? centavos(10, field, b.f100) : centavos(b.base, field, b.f100);
     // Os 4 cenários (A a D), reescritos aqui: só mudam o campo (entradas ou ações) e o fator da faixa até R$ 1.000 (1,0 ou 0,9). C e D: null sem reentradas.
     const cenV = (campo: number | null, faixa: number): number | null => {
       if (b.satelite) return 0;
       if (campo == null) return null;
       const f = fatorBuyIn100(b.bif, faixa);
-      return b.acordo ? centavos(b.base, campo, f) : flightComAcoes ? centavos(10, campo, f) : b.fixo ? 1000 : centavos(b.base, campo, f);
+      return b.acordo ? centavos(b.base, campo, f) : flightComAcoes ? centavos(10, campo, f) : centavos(b.base, campo, f);
     };
     const entradasLinha = explicada ? site : b.entradas;
     const cenV4 = { A: cenV(entradasLinha, 1), B: cenV(entradasLinha, 0.9), C: cenV(b.acoes, 1), D: cenV(b.acoes, 0.9) };

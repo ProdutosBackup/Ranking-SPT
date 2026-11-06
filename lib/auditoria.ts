@@ -64,7 +64,7 @@ export function detectarAcordos(linhas: { posicao: number; cent: number }[], reg
   const grupos: GrupoAcordo[] = [];
   let atual: GrupoAcordo | null = null;
   const fecha = () => {
-    if (atual && atual.ate > atual.de && new Set(Array.from({ length: atual.ate - atual.de + 1 }, (_, i) => baseDaPosicao(atual!.de + i, regras))).size > 1) grupos.push(atual);
+    if (atual && atual.ate > atual.de && new Set(Array.from({ length: atual.ate - atual.de + 1 }, (_, i) => baseDaPosicao(atual!.de + i))).size > 1) grupos.push(atual);
     atual = null;
   };
   for (const p of posicoes) {
@@ -193,9 +193,9 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         pendencia = "SEM_BUYIN";
       }
       const sat = zero != null;
-      // Participação do Main Event: sempre 10 × fatores (não depende da opção de fora da premiação).
+      // Participação do Main Event: sempre 10 × fatores.
       const c0 = motivoPendente || part
-        ? calcular({ ...entrada, posicao: null, prize: null }, { ...regras, foraDoItm: "base10xFatores" })
+        ? calcular({ ...entrada, posicao: null, prize: null }, regras)
         : calcular(entrada, regras);
       // Acordo (não vale para satélite, flight nem pendente). Informado (K salvo): as posições 1 a K pontuam como o Kº colocado, e vale no lugar do
       // automático. Sem K salvo: o grupo de posições que pontuaram igual (detectarAcordos) pontua como a última posição do grupo.
@@ -215,8 +215,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         : acordo != null
           ? calcular({ ...entrada, posicao: acordo, prize: 1, premiados: Math.max(acordo, ctx.premiados) }, regras)
           : c0;
-      // 10 pontos fixos (opção da calculadora do site): não depende dos inscritos, então não entra na dedução.
-      const fixo = sat || part || acordo != null || (!motivoPendente && !c.itm && regras.foraDoItm === "10fixos");
+      // Linha que não depende dos inscritos (não pontua, participação ou acordo): não entra na dedução.
+      const fixo = sat || part || acordo != null;
       // Sem prêmio na planilha, não há "posição e prêmio não concordam".
       const suspeito =
         !porLista && !sat && !part && (

@@ -4,13 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Purpose
 
-Calculator that checks the Suprema Poker Tour (SPT) ranking scores. Stack: Next.js (App Router) + TypeScript for the page and server routes, ExcelJS to generate the Excel output. The project is currently a bare scaffold: only `app/api/health/route.ts` is custom, and there is no business logic yet.
+Calculator that checks the Suprema Poker Tour (SPT) ranking scores. Stack: Next.js (App Router) + TypeScript for the page and server routes, ExcelJS to generate the Excel output. The project is a working auditor: it reads the SPT results (the public API, or an uploaded spreadsheet for stage 3), recomputes every result with two independent calculations (the engine and the verifier), lists the errors with a probable cause, generates the Relatório and Exportação Excel files, and shows an accumulated Consolidado with the four scenarios A to D.
 
 ## Commands
 
 - `npm run dev` — dev server on :3000 (check with `curl localhost:3000/api/health` → `{"ok":true}`)
 - `npm run build` — production build, includes the TypeScript check
-- No lint or test scripts are configured.
+- `npm start` — serves the production build
+- `npm test` — `vitest run --testTimeout=20000` (20 s per test). `vitest.config.ts` loads `tests/isolar-armazenamento.ts`, so the tests use temporary folders and never touch `.acordos-local/` or `.planilha-local/`. The tests read fixtures from `tests/fixtures/` and do not call the real API. Node 22.x (`engines` in `package.json`).
+- No lint script is configured.
 
 ## Next.js version
 
@@ -22,8 +24,8 @@ The public SPT API (`https://supremapokertour.com/api/spt/`) sends no `Access-Co
 
 ## SPT API facts (verified by inspection, not derivable from code)
 
-Endpoints, all GET, `stage` is `taua-2026` (stage 1) or `vale-suico-2026` (stage 2):
-- `/tournaments?stage=` — without `stage` it returns the current stage (2).
+Endpoints, all GET, `stage` is `taua-2026` (stage 1), `vale-suico-2026` (stage 2) or `bendito-cacao-2026` (stage 3):
+- `/tournaments?stage=` — without `stage` it returns the current stage, which today is stage 2 (same tournament ids as `stage=vale-suico-2026`; `/ranking` and `/player-summary` also default to stage 2). Checked against the live API on 06/11/2026; if the API moves to a new current stage this changes, so always pass `stage`.
 - `/ranking?stage=` → `{updatedAt, ranking:[{rank,name,avatarUrl,points,tournaments,breakdown:[{tournamentId,tournamentName,position,points,factor}]}]}`
 - `/player-summary?stage=&name=` → `{name,totalPoints,tournaments,results:[{tournamentId,tournamentName,position,points,prize,stage}]}`; `tournaments[].id` equals `tournamentId`.
 
@@ -31,9 +33,10 @@ Gotchas:
 - Wrong `stage`, unknown name, wrong case or missing accents all return HTTP 200 with empty data. `name` must match the ranking exactly, passed through `encodeURIComponent`.
 - Stage 1 results list every player of each tournament (rows = `players`). Stage 2 lists only players who scored, so `players` is the only source of the field size. Stage 2 flights (Dia 1A–1E), satellites, Ladies and HORSE have no result rows.
 - Stage 2 "Main Event SPT — Dia Final" (`role=FINAL`) has 190 rows for `players=92`: 64 with `position`, 126 with `position=null` and `points=10`. `prize` is `null` (not 0) for some rows with `points=10`.
-- Flights are marked by `role=FLIGHT` + `flightLabel` only in stage 2; stage 1 uses `STANDALONE` and the name ("Dia 1A/1C/1D/1E"; there is no 1B).
+- Flights are marked by `role=FLIGHT` + `flightLabel` (1A to 1E) in stages 2 and 3; stage 1 uses `STANDALONE` and the name ("Dia 1A/1C/1D/1E"; there is no 1B).
+- Stage 3 has tournaments but no results in the API: `/ranking?stage=bendito-cacao-2026` returns `{"ranking":[]}` with HTTP 200 (the tool reports "Esta etapa ainda não tem ranking publicado." when there is no spreadsheet; `MSG_SEM_RANKING` in `lib/api-spt.ts`). The stage 3 results come from the .xlsx spreadsheet uploaded through the tool itself (`POST /api/planilha`): one file, shared by everyone, kept in `.planilha-local/` in development or in Vercel Blob in production (`lib/armazenamento-planilha.ts`, `ETAPA_PLANILHA`; `lib/executar.ts` uses it for stage 3 while it exists). The tool still reads `/tournaments?stage=bendito-cacao-2026` by name for the stage 3 flights (their `players` sum is the Main Event field: 77+64+55+67+65 = 328) and for each K.O or Mystery tournament's bounty (`flightsDe`, `bountyDoSite` in `lib/planilha-guardada.ts`). The Dia Final field is the flights' sum; if the site lists no flights, the value typed on upload, then the spreadsheet's.
 - Stage 1 API `players` (Final Main Event 135, 200k High Roller 85) does not match the field values used in the reverse calculation (334 and 67).
-- Scoring formula under validation: `Points = Base_Position × Factor_Participants × Factor_BuyIn`, with `Factor_Participants = n/100 + 0.5`. Stage 1 is known correct; stage 2 has errors on unknown points.
+- Scoring formula applied: `Points = Base_Position × Factor_Participants × Factor_BuyIn`, with `Factor_Participants = n/100 + 0.5`; outside the prizes the base is 10 (10 × factors) and after 18th place every paid position has base 100. The rules and their status are in `docs/compendio.md`.
 
 ## Interface travada
 

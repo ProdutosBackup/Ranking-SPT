@@ -1,3 +1,5 @@
+> **Documento histórico de 22/10/2026 (versão 1.4). Substituído por docs/compendio.md. Não usar como fonte de regra.**
+
 # Regras de pontuação para validação
 
 **Documento para o responsável do ranking validar.** Reúne tudo o que a ferramenta de auditoria aplica hoje para calcular os pontos, diz de onde cada regra vem e lista as perguntas que precisam de resposta.

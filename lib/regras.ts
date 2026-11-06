@@ -1,12 +1,9 @@
-// Única fonte das opções de regra. Os itens abaixo são [PENDENTE]/[INFERIDO] no docs/compendio.md
-// (ou dependem de pendência) e por isso são configuráveis; nada aqui é regra fixa.
+// Única fonte dos parâmetros de regra. Só ficam aqui os parâmetros que não são regra fixa: a tolerância de arredondamento (regra definitiva pendente) e o fator
+// da faixa até R$ 1.000 (os cenários B e D usam 0,9). Confirmadas em 05/11/2026 e portanto fixas no código: fora da premiação vale 10 × fatores
+// e, depois do 18º, todo premiado recebe base 100.
 export type Regras = {
-  /** Fora do ITM: base 10 multiplicada pelos fatores (seção 5) ou 10 pontos fixos (calculadora do site, seção 4.4). */
-  foraDoItm: "base10xFatores" | "10fixos";
   /** Fator da faixa de buy-in de R$ 0 a R$ 1.000 (seções 3.4 e 6.8). Padrão 1,0 [CONFIRMADO 05/11/2026]. */
   fatorFaixaAte1000: number;
-  /** Premiados depois do 18º: base 100 para todos (seção 6.3, como a calculadora) ou base 10. */
-  aposDecimoOitavo: "base100TodosItm" | "base10";
   /** Diferença (em pontos) até a qual o desvio é tratado como arredondamento (seção 2). */
   toleranciaArredondamento: number;
 };
@@ -15,29 +12,17 @@ export type Regras = {
 export const VERSAO_REGRAS = "2.6";
 
 export const REGRAS_PADRAO: Regras = {
-  foraDoItm: "base10xFatores",
   fatorFaixaAte1000: 1.0,
-  aposDecimoOitavo: "base100TodosItm",
   toleranciaArredondamento: 0.01,
 };
 
 /**
  * Sobrescreve os padrões com parâmetros de URL. Só aceita valores válidos; valor inválido é erro explícito.
- * Parâmetros: foraDoItm, aposDecimoOitavo, tolerancia (aceita vírgula decimal). Parâmetros antigos (campo, sat, satelitesPontuam) são ignorados em silêncio.
+ * Parâmetro: tolerancia (aceita vírgula decimal). Parâmetros antigos (foraDoItm, aposDecimoOitavo, campo, sat, satelitesPontuam) são ignorados em silêncio.
  * O campo do torneio não é mais opção: "Pontos corretos" usa só entradas (cenário A) e os números em ações são os cenários C e D.
  */
 export function lerRegras(q: URLSearchParams): Regras {
   const r: Regras = { ...REGRAS_PADRAO };
-  const fora = q.get("foraDoItm");
-  if (fora != null) {
-    if (fora !== "base10xFatores" && fora !== "10fixos") throw new Error(`foraDoItm inválido: "${fora}"`);
-    r.foraDoItm = fora;
-  }
-  const apos = q.get("aposDecimoOitavo");
-  if (apos != null) {
-    if (apos !== "base100TodosItm" && apos !== "base10") throw new Error(`aposDecimoOitavo inválido: "${apos}"`);
-    r.aposDecimoOitavo = apos;
-  }
   const tol = q.get("tolerancia");
   if (tol != null) {
     const n = Number(tol.replace(",", "."));

@@ -124,13 +124,10 @@ describe("etapa 1 (taua-2026), a referência correta", () => {
     expect([l.posicao, l.registrado, l.situacao, l.field, l.fieldApi]).toEqual([16, 29.25, "CORRETO_SITE", 67, 85]);
     expect(l.inverso).toMatchObject({ fatorTotal: 2.925, fieldImplicito: 67 });
   });
-  it("verificador e integridade fecham, nas duas opções de fora da premiação", () => {
-    for (const foraDoItm of ["base10xFatores", "10fixos"] as const) {
-      const regras = { ...REGRAS_PADRAO, foraDoItm };
-      const a = auditar(dados, regras);
-      expect(verificar(dados, regras, a.linhas, a.torneios)).toEqual([]);
-      expect(() => conferir(dados, regras, a)).not.toThrow();
-    }
+  it("verificador e integridade fecham, com as regras padrão", () => {
+    const a = auditar(dados, REGRAS_PADRAO);
+    expect(verificar(dados, REGRAS_PADRAO, a.linhas, a.torneios)).toEqual([]);
+    expect(() => conferir(dados, REGRAS_PADRAO, a)).not.toThrow();
   });
 });
 

@@ -20,7 +20,7 @@ export type ResultadoCalculo = {
   esperadoCent: number;
 };
 
-// Seção 3.2 do Compêndio [OFICIAL]. Posição 19+ depende de `aposDecimoOitavo`.
+// Seção 3.2 do Compêndio [OFICIAL]. Da posição 19 em diante, todo premiado recebe base 100 [CONFIRMADO 05/11/2026].
 const BASE_POSICAO = [1000, 800, 700, 600, 500, 450, 400, 350, 300, 250, 250, 250, 200, 200, 200, 200, 200, 200];
 export const BASES_TABELA = [1000, 800, 700, 600, 500, 450, 400, 350, 300, 250, 200, 100, 10];
 
@@ -63,8 +63,7 @@ export const buyInParaFator = (t: { buyIn: number; bountyType?: string | null; b
 export const fatorParticipantes = (n: number) => fp4(n) / 10000;
 export const fatorBuyIn = (buyIn: number, r: Regras) => fb100(buyIn, r) / 100;
 
-export const baseDaPosicao = (posicao: number, r: Regras) =>
-  posicao <= 18 ? BASE_POSICAO[posicao - 1] : r.aposDecimoOitavo === "base100TodosItm" ? 100 : 10;
+export const baseDaPosicao = (posicao: number) => (posicao <= 18 ? BASE_POSICAO[posicao - 1] : 100);
 
 const fmt = (x: number) => String(x).replace(".", ",");
 
@@ -72,9 +71,7 @@ export function calcular(e: EntradaCalculo, r: Regras): ResultadoCalculo {
   const itm = e.posicao != null && e.posicao <= e.premiados && e.prize != null && e.prize > 0;
   const fp = fatorParticipantes(e.field);
   const fb = fatorBuyIn(e.buyInFator ?? e.buyIn, r);
-  const base = itm ? baseDaPosicao(e.posicao as number, r) : 10;
-  if (!itm && r.foraDoItm === "10fixos")
-    return { itm, base, fatorParticipantes: fp, fatorBuyIn: fb, conta: "10 fixos (sem fatores)", esperado: 10, esperadoCent: 1000 };
+  const base = itm ? baseDaPosicao(e.posicao as number) : 10; // fora da premiação: 10 × fatores [CONFIRMADO 05/11/2026]
   const cent = paraCent(base * fp4(e.field) * fb100(e.buyInFator ?? e.buyIn, r));
   return {
     itm,
@@ -101,6 +98,6 @@ export function calcularCenario(e: EntradaCalculo, r: Regras, linha: RegimeLinha
   if (linha.zero) return 0;
   const reg: Regras = { ...r, fatorFaixaAte1000: faixa };
   if (linha.acordo != null) return calcular({ ...e, field, posicao: linha.acordo, prize: 1, premiados: Math.max(linha.acordo, e.premiados) }, reg).esperadoCent;
-  if (linha.semPosicao) return calcular({ ...e, field, posicao: null, prize: null }, { ...reg, foraDoItm: "base10xFatores" }).esperadoCent;
+  if (linha.semPosicao) return calcular({ ...e, field, posicao: null, prize: null }, reg).esperadoCent;
   return calcular({ ...e, field }, reg).esperadoCent;
 }

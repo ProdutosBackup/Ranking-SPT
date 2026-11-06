@@ -162,7 +162,7 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
 
 const conta = (l: LinhaAud) =>
   (l.acordo != null ? `${ACORDO.conta(l.acordo)}: ` : "") +
-  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : l.conta.startsWith("0: ") ? l.conta : `10 pontos fixos = ${n(l.esperado)}`);
+  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : l.conta);
 const aguarda = (l: LinhaAud) => l.classe === "aguarda";
 
 /** Texto da célula de um cenário sem dados (o parcial nunca aparece). */

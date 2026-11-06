@@ -238,15 +238,14 @@ describe("lerRegras", () => {
   const q = (s: string) => new URLSearchParams(s);
   it("sem parâmetros: padrões", () => expect(lerRegras(q(""))).toEqual(REGRAS_PADRAO));
   it("parâmetros válidos", () => {
-    expect(lerRegras(q("foraDoItm=10fixos&aposDecimoOitavo=base10&tolerancia=0,5"))).toMatchObject({
-      foraDoItm: "10fixos", aposDecimoOitavo: "base10", toleranciaArredondamento: 0.5,
-    });
+    expect(lerRegras(q("tolerancia=0,5"))).toMatchObject({ toleranciaArredondamento: 0.5 });
+    // opções removidas em 06/11/2026: links antigos são ignorados, sem erro e sem mudar o resultado
+    for (const antigo of ["foraDoItm=10fixos", "aposDecimoOitavo=base10", "foraDoItm=nada", "aposDecimoOitavo=x", "campo=acoes", "foraDoItm=10fixos&aposDecimoOitavo=base10"])
+      expect(lerRegras(q(antigo)), antigo).toEqual(REGRAS_PADRAO);
     expect(lerRegras(q("tolerancia=1.25")).toleranciaArredondamento).toBe(1.25);
     expect(lerRegras(q("satelitesPontuam=true"))).toEqual(REGRAS_PADRAO); // parâmetro antigo é ignorado
   });
   it.each([
-    ["foraDoItm=nada", /foraDoItm inválido/],
-    ["aposDecimoOitavo=x", /aposDecimoOitavo inválido/],
     ["tolerancia=abc", /tolerancia inválida/],
     ["tolerancia=-1", /tolerancia inválida/],
   ])("inválido: %s", (s, msg) => expect(() => lerRegras(q(s))).toThrow(msg));

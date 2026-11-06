@@ -236,41 +236,20 @@ describe("integração com o motor", () => {
     if (!r.ok) throw new Error(r.erros.join(" | "));
     base = comBounty(r.dados);
   });
-  const rodar = (d: DadosPlanilha, foraDoItm: "base10xFatores" | "10fixos") => {
-    const regras = { ...REGRAS_PADRAO, foraDoItm };
-    const aud = auditar(d, regras);
-    expect(() => conferir(d, regras, aud)).not.toThrow(); // o verificador independente concorda
+  const rodar = (d: DadosPlanilha) => {
+    const aud = auditar(d, REGRAS_PADRAO);
+    expect(() => conferir(d, REGRAS_PADRAO, aud)).not.toThrow(); // o verificador independente concorda
     return aud;
   };
 
-  it('10 fixos, Dia Final com 328: as duas divergências com a lista erram e os acordos detectados fecham', () => {
-    const aud = rodar(CAMPO_FINAL(base, 328), "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 399, CORRETO_SITE: 8, ERRO: 2 + 10 + 135, SUSPEITO: 0, PENDENTE_REGRA: 0 }); // + os 2 da divergência com a lista (HORSE 4º, Omaha 5 K.O 11º) + as 135 linhas sem posição do Dia Final (10 × 3,78 = 37,8 contra 10)
-    const erros = aud.linhas.filter((l) => l.situacao === "ERRO" && l.posicao != null).map((l) => [l.torneio, l.posicao, l.registrado, l.esperado]);
-    // 200K OMAHA 5 K.O: com o bounty da API (buy-in total 3.000, fator 2,5) as 11 posições premiadas erram, porque a planilha usou o buy-in base (fator 1,5)
-    const omaha = erros.filter((e) => e[0] === "200K OMAHA 5 K.O");
-    expect(omaha).toHaveLength(11);
-    expect(omaha.find((e) => e[1] === 11)).toEqual(["200K OMAHA 5 K.O", 11, 10, 500]); // a lista tem 11 premiados e a planilha pagou 10: 11º vale base 250 × 0,8 × 2,5 = 500
-    expect(erros.filter((e) => e[0] !== "200K OMAHA 5 K.O").sort()).toEqual([
-      ["HORSE", 4, 414, 10], // a lista tem 3 premiados e a planilha pagou 4: o 4º vale 10 (fixos)
-    ]); // os campeões do Championship, do HIGH ROLLER 50K e do SUPER K.O empatam com o 2º (acordo detectado) e estão corretos
-  });
-
-  it("10 fixos, Dia Final com os 79 da planilha: o motor aponta sozinho os 328", () => {
-    const aud = rodar(base, "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 335, CORRETO_SITE: 72, ERRO: 2 + 10 + 135, PENDENTE_REGRA: 0 });
-    const final = aud.torneios.find((t) => t.torneio.includes("Dia Final")) as unknown as { achado: { fieldApi: number; fieldSite: number; linhasExplicadas: number } };
-    expect(final.achado).toMatchObject({ fieldApi: 79, fieldSite: 328, linhasExplicadas: 64 });
-  });
-
   it("regra padrão (10 × fatores), Dia Final com 328: 276 erros (3 campeões + 273 linhas de 10 fixos)", () => {
-    const aud = rodar(CAMPO_FINAL(base, 328), "base10xFatores");
+    const aud = rodar(CAMPO_FINAL(base, 328));
     expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 127, ERRO: 292 + 135, PENDENTE_REGRA: 0 });
     expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273 + 135);
   });
 
   it("regra padrão com os inscritos da planilha (79): as 64 linhas premiadas do Dia Final também erram", () => {
-    const aud = rodar(base, "base10xFatores");
+    const aud = rodar(base);
     expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 63, CORRETO_SITE: 0, ERRO: 356 + 135, PENDENTE_REGRA: 0 });
     const final = aud.linhas.filter((l) => l.torneio.includes("Dia Final") && l.situacao === "ERRO" && l.registrado !== 10);
     expect(final).toHaveLength(64);

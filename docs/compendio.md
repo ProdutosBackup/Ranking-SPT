@@ -65,7 +65,7 @@ Requisitos definidos pelo usuário **[CONFIRMADO]**:
 Comportamentos discutidos e aceitos durante o planejamento:
 
 - **Conferência da soma:** o total de pontos de cada jogador deve ser igual à soma dos torneios dele. **[CONFIRMADO]**: o ranking é a soma simples de todos os torneios.
-- **Regras em aberto como configuração:** para os pontos da seção 6 que ainda não estão definidos, a ferramenta calcula as variantes possíveis e mostra qual delas reproduz os valores registrados. Desde 05/11/2026 a etapa 1 indica qual variante é plausível, mas não decide: em conflito vale o responsável do ranking (antes: "a etapa 1, por ser correta, indica qual variante vale").
+- **Regras em aberto como configuração:** para os pontos da seção 6 que ainda não estão definidos, a ferramenta calcula as variantes possíveis e mostra qual delas reproduz os valores registrados. Desde 05/11/2026 a etapa 1 indica qual variante é plausível, mas não decide: em conflito vale o responsável do ranking (antes: "a etapa 1, por ser correta, indica qual variante vale"). Situação atual da ferramenta (06/11/2026): as opções de regra para o campo do torneio, para quem fica fora da premiação (10 fixos) e para os premiados depois do 18º (base 10) foram removidas, porque essas regras foram confirmadas ou substituídas pelos cenários A a D; resta como opção só a tolerância de arredondamento.
 - **Inverso tem mais de uma solução:** o mesmo valor pode vir de combinações diferentes de posição, field e buy-in. A ferramenta deve listar as combinações possíveis e indicar qual bate com os dados reais do torneio.
 - **Diferenças pequenas:** diferenças de até 1 ponto devem ser destacadas separadamente, como provável questão de arredondamento, e não como erro grave, até a regra de arredondamento ser definida.
 - **Comparação com decimais [CONFIRMADO em 18/10/2026]:** a ferramenta compara com o valor da API (com decimais) e mostra ao lado o valor inteiro exibido no site (seção 6.1).
@@ -227,7 +227,7 @@ Observação sobre o critério de ITM: quando os dois critérios divergirem em u
 
 ## 6. Pontos em aberto
 
-Estes pontos não podem ser tratados como regra. A ferramenta deve testar as variantes e mostrar quais reproduzem os valores publicados (desde 05/11/2026 a etapa 1 é indício, não referência absoluta; antes: "qual reproduz os valores da etapa 1").
+Estes pontos não podem ser tratados como regra. A ferramenta deve testar as variantes e mostrar quais reproduzem os valores publicados (desde 05/11/2026 a etapa 1 é indício, não referência absoluta; antes: "qual reproduz os valores da etapa 1"). Hoje a ferramenta oferece só a tolerância de arredondamento como opção; ver a seção 2, item sobre regras em aberto.
 
 ### 6.1 Arredondamento dos pontos
 

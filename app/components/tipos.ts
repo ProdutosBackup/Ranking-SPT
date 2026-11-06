@@ -9,7 +9,7 @@ export type Linha = {
   prize: number | null;
   /** Planilha: o prêmio não existe, foi deduzido dos pontos; a tela mostra "—". */
   semPremio: boolean;
-  /** Participação de flight: vale 10 pontos fixos (flights e Dia Final sem posição). */
+  /** Participação de flight: vale 10 × fatores (flights e Dia Final sem posição). */
   participacao: boolean;
   /** K do acordo, nas posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
   acordo: number | null;
@@ -129,10 +129,6 @@ export type Guardada = { dados: Resposta; params: string };
 export type Bloqueio = { erro: string; detalhes: unknown[] };
 
 export type Opcoes = {
-  foraPremiacao: string;
-  setForaPremiacao: (v: string) => void;
-  apos18: string;
-  setApos18: (v: string) => void;
   tolerancia: string;
   setTolerancia: (v: string) => void;
 };
