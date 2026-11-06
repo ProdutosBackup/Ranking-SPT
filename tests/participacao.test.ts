@@ -25,7 +25,7 @@ const conferido = (d: DadosSpt, regras: Regras = REGRAS_PADRAO) => {
 };
 
 describe("versão das regras", () => {
-  it("a versão das regras é 2.7", () => expect(VERSAO_REGRAS).toBe("2.7"));
+  it("a versão das regras é 2.9", () => expect(VERSAO_REGRAS).toBe("2.9"));
 });
 
 describe("campo do torneio: não é mais opção (inscritos em \"Pontos corretos\"; ações só nos cenários C e D)", () => {

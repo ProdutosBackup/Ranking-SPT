@@ -37,14 +37,15 @@ async function etapa3() {
 }
 
 describe("campo do Main Event: soma das entradas dos flights, por etapa", () => {
-  it("Etapa 1: 202 = 83+47+55+17 (os 334 do site não fecham: aparece como divergência de inscritos)", async () => {
+  it("Etapa 1: 334 buy-ins, informado pelo usuário (a API soma 202 = 83+47+55+17 nos flights); sem divergência de inscritos no Main Event", async () => {
     const d = await fixture("taua-2026");
     const aud = auditado(d);
     const final = aud.torneios.find((t) => t.torneio === "Final Main Event")!;
-    expect([final.field, final.fieldDeduzido]).toEqual([202, 334]);
-    expect(final.achado).toMatchObject({ fieldApi: 202, fieldSite: 334, linhasExplicadas: 135 });
+    expect([final.field, final.fieldDeduzido]).toEqual([334, 334]);
+    expect(final.achado).toBeNull();
     const flights = aud.torneios.filter((t) => /Dia 1[A-E]$/i.test(t.torneio));
-    expect(flights.every((t) => t.field === 202)).toBe(true);
+    expect(flights.every((t) => t.field === 334)).toBe(true);
+    expect(aud.linhas.find((l) => l.torneio === "Main Event 400K Dia 1A")!.causaProvavel).toContain("campo: 334 buy-ins do Main Event (informado pelo usuário em 06/11/2026)");
     expect(flights.map((t) => t.players).sort((a, b) => a - b)).toEqual([17, 47, 55, 83]);
   });
   it("Etapa 2: 331 = 96+50+64+67+54", async () => {
@@ -84,20 +85,20 @@ describe("Etapa 1: Main Event avaliado por linha", () => {
   it("finalista com flight pontua nas duas linhas: flight = participação, Dia Final = a própria posição (Anderson De Carvalho Costa)", async () => {
     const aud = auditado(await fixture("taua-2026"));
     const f = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio.endsWith("Dia 1D"))!;
-    // Flight: 10 × 2,52 × 1,0 = 25,2 (campo de hoje: soma dos flights 202). O site registrou 12,1.
-    expect([f.esperado, f.field, f.registrado, f.situacao, f.causaCodigo, f.participacao]).toEqual([25.2, 202, 12.1, "ERRO", "PARTICIPACAO", true]);
+    // Flight: 10 × 3,84 × 1,0 = 38,4 (campo de 334 buy-ins). O site registrou 12,1: erro.
+    expect([f.esperado, f.field, f.registrado, f.situacao, f.causaCodigo, f.participacao]).toEqual([38.4, 334, 12.1, "ERRO", "PARTICIPACAO", true]);
     const fin = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio === "Final Main Event")!;
-    // Dia Final 76º, fora da premiação: 10 × 3,84 × 1,0 = 38,4 com os 334 inscritos do site (reproduzem as 135 linhas do Dia Final).
-    expect([fin.posicao, fin.esperado, fin.registrado, fin.situacao, fin.field]).toEqual([76, 38.4, 38.4, "CORRETO_SITE", 334]);
+    // Dia Final 76º, fora da premiação: 10 × 3,84 × 1,0 = 38,4, igual ao site.
+    expect([fin.posicao, fin.esperado, fin.registrado, fin.situacao, fin.field]).toEqual([76, 38.4, 38.4, "CORRETO", 334]);
   });
-  it("Mauricio Alejandro Zeman Vergara: Dia 1A 53º = participação; Final 29º = 384, igual ao site", async () => {
+  it("Mauricio Alejandro Zeman Vergara: Dia 1A 53º = 38,4 (o site lançou 17,6: erro); Final 29º = 384, igual ao site; Main Event = 422,4", async () => {
     const aud = auditado(await fixture("taua-2026"));
     const ls = aud.linhas.filter((l) => l.jogador.startsWith("Mauricio Alejandro Zeman"));
     const a = ls.find((l) => l.torneio === "Main Event 400K Dia 1A")!;
     const fin = ls.find((l) => l.torneio === "Final Main Event")!;
-    expect([a.posicao, a.registrado, a.esperado, a.conta, a.field, a.situacao]).toEqual([53, 17.6, 25.2, "10 × 2,52 × 1", 202, "ERRO"]);
-    expect([fin.posicao, fin.registrado, fin.esperado, fin.conta, fin.field, fin.situacao]).toEqual([29, 384, 384, "100 × 3,84 × 1", 334, "CORRETO_SITE"]);
-    expect(Math.round((a.esperado + fin.esperado) * 100) / 100).toBe(409.2); // nenhuma pontuação passa de uma linha para outra
+    expect([a.posicao, a.registrado, a.esperado, a.conta, a.field, a.situacao, a.diferenca]).toEqual([53, 17.6, 38.4, "10 × 3,84 × 1", 334, "ERRO", -20.8]);
+    expect([fin.posicao, fin.registrado, fin.esperado, fin.conta, fin.field, fin.situacao]).toEqual([29, 384, 384, "100 × 3,84 × 1", 334, "CORRETO"]);
+    expect(Math.round((a.esperado + fin.esperado) * 100) / 100).toBe(422.4); // nenhuma pontuação passa de uma linha para outra
   });
   it("jogador com 2 ou 3 flights e sem Final: a primeira linha vale 10 × fatores e as outras 0", async () => {
     const aud = auditado(await fixture("taua-2026"));
@@ -109,13 +110,13 @@ describe("Etapa 1: Main Event avaliado por linha", () => {
     expect(varios.some((ls) => ls.length === 3)).toBe(true);
     for (const ls of varios) {
       const ordem = [...ls].sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1));
-      expect(ordem[0].esperado).toBe(25.2); // 10 × (202/100 + 0,5) × 1,0
+      expect(ordem[0].esperado).toBe(38.4); // 10 × (334/100 + 0,5) × 1,0
       expect(ordem[0].causaCodigo).toBe("PARTICIPACAO");
       for (const outra of ordem.slice(1)) expect([outra.esperado, outra.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
       expect(ordem[1].causaProvavel).toContain("Jogou mais de um flight: vale só o primeiro");
     }
   });
-  it("jogador com um flight só e sem Final: 10 × fatores com o campo 202", async () => {
+  it("jogador com um flight só e sem Final: 10 × fatores com o campo 334", async () => {
     const aud = auditado(await fixture("taua-2026"));
     const comFinal = new Set(aud.linhas.filter((l) => l.torneio === "Final Main Event").map((l) => l.jogador));
     const flights = aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio));
@@ -123,7 +124,7 @@ describe("Etapa 1: Main Event avaliado por linha", () => {
     for (const l of flights) contagem.set(l.jogador, (contagem.get(l.jogador) ?? 0) + 1);
     const unicos = flights.filter((l) => !comFinal.has(l.jogador) && contagem.get(l.jogador) === 1);
     expect(unicos.length).toBe(85);
-    expect(unicos.every((l) => l.esperado === 25.2 && l.field === 202 && l.fatorParticipantes === 2.52 && l.fatorBuyIn === 1)).toBe(true);
+    expect(unicos.every((l) => l.esperado === 38.4 && l.field === 334 && l.fatorParticipantes === 3.84 && l.fatorBuyIn === 1)).toBe(true);
   });
   it("nenhuma linha aguarda regra por FLIGHT ou FINAL_SEM_POSICAO nas três etapas", async () => {
     for (const a of [auditado(await fixture("taua-2026")), auditado(await fixture("vale-suico-2026")), auditado(await etapa3())]) {

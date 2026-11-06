@@ -102,12 +102,12 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(aud.resumo.total).toBe(270);
   });
 
-  it("Etapa 1: 202 resultados em erro, 5 divergências e gráficos com dados", async () => {
+  it("Etapa 1: 202 resultados em erro, 4 divergências e gráficos com dados", async () => {
     const { wb, r, buf } = await gerar("taua-2026");
     expect(wb.worksheets.map((w) => w.name)).toEqual(ABAS);
     expect(r.painel.veredito).toContain("202 resultados com pontuação diferente da regra");
     const dv = wb.getWorksheet("Divergências de inscritos")!;
-    expect(dv.rowCount - 1).toBe(5);
+    expect(dv.rowCount - 1).toBe(4); // o Main Event usa os 334 informados: sem divergência
     expect(wb.getWorksheet("Todos os cálculos")!.rowCount - 1).toBe(642);
     expect(wb.getWorksheet("Resumo")!.getImages()).toHaveLength(4);
     const g1 = dadosDosGraficos(r);

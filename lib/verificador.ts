@@ -4,7 +4,7 @@
 import type { DadosSpt } from "./api-spt";
 import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
 import { PREMIADOS_ETAPA3 } from "./premiados-etapa3";
-import type { Regras } from "./regras";
+import { CAMPO_MAIN_EVENT, type Regras } from "./regras";
 
 // Pontos por posição 1..18; 19+ tratado à parte.
 const TABELA: Record<number, number> = {
@@ -91,7 +91,7 @@ type Bruta = {
 export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneiosMotor: TorneioMotor[], acordos: Record<string, number> = {}, cancelados: string[] = []): Divergencia[] {
   // Participantes do Main Event: soma das entradas (players) dos flights. Cada linha do Main Event vale por si: o primeiro flight do jogador é participação
   // (10 × fatores), os outros flights valem 0, e o Dia Final é avaliado pela própria posição [usuário, 06/11/2026].
-  const somaFlights = d.torneios.filter(ehFlightV).reduce((a, t) => a + t.players, 0);
+  const campoMain = CAMPO_MAIN_EVENT[d.stage] ?? d.torneios.filter(ehFlightV).reduce((a, t) => a + t.players, 0); // Etapa 1: 334 informado pelo usuário
   const primeiro = new Map<unknown, string>();
   for (const j of d.jogadores) {
     let melhor: (typeof d.torneios)[number] | null = null;
@@ -124,7 +124,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const flight = ehFlightV(t);
       const acoes = t.buyIns != null && t.reentries != null ? t.buyIns + t.reentries : null; // buy-ins + re-entries, se a planilha informa
       // Campo: Main Event (flights e Dia Final) = soma dos flights; senão os inscritos.
-      const field = (final || flight) && somaFlights > 0 ? somaFlights : t.players;
+      const field = (final || flight) && campoMain > 0 ? campoMain : t.players;
       const buyIn = t.buyIn;
       // Fator de buy-in: em torneio com bounty (K.O ou Mystery) informado vale buy-in + bounty; sem bounty ou com bounty sem valor (provisório), só o buy-in.
       const buyInFator = buyInTotalVerificador({ buyIn, bountyType: t.bountyType, bountyAmount: t.bountyAmount });
@@ -160,7 +160,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const comPremio = r.prize != null && r.prize > 0;
       const suspeito = !daPlanilha && !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
-        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && somaFlights > 0 ? somaFlights : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acDe: acordo ? 1 : null, acAte: acordo ? acK : null, acOrigem: acordo ? "informado" : null, acCent, pendente, motivo, itm, suspeito,
+        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && campoMain > 0 ? campoMain : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acDe: acordo ? 1 : null, acAte: acordo ? acK : null, acOrigem: acordo ? "informado" : null, acCent, pendente, motivo, itm, suspeito,
         fixo: satelite || acordo || (particip && !pendente), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }
@@ -208,7 +208,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
   const achados = new Map<string, number>(); // torneioId → inscritos do site
   for (const t of d.torneios) {
     const ls = brutas.filter((b) => b.torneioId === t.id && !b.pendente && !b.fixo);
-    const usado = brutas.find((b) => b.torneioId === t.id)?.field ?? ((ehFinalV(t) || ehFlightV(t)) && somaFlights > 0 ? somaFlights : t.players);
+    const usado = brutas.find((b) => b.torneioId === t.id)?.field ?? ((ehFinalV(t) || ehFlightV(t)) && campoMain > 0 ? campoMain : t.players);
     let melhorF = 0;
     let melhorN = 0;
     for (let f = 1; f <= MAX_INSCRITOS && ls.length; f++) {
