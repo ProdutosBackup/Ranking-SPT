@@ -125,7 +125,7 @@ describe("Excel do Relatório (painel de auditoria)", () => {
 });
 
 describe("Excel da Exportação de dados", () => {
-  it("Etapa 2: tabela simples, 16 colunas, aba de identificação", async () => {
+  it("Etapa 2: tabela simples, 23 colunas, aba de identificação", async () => {
     const dados = dadosDe("vale-suico-2026");
     const aud = auditar(dados, REGRAS_PADRAO);
     const id = identificador(dados);
@@ -136,6 +136,7 @@ describe("Excel da Exportação de dados", () => {
     const d = wb.getWorksheet("Dados")!;
     expect(d.rowCount - 1).toBe(270);
     expect(d.getRow(1).values).toContain("Fator de participantes");
+    expect(d.getRow(1).values).toContain("Motivo (dados insuficientes)");
     expect(d.autoFilter).toBeTruthy();
     const info = Object.fromEntries(wb.getWorksheet("Identificação")!.getRows(1, 6)!.map((x) => [txt(x.getCell(1).value), txt(x.getCell(2).value)]));
     expect(info["Identificador"]).toBe(id.sha256.slice(0, 8));

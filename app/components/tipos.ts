@@ -27,6 +27,10 @@ export type Linha = {
   conta: string;
   esperado: number;
   registrado: number;
+  /** Pontos publicados em centésimos e o esperado nos 4 cenários A a D (null = dados insuficientes), vindos do motor. */
+  registradoCent: number;
+  cenarios: Partial<Record<"A" | "B" | "C" | "D", number | null>>;
+  cenariosMotivo: string | null;
   diferenca: number;
   rotulo: string;
   classe: string;

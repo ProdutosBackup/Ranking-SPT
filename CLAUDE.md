@@ -37,7 +37,7 @@ Gotchas:
 
 ## Interface travada
 
-A estrutura descrita em docs/interface.md e em app/components/estrutura.ts não pode ser alterada (nomes, ordem, abas, seções, blocos, parâmetros do endereço, atalhos) sem autorização explícita do usuário na conversa. Ajustes de cores, espaçamento e acabamento visual são permitidos desde que a estrutura e o teste tests/interface.test.ts continuem iguais. Se uma tarefa exigir mudar a estrutura, pare e pergunte antes.
+A estrutura está descrita em docs/interface.md e em app/components/estrutura.ts, e protegida por tests/interface.test.ts. Em 05/11/2026 o usuário liberou a interface (estrutura.ts, tests/interface.test.ts, docs/interface.md) para alterações, desde que o dinamismo dos cards seja preservado; os três mudam juntos. Painel lateral e aba Jogadores: só cores e fontes.
 
 Alteração autorizada em 21/10/2026 (autorização do usuário: "Satélites não contam pontos, então pode tirar aquela opção."): removidos da estrutura o controle "Satélites contam pontos?" da barra superior e o parâmetro `sat` do endereço (um `?sat=` antigo é ignorado). Satélites são fixos como "não pontua" (`VERSAO_REGRAS` 1.2). A autorização vale só para esse item.
 

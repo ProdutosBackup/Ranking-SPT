@@ -97,7 +97,7 @@ export const ENDERECO = {
   item: "ver",
 } as const;
 /** Parâmetro que já existia além dos acima (filtro "só com erro"). O antigo `sat` (satélites) foi removido em 21/10/2026 e é ignorado. */
-export const ENDERECO_EXTRA = { soErro: "soerro", visao: "visao" } as const;
+export const ENDERECO_EXTRA = { soErro: "soerro", visao: "visao", fator: "fator", modo: "modo", spt: "spt" } as const;
 
 /**
  * Consolidado (itens acrescentados com autorização do usuário em 21/10/2026): o botão "Consolidado" fica em BARRA, separado das abas;
@@ -109,9 +109,26 @@ export const CONSOLIDADO = {
   busca: "Buscar jogador",
   sair: "Voltar à auditoria",
   semDados: "Sem dados nesta etapa",
-  colunas: ["Posição", "Jogador", "Pontos acumulados"],
+  colunas: ["Posição", "Jogador", "Pontos"],
+  /** Três rankings lado a lado (autorizado em 06/11/2026), com seletor de fator, Acumulado / Por etapa e faixa fixa do que está na tela. */
+  titulos: ["Ranking como estava", "Novas regras · Só entradas", "Novas regras · Total de ações"],
+  fator: "Fator",
+  fatores: ["1,0", "0,9"],
+  modo: "Visão",
+  modos: ["Acumulado", "Por etapa"],
+  etapaVisao: "Etapa mostrada",
+  etapasVisao: ["SPT1", "SPT2", "SPT3"],
+  insuficiente: "Dados insuficientes",
+  /** Cabeçalho da coluna 3: quantos jogadores do cenário exibido têm dados insuficientes (todos, não só as linhas já desenhadas). */
+  contador: (n: number) => `${n.toLocaleString("pt-BR")} com dados insuficientes`,
+  /** Motivo ao passar o mouse sobre a marca; o texto do motivo vem do consolidado. */
+  motivoEtapa: (etapa: number, motivo: string, linhas: number) => `Etapa ${etapa}: ${motivo} (${linhas} ${linhas === 1 ? "linha" : "linhas"})`,
+  faixa: (fator: string, modo: string) => `Fator ${fator} · ${modo}`,
 } as const;
-export const CONSOLIDADO_ITENS = [CONSOLIDADO.etapa, CONSOLIDADO.busca, CONSOLIDADO.sair, CONSOLIDADO.semDados, ...CONSOLIDADO.colunas];
+export const CONSOLIDADO_ITENS = [
+  CONSOLIDADO.etapa, CONSOLIDADO.busca, CONSOLIDADO.sair, CONSOLIDADO.semDados, ...CONSOLIDADO.colunas,
+  ...CONSOLIDADO.titulos, CONSOLIDADO.fator, ...CONSOLIDADO.fatores, CONSOLIDADO.modo, ...CONSOLIDADO.modos, CONSOLIDADO.etapaVisao, ...CONSOLIDADO.etapasVisao, CONSOLIDADO.insuficiente,
+];
 
 /** Atalhos de teclado do painel lateral. */
 export const ATALHOS = {

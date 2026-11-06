@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CAMPO, CANCELADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
+  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CAMPO, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -32,7 +32,15 @@ describe("estrutura da tela travada", () => {
 
   // Itens acrescentados com autorização do usuário em 21/10/2026 (Consolidado).
   it("consolidado: seletor de etapa, busca, saída, texto sem dados e colunas fixas da tabela", () => {
-    expect(CONSOLIDADO_ITENS, TRAVADA).toEqual(["Etapa", "Buscar jogador", "Voltar à auditoria", "Sem dados nesta etapa", "Posição", "Jogador", "Pontos acumulados"]);
+    expect(CONSOLIDADO_ITENS, TRAVADA).toEqual([
+      "Etapa", "Buscar jogador", "Voltar à auditoria", "Sem dados nesta etapa", "Posição", "Jogador", "Pontos",
+      "Ranking como estava", "Novas regras · Só entradas", "Novas regras · Total de ações",
+      "Fator", "1,0", "0,9", "Visão", "Acumulado", "Por etapa", "Etapa mostrada", "SPT1", "SPT2", "SPT3", "Dados insuficientes",
+    ]);
+    expect([CONSOLIDADO.contador(214), CONSOLIDADO.motivoEtapa(1, "reentradas não disponíveis: falta o Excel da etapa", 3), CONSOLIDADO.motivoEtapa(3, "x", 1)], TRAVADA).toEqual([
+      "214 com dados insuficientes", "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (3 linhas)", "Etapa 3: x (1 linha)",
+    ]);
+    expect([CONSOLIDADO.faixa("1,0", "Acumulado"), CONSOLIDADO.faixa("0,9", "Etapa 2")], TRAVADA).toEqual(["Fator 1,0 · Acumulado", "Fator 0,9 · Etapa 2"]);
   });
 
   // Itens acrescentados com autorização do usuário em 21/10/2026 (participação de flight e ações por torneio).
@@ -121,7 +129,7 @@ describe("estrutura da tela travada", () => {
 
   it("endereço: parâmetros", () => {
     expect({ ...ENDERECO }, TRAVADA).toEqual({ etapa: "etapa", aba: "aba", causa: "causa", torneio: "torneio", busca: "busca", ordem: "ordem", item: "ver" });
-    expect({ ...ENDERECO_EXTRA }, TRAVADA).toEqual({ soErro: "soerro", visao: "visao" });
+    expect({ ...ENDERECO_EXTRA }, TRAVADA).toEqual({ soErro: "soerro", visao: "visao", fator: "fator", modo: "modo", spt: "spt" });
   });
 
   it("atalhos de teclado do painel", () => {

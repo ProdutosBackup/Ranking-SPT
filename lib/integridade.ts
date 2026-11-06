@@ -26,11 +26,11 @@ const porTexto = (a: unknown, b: unknown) => {
 
 /**
  * Identificador dos dados: hash SHA-256 só do conteúdo (torneios e resultados normalizados e ordenados, valores em
- * centésimos inteiros). O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
+ * centésimos inteiros), os buy-ins e re-entries da planilha (base dos cenários C e D) e a VERSAO_REGRAS. O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
  */
 export function identificador(d: DadosSpt, acordos: Record<string, number> = {}, cancelados: string[] = []) {
   const torneios = d.torneios
-    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null])
+    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null, t.buyIns ?? null, t.reentries ?? null])
     .sort(porTexto);
   const jogadores = d.jogadores
     .map((j) => [
@@ -41,7 +41,7 @@ export function identificador(d: DadosSpt, acordos: Record<string, number> = {},
     .sort(porTexto);
   return {
     updatedAt: d.updatedAt,
-    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) })).digest("hex"),
+    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, versaoRegras: VERSAO_REGRAS, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) })).digest("hex"),
     versaoRegras: VERSAO_REGRAS,
   };
 }

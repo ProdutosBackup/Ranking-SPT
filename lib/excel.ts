@@ -12,7 +12,7 @@ import { montarResposta } from "./painel";
 import { ACORDO, marcaLinha } from "./acordo";
 import { CANCELADO } from "./cancelados";
 import { ACOES, PARTICIPACAO } from "./participacao";
-import { REGRAS_PADRAO, type Regras } from "./regras";
+import { REGRAS_PADRAO, VERSAO_REGRAS, type Regras } from "./regras";
 
 type Aud = ReturnType<typeof auditar>;
 type Id = ReturnType<typeof identificador>;
@@ -134,6 +134,7 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
         horizontal: c.t === "pos" ? "center" : ehNumero(c.t) ? "right" : "left",
         wrapText: c.t === "longo" || c.t === "texto",
       };
+      if (cell.value === INSUFICIENTE) cell.fill = fill(C.pendenteSuave);
       if (c.t === "situacao" && l.classe && !opcoes.semCor) {
         const f = FORTE[l.classe];
         cell.fill = fill(f.fundo);
@@ -159,20 +160,39 @@ const conta = (l: LinhaAud) =>
   (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : `10 pontos fixos = ${n(l.esperado)}`);
 const aguarda = (l: LinhaAud) => l.classe === "aguarda";
 
+/** Texto da célula de um cenário sem dados (o parcial nunca aparece). */
+export const INSUFICIENTE = "Dados insuficientes";
+/** Cabeçalhos das colunas 19 a 22 e o que cada cenário significa (legenda do Relatório e da Exportação). */
+export const CENARIOS_COLUNAS = ["A · Só entradas · fator 1,0", "B · Só entradas · fator 0,9", "C · Total de ações · fator 1,0", "D · Total de ações · fator 0,9"] as const;
+export const CENARIOS_LEGENDA: [string, string][] = [
+  ["Cenário A", "Só entradas (buy-ins), com o fator de buy-in da faixa até R$ 1.000 igual a 1,0."],
+  ["Cenário B", "Só entradas (buy-ins), com o fator de buy-in da faixa até R$ 1.000 igual a 0,9."],
+  ["Cenário C", "Total de ações (buy-ins + re-entries), com o fator de buy-in da faixa até R$ 1.000 igual a 1,0."],
+  ["Cenário D", "Total de ações (buy-ins + re-entries), com o fator de buy-in da faixa até R$ 1.000 igual a 0,9."],
+];
+const CEN = ["A", "B", "C", "D"] as const;
+const motivoCenarios = (l: LinhaAud, etapa: number | null) =>
+  aguarda(l) || !l.cenariosMotivo || CEN.every((k) => l.cenarios[k] != null) ? "" : `${etapa != null ? `Etapa ${etapa}: ` : ""}${l.cenariosMotivo} (1 linha)`;
+/** Linhas com dados insuficientes no cenário (fora as aguardando regra, que ficam vazias). */
+export const insuficientesEm = (linhas: LinhaAud[], k: (typeof CEN)[number]) => linhas.filter((l) => !aguarda(l) && l.cenarios[k] == null).length;
+
 /** Colunas de "Todos os cálculos" (a Exportação usa as mesmas). */
 const COLS_CALCULOS: Col[] = [
   { h: "Jogador", t: "texto" }, { h: "Torneio", t: "texto" }, { h: "Posição", t: "pos" }, { h: "Prêmio (R$)", t: "ponto" },
   { h: "Buy-in (R$)", t: "ponto" }, { h: "Inscritos usados", t: "int" }, { h: "Premiados", t: "int" }, { h: "Base da posição", t: "int" },
   { h: "Fator de participantes", t: "fator" }, { h: "Fator de buy-in", t: "fator" }, { h: "Conta correta", t: "texto" },
   { h: "Pontos corretos", t: "ponto" }, { h: "Pontos no site", t: "ponto" }, { h: "Diferença", t: "dif" }, { h: "Situação", t: "situacao" }, { h: "Categoria", t: "texto" }, { h: ACORDO.rotulo, t: "texto" }, { h: "Causa (hipótese)", t: "longo" },
+  // Colunas 19 a 23: os 4 cenários (em pontos) e o motivo dos dados insuficientes. Ficam no fim para não deslocar as 18 primeiras.
+  ...CENARIOS_COLUNAS.map((h) => ({ h, t: "ponto" as Tipo })), { h: "Motivo (dados insuficientes)", t: "longo" },
 ];
-function linhasCalculos(linhas: LinhaAud[]): Linha[] {
+function linhasCalculos(linhas: LinhaAud[], etapa: number | null): Linha[] {
   return linhas.map((l) => ({
     classe: l.classe,
     v: [
       l.jogador, l.torneio, l.posicao, l.semPremio ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
       aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? marcaLinha(l.acordo, l.acordoDe, l.acordoOrigem) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
+      ...CEN.map((k) => (aguarda(l) ? null : l.cenarios[k] == null ? INSUFICIENTE : l.cenarios[k]! / 100)), motivoCenarios(l, etapa),
     ],
   }));
 }
@@ -537,12 +557,22 @@ function regras(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     c.alignment = { wrapText: true, vertical: "top" };
     ws.getRow(fimRegras + 1 + i).height = 32;
   });
+  const fimCen = fimRegras + 5;
+  titulo(fimCen, "Cenários A a D");
+  [...CENARIOS_LEGENDA.map(([k, v]) => `${k}: ${v}`), `Versão das regras: ${VERSAO_REGRAS}`].forEach((texto, i) => {
+    ws.mergeCells(fimCen + 1 + i, 1, fimCen + 1 + i, 5);
+    const c = ws.getCell(fimCen + 1 + i, 1);
+    c.value = texto;
+    c.font = { name: FONTE, size: 10, color: { argb: C.tinta } };
+    c.alignment = { wrapText: true, vertical: "top" };
+    ws.getRow(fimCen + 1 + i).height = 32;
+  });
   impressao(ws, rodape);
 }
 
 function todos(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
   const ws = wb.addWorksheet("Todos os cálculos");
-  tabela(ws, COLS_CALCULOS, linhasCalculos(r.linhas), rodape, { barraDif: 13 });
+  tabela(ws, COLS_CALCULOS, linhasCalculos(r.linhas, r.painel.numeroEtapa), rodape, { barraDif: 13 });
 }
 
 /** Relatório: painel de auditoria em 8 abas. */
@@ -569,8 +599,13 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
   propriedades(wb);
   const ws = wb.addWorksheet("Dados");
   ws.addRow(COLS_CALCULOS.map((c) => c.h));
-  const linhas = linhasCalculos(r.linhas);
-  linhas.forEach((l) => ws.addRow(l.v));
+  const linhas = linhasCalculos(r.linhas, r.painel.numeroEtapa);
+  linhas.forEach((l) => {
+    const row = ws.addRow(l.v);
+    row.eachCell((cell) => {
+      if (cell.value === INSUFICIENTE) cell.fill = fill(C.pendenteSuave);
+    });
+  });
   const w = larguras(COLS_CALCULOS, linhas);
   COLS_CALCULOS.forEach((c, j) => {
     const col = ws.getColumn(j + 1);
@@ -602,6 +637,11 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
     ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordoTexto != null).map((t) => `${t.nome} (${t.acordoTexto!.replace(/^Acordo: /, "")})`).join("; ")}`]] as [string, string][]) : []),
     ...(r.cancelados.aplicados > 0 ? ([["Torneios cancelados", `${r.cancelados.aplicados}: ${r.painel.torneios.filter((t) => t.cancelado).map((t) => t.nome).join("; ")} (${CANCELADO.causa.toLowerCase()})`]] as [string, string][]) : []),
     ["Resultados", String(r.linhas.length)],
+    ...CENARIOS_LEGENDA,
+    ["Fatores incluídos", "1,0 e 0,9 (todos os cenários aparecem sempre)"],
+    ["Versão das regras", VERSAO_REGRAS],
+    ["Linhas com dados insuficientes no cenário C", String(insuficientesEm(r.linhas, "C"))],
+    ["Linhas com dados insuficientes no cenário D", String(insuficientesEm(r.linhas, "D"))],
     ["Arquivo gerado em", `${dataBrasilia(new Date())} (Brasília)`],
   ];
   info.forEach(([k, v]) => {
