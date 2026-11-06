@@ -1,7 +1,7 @@
 // Monta os dados da tela a partir do resultado da auditoria: agrupamentos, totais e textos em linguagem simples.
 // Nenhuma regra de pontuação aqui; só soma e agrupa números que o motor já calculou (em centésimos inteiros).
 import type { DadosSpt } from "./api-spt";
-import { descreverBase, type auditar } from "./auditoria";
+import { descreverBase, ehDiaFinal, ehFlight, type auditar } from "./auditoria";
 import { baseDaPosicao, fb100 } from "./calculo";
 import type { identificador } from "./integridade";
 import { ACORDO, textoAcordoTorneio } from "./acordo";
@@ -100,6 +100,21 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     SEM_PREMIADOS: "Aguardando: nº de premiados não informado",
     SEM_BOUNTY: "Aguardando: bounty não obtido da API",
   };
+  // Flights que cada jogador jogou (linhas do motor, sem recalcular nada): para dizer, na linha de flight que vale 0, onde a pontuação contou.
+  const comoTorneio = (l: Linha) => ({ role: l.role, name: l.torneio }) as Parameters<typeof ehFlight>[0];
+  const curto = (nome: string) => /dia\s*(1[a-e])/i.exec(nome)?.[1].toUpperCase() ?? nome;
+  const flightsDe = new Map<string, Linha[]>();
+  const naFinal = new Set<string>();
+  for (const l of aud.linhas) {
+    if (ehFlight(comoTorneio(l))) flightsDe.set(l.jogador, [...(flightsDe.get(l.jogador) ?? []), l]);
+    else if (ehDiaFinal(comoTorneio(l))) naFinal.add(l.jogador);
+  }
+  const textoFlights = (l: Linha): string | null => {
+    const fl = [...(flightsDe.get(l.jogador) ?? [])].sort((a, b) => (curto(a.torneio) < curto(b.torneio) ? -1 : curto(a.torneio) > curto(b.torneio) ? 1 : 0));
+    if (fl.length < 2 || !fl.includes(l)) return null;
+    const contou = fl.find((x) => x.participacao) ?? fl[0]; // a linha de flight que pontua (participação), segundo o motor
+    return PARTICIPACAO.flightsJogados(fl.map((x) => curto(x.torneio)), curto(contou.torneio), naFinal.has(l.jogador), curto(l.torneio));
+  };
   // Hipótese da causa, já com os números formatados: a tela só exibe.
   const hipotese = (l: Linha): { texto: string; conta: string | null } | null => {
     const fp = n(l.fatorParticipantes, 4);
@@ -119,8 +134,10 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
         return { texto: l.acordoOrigem === "automatico" ? l.causaProvavel : ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
       case "PARTICIPACAO":
         return { texto: l.causaProvavel, conta: null };
-      case "FLIGHT_ZERO":
-        return { texto: l.causaProvavel, conta: null };
+      case "FLIGHT_ZERO": {
+        const voos = textoFlights(l);
+        return { texto: voos ? `${l.causaProvavel}. ${voos}` : l.causaProvavel, conta: null };
+      }
       case "PREMIADOS_LISTA":
         return { texto: l.causaProvavel, conta: null };
       case "CANCELADO_USUARIO":

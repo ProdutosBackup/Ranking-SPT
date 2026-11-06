@@ -19,6 +19,12 @@ export const PARTICIPACAO = {
   // Linhas de flight que valem 0 (o jogador já pontuou em outro flight)
   zeroMaisDeUm: "Jogou mais de um flight: vale só o primeiro",
   contaZeroMaisDeUm: "0: já pontuou em outro flight (pontua uma vez só)",
+  /**
+   * Linha de flight que vale 0 porque o jogador já pontuou em outro flight [usuário, 06/11/2026: "quero que apareça todos os flights que ele jogou e
+   * em qual ele pontuou"]. Ex.: "Jogou os flights 1A e 1D. A pontuação contou no 1A. Neste flight (1D) vale 0". `naFinal`: também tem linha no Dia Final.
+   */
+  flightsJogados: (flights: string[], contou: string, naFinal: boolean, este: string) =>
+    `Jogou os flights ${flights.length > 1 ? `${flights.slice(0, -1).join(", ")} e ${flights[flights.length - 1]}` : flights[0]}. A pontuação contou no ${contou}${naFinal ? " e no Dia Final" : ""}. Neste flight (${este}) vale 0`,
   campo: (soma: number, partes: number[]) => `campo: soma dos flights ${soma} = ${partes.join("+")}`,
   campoInformado: (n: number) => `campo: ${n} buy-ins do Main Event (informado pelo usuário em 06/11/2026)`,
 } as const;
