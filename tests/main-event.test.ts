@@ -8,7 +8,8 @@ import { BOUNTY_API } from "./bounty-mock";
 import { REGRAS_PADRAO } from "../lib/regras";
 import { verificar } from "../lib/verificador";
 
-// Main Event como um torneio só [CONFIRMADO 05/11/2026]: cada jogador pontua uma vez; participantes = soma das entradas (players) dos flights.
+// Main Event avaliado por linha [usuário, 06/11/2026; substitui a regra de 05/11]: o primeiro flight é participação (10 × fatores), os outros flights
+// valem 0, e o Dia Final vale pela própria posição. Participantes = soma das entradas (players) dos flights.
 function fixture(stage: string) {
   const fx = JSON.parse(readFileSync(`tests/fixtures/${stage}.json`, "utf8"));
   vi.stubGlobal("fetch", async (url: string) => {
@@ -79,15 +80,24 @@ describe("Dia Final sem posição: 10 × fatores, uma vez", () => {
   });
 });
 
-describe("Etapa 1: uma pontuação por jogador no Main Event", () => {
-  it("finalista com flight: a pontuação vale no flight e o Dia Final vale 0 (Anderson De Carvalho Costa)", async () => {
+describe("Etapa 1: Main Event avaliado por linha", () => {
+  it("finalista com flight pontua nas duas linhas: flight = participação, Dia Final = a própria posição (Anderson De Carvalho Costa)", async () => {
     const aud = auditado(await fixture("taua-2026"));
     const f = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio.endsWith("Dia 1D"))!;
-    // O flight carrega a pontuação do Dia Final (76º, campo 202: 10 × 2,52 × 1,0 = 25,2 com os inscritos da API; 38,4 com os 334 do site, que reproduzem as 135 linhas do Dia Final).
-    expect([f.esperado, f.esperadoApi, f.field, f.fieldApi, f.registrado, f.situacao, f.causaCodigo]).toEqual([38.4, 25.2, 334, 202, 12.1, "ERRO", "FLIGHT_ZERO"]);
-    expect(f.causaProvavel).toContain("Flight de jogador que chegou ao Dia Final: a pontuação do Main Event vale no flight");
+    // Flight: 10 × 2,52 × 1,0 = 25,2 (campo de hoje: soma dos flights 202). O site registrou 12,1.
+    expect([f.esperado, f.field, f.registrado, f.situacao, f.causaCodigo, f.participacao]).toEqual([25.2, 202, 12.1, "ERRO", "PARTICIPACAO", true]);
     const fin = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio === "Final Main Event")!;
-    expect([fin.posicao, fin.esperado, fin.registrado, fin.situacao, fin.conta]).toEqual([76, 0, 38.4, "ERRO", "0: a pontuação do Main Event vale no flight"]);
+    // Dia Final 76º, fora da premiação: 10 × 3,84 × 1,0 = 38,4 com os 334 inscritos do site (reproduzem as 135 linhas do Dia Final).
+    expect([fin.posicao, fin.esperado, fin.registrado, fin.situacao, fin.field]).toEqual([76, 38.4, 38.4, "CORRETO_SITE", 334]);
+  });
+  it("Mauricio Alejandro Zeman Vergara: Dia 1A 53º = participação; Final 29º = 384, igual ao site", async () => {
+    const aud = auditado(await fixture("taua-2026"));
+    const ls = aud.linhas.filter((l) => l.jogador.startsWith("Mauricio Alejandro Zeman"));
+    const a = ls.find((l) => l.torneio === "Main Event 400K Dia 1A")!;
+    const fin = ls.find((l) => l.torneio === "Final Main Event")!;
+    expect([a.posicao, a.registrado, a.esperado, a.conta, a.field, a.situacao]).toEqual([53, 17.6, 25.2, "10 × 2,52 × 1", 202, "ERRO"]);
+    expect([fin.posicao, fin.registrado, fin.esperado, fin.conta, fin.field, fin.situacao]).toEqual([29, 384, 384, "100 × 3,84 × 1", 334, "CORRETO_SITE"]);
+    expect(Math.round((a.esperado + fin.esperado) * 100) / 100).toBe(409.2); // nenhuma pontuação passa de uma linha para outra
   });
   it("jogador com 2 ou 3 flights e sem Final: a primeira linha vale 10 × fatores e as outras 0", async () => {
     const aud = auditado(await fixture("taua-2026"));

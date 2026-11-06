@@ -6,13 +6,14 @@ import { consolidar } from "../lib/consolidado";
 import { identificador } from "../lib/integridade";
 import { montarResposta } from "../lib/painel";
 import { dadosDaPlanilha } from "../lib/planilha-guardada";
-import { PARTICIPACAO } from "../lib/participacao";
 import { REGRAS_PADRAO } from "../lib/regras";
 import { verificar } from "../lib/verificador";
 import { BOUNTY_API } from "./bounty-mock";
 
-// Main Event [CONFIRMADO 05/11/2026]: "O player premia ao longo dos flights e não no dia final. O dia final é somente uma continuação dos flights."
-// Quem jogou flight e chegou ao Dia Final leva a pontuação do Dia Final para o primeiro flight; a linha do Dia Final vale 0.
+// Main Event avaliado por linha [usuário, 06/11/2026: "Dias classificatórios não tem premiação."], que substitui a regra de 05/11/2026 (a pontuação do
+// Dia Final ia para o primeiro flight e o Dia Final valia 0). Cada linha vale por si: o primeiro flight é participação (10 × fatores), os outros flights
+// valem 0 e o Dia Final vale pela própria posição. A base ANTES (tests/fixtures/base-antes-main-event.json) é anterior às duas regras; as Etapas 2 e 3
+// (sem linhas de flight nos resultados) continuam iguais a ela.
 const E1 = "taua-2026";
 const E2 = "vale-suico-2026";
 const E3 = "bendito-cacao-2026";
@@ -47,139 +48,107 @@ async function depois(stage: string) {
   return { d, aud, r, c };
 }
 
-describe("Main Event: a pontuação vale no primeiro flight; o Dia Final é continuação", () => {
-  it("o total por jogador no Consolidado não muda, nos 4 cenários, nas 3 etapas", async () => {
-    for (const s of [E1, E2, E3]) {
-      const { c } = await depois(s);
+const flightsDe = (aud: Awaited<ReturnType<typeof depois>>["aud"], jogador: string) =>
+  aud.linhas.filter((l) => l.jogador === jogador && /Dia 1[A-E]$/i.test(l.torneio)).sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1));
+
+describe("Main Event avaliado por linha", () => {
+  it("Etapas 2 e 3 não mudam: total por jogador nos 4 cenários, correto e erro iguais aos de antes", async () => {
+    for (const s of [E2, E3]) {
+      const { c, r } = await depois(s);
       const antes = ANTES[s].jogadores;
       expect(c.jogadores).toHaveLength(Object.keys(antes).length);
       for (const j of c.jogadores) {
         const a = antes[j.nome];
         expect({ esperado: j.totalCent, A: j.cenarios.A.totalCent, B: j.cenarios.B.totalCent, C: j.cenarios.C.totalCent, D: j.cenarios.D.totalCent }, `${s} ${j.nome}`).toEqual({ esperado: a.esperado, A: a.A, B: a.B, C: a.C, D: a.D });
       }
-    }
-  });
-
-  it("Etapas 2 e 3 não mudam: correto e erro idênticos aos de antes", async () => {
-    for (const s of [E2, E3]) {
-      const { r } = await depois(s);
       expect([r.painel.indicadores.corretos, r.painel.indicadores.erros], s).toEqual([ANTES[s].corretos, ANTES[s].erros]);
     }
     expect([ANTES[E2].corretos, ANTES[E2].erros, ANTES[E3].corretos, ANTES[E3].erros]).toEqual([121, 149, 127, 427]);
     const { aud } = await depois(E2);
     const rb = aud.linhas.find((l) => l.jogador === "Rafael Bryan" && l.torneio.includes("Dia Final") && l.posicao === 7)!;
-    expect([rb.esperado, rb.registrado, rb.situacao]).toEqual([1524, 1524, "CORRETO"]); // sem flights nos resultados: o Dia Final continua carregando
+    expect([rb.esperado, rb.registrado, rb.situacao]).toEqual([1524, 1524, "CORRETO"]);
   });
 
-  it("Etapa 1: as linhas que mudaram de lugar", async () => {
+  it("Etapa 1: as 135 linhas do Dia Final valem pela própria posição; o primeiro flight de cada finalista é participação", async () => {
     const { aud } = await depois(E1);
     const final = aud.linhas.filter((l) => l.torneio === "Final Main Event");
     const comFlight = new Set(aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio)).map((l) => l.jogador));
-    const cedentes = final.filter((l) => comFlight.has(l.jogador));
     expect(final).toHaveLength(135);
-    expect(cedentes).toHaveLength(51); // 51 finalistas jogaram flight
-    expect(cedentes.every((l) => l.esperado === 0 && l.situacao === "ERRO" && l.causaProvavel.startsWith(PARTICIPACAO.finalCedido))).toBe(true);
-    expect(cedentes.every((l) => l.conta === PARTICIPACAO.contaZeroFlight)).toBe(true);
-    // os 84 finalistas sem flight seguem iguais: a linha do Dia Final carrega
-    expect(final.filter((l) => !comFlight.has(l.jogador)).every((l) => l.esperado > 0 && l.situacao === "CORRETO_SITE")).toBe(true);
-    // o primeiro flight (1A, 1C, 1D, 1E) de cada um desses 51 carrega a pontuação do Dia Final
-    for (const f of cedentes) {
-      const flights = aud.linhas.filter((l) => l.jogador === f.jogador && /Dia 1[A-E]$/i.test(l.torneio)).sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1));
-      expect([flights[0].esperado, flights[0].esperadoCent, flights[0].cenarios]).toEqual([f.esperado === 0 ? flights[0].esperado : 0, flights[0].esperadoCent, flights[0].cenarios]);
-      expect(flights[0].esperado).toBeGreaterThan(0);
-      expect(flights[0].causaProvavel).toContain(PARTICIPACAO.flightComFinal);
-      for (const outra of flights.slice(1)) expect([outra.esperado, outra.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
+    expect(final.filter((l) => comFlight.has(l.jogador))).toHaveLength(51); // 51 finalistas jogaram flight: pontuam nas duas linhas
+    expect(final.every((l) => l.esperado > 0 && l.situacao === "CORRETO_SITE" && l.field === 334)).toBe(true);
+    for (const f of final.filter((l) => comFlight.has(l.jogador))) {
+      const [primeiro, ...outros] = flightsDe(aud, f.jogador);
+      expect([primeiro.esperado, primeiro.participacao, primeiro.causaCodigo], f.jogador).toEqual([25.2, true, "PARTICIPACAO"]);
+      for (const o of outros) expect([o.esperado, o.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
     }
+    // as causas da regra antiga não existem mais
+    expect(aud.linhas.filter((l) => /a pontuação do Main Event vale no flight|a pontuação do jogador vale no flight dele/.test(`${l.causaProvavel} ${l.conta}`))).toEqual([]);
   });
 
-  it("Anderson De Carvalho Costa: Dia 1D com a pontuação, Dia Final com 0, o mesmo total de antes", async () => {
+  it("Anderson De Carvalho Costa: Dia 1D = participação (25,2) e Dia Final 76º = 38,4; o total é a soma das duas linhas", async () => {
     const { aud, c } = await depois(E1);
     const f = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio.endsWith("Dia 1D"))!;
     const fin = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio === "Final Main Event")!;
-    // Com os 334 inscritos do site (que reproduzem as 135 linhas do Dia Final) a linha vale 38,4; com o campo da API (202) vale 10 × 2,52 = 25,2.
-    expect([f.esperado, f.esperadoApi, f.field, f.fieldApi, f.registrado, f.situacao, f.causaCodigo]).toEqual([38.4, 25.2, 334, 202, 12.1, "ERRO", "FLIGHT_ZERO"]);
-    expect(f.causaProvavel).toContain("Flight de jogador que chegou ao Dia Final: a pontuação do Main Event vale no flight");
-    expect([fin.esperado, fin.esperadoApi, fin.registrado, fin.situacao]).toEqual([0, 0, 38.4, "ERRO"]);
-    expect(fin.conta).toBe("0: a pontuação do Main Event vale no flight");
-    expect(fin.causaProvavel).toContain("Dia Final de jogador que jogou flight: a pontuação do jogador vale no flight dele");
-    expect(fin.conta).not.toContain("10 pontos fixos");
+    expect([f.esperado, f.field, f.registrado, f.situacao, f.causaCodigo]).toEqual([25.2, 202, 12.1, "ERRO", "PARTICIPACAO"]);
+    expect([fin.esperado, fin.field, fin.registrado, fin.situacao, fin.conta]).toEqual([38.4, 334, 38.4, "CORRETO_SITE", "10 × 3,84 × 1"]);
     const j = c.jogadores.find((x) => x.nome.startsWith("Anderson De Carvalho"))!;
-    expect(j.totalCent).toBe(ANTES[E1].jogadores[j.nome].esperado); // 1.089,80, como antes
+    expect(j.totalCent).toBe(aud.linhas.filter((l) => l.jogador === j.nome).reduce((s, l) => s + l.esperadoCent, 0));
+    expect(j.totalCent - ANTES[E1].jogadores[j.nome].esperado).toBe(2520); // a participação do flight soma ao total de antes
   });
 
   it("jogador só de flights, sem Dia Final, não muda: primeira linha 10 × fatores (25,2) e as outras 0", async () => {
     const { aud } = await depois(E1);
     const comFinal = new Set(aud.linhas.filter((l) => l.torneio === "Final Main Event").map((l) => l.jogador));
-    const flights = aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio) && !comFinal.has(l.jogador));
-    const porJ = new Map<string, typeof flights>();
-    for (const l of flights) porJ.set(l.jogador, [...(porJ.get(l.jogador) ?? []), l]);
-    expect(porJ.size).toBe(107);
-    for (const ls of porJ.values()) {
-      const ord = [...ls].sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1));
-      expect([ord[0].esperado, ord[0].causaCodigo === "FLIGHT_ZERO"]).toEqual([25.2, false]);
-      for (const o of ord.slice(1)) expect([o.esperado, o.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
+    const jogadores = new Set(aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio) && !comFinal.has(l.jogador)).map((l) => l.jogador));
+    expect(jogadores.size).toBe(107);
+    for (const j of jogadores) {
+      const [primeiro, ...outros] = flightsDe(aud, j);
+      expect([primeiro.esperado, primeiro.causaCodigo === "FLIGHT_ZERO"]).toEqual([25.2, false]);
+      for (const o of outros) expect([o.esperado, o.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
     }
   });
 
-  it("jogador de 2 ou 3 flights e Dia Final: a pontuação fica só na primeira linha de flight", async () => {
-    const { aud } = await depois(E1);
-    const final = new Set(aud.linhas.filter((l) => l.torneio === "Final Main Event").map((l) => l.jogador));
-    const porJ = new Map<string, typeof aud.linhas>();
-    for (const l of aud.linhas) if (/Dia 1[A-E]$/i.test(l.torneio) && final.has(l.jogador)) porJ.set(l.jogador, [...(porJ.get(l.jogador) ?? []), l]);
-    const varios = [...porJ.values()].filter((ls) => ls.length >= 2);
-    expect(varios.length).toBeGreaterThan(0);
-    for (const ls of varios) {
-      const ord = [...ls].sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1));
-      expect(ord[0].esperado).toBeGreaterThan(0);
-      for (const o of ord.slice(1)) expect([o.esperado, o.cenarios.A, o.cenarios.B]).toEqual([0, 0, 0]);
-    }
-  });
-
-  it("acordo no Dia Final: os pontos do acordo vão para o primeiro flight (mesmo valor), e o Dia Final vale 0", async () => {
-    // Etapa 1 com acordo informado de 3 colocados no Final Main Event: quem tem flight leva o valor do acordo para o flight.
+  it("acordo no Dia Final fica na linha do Dia Final; o flight continua participação", async () => {
     const d = site(E1);
     const t = d.torneios.find((x) => x.name === "Final Main Event")!;
-    const aud0 = auditar(d, REGRAS_PADRAO);
     const aud = auditar(d, REGRAS_PADRAO, { [t.id]: 3 });
     expect(verificar(d, REGRAS_PADRAO, aud.linhas, aud.torneios, { [t.id]: 3 })).toEqual([]);
-    const tot = (a: typeof aud, j: string) => a.linhas.filter((l) => l.jogador === j).reduce((s, l) => s + l.esperadoCent, 0);
     const finais = aud.linhas.filter((l) => l.torneioId === t.id && l.posicao != null && l.posicao <= 3);
-    const comFlight = finais.filter((l) => aud.linhas.some((x) => x.jogador === l.jogador && /Dia 1[A-E]$/i.test(x.torneio)));
-    for (const l of comFlight) {
-      expect(l.esperadoCent).toBe(0);
-      const g = aud.linhas.filter((x) => x.jogador === l.jogador && /Dia 1[A-E]$/i.test(x.torneio)).sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1))[0];
-      expect([g.acordo, g.esperadoCent > 0]).toEqual([3, true]);
-      expect(tot(aud, l.jogador)).toBeGreaterThan(tot(aud0, l.jogador) - 1); // o valor do acordo (base do 3º) aparece no total, só no flight
+    expect(finais).toHaveLength(3);
+    for (const l of finais) {
+      expect([l.acordo, l.esperadoCent > 0]).toEqual([3, true]);
+      const fl = flightsDe(aud, l.jogador);
+      if (fl.length) expect([fl[0].acordo, fl[0].esperado]).toEqual([null, 25.2]);
     }
   });
 });
 
 describe("desempate do Consolidado (primeiros lugares e posição)", () => {
-  it("posição e nº de primeiros lugares por jogador iguais aos de antes", async () => {
+  it("nº de primeiros lugares igual ao de antes nas 3 etapas (o 1º lugar de um flight não conta); posição igual nas Etapas 2 e 3", async () => {
     for (const s of [E1, E2, E3]) {
       const { c } = await depois(s);
-      const dif = c.jogadores.filter((j) => j.primeiros !== ANTES[s].jogadores[j.nome].primeiros || j.posicao !== ANTES[s].jogadores[j.nome].posicao).map((j) => `${j.nome}: primeiros ${ANTES[s].jogadores[j.nome].primeiros}→${j.primeiros}, posição ${ANTES[s].jogadores[j.nome].posicao}→${j.posicao}`);
+      const dif = c.jogadores.filter((j) => j.primeiros !== ANTES[s].jogadores[j.nome].primeiros || (s !== E1 && j.posicao !== ANTES[s].jogadores[j.nome].posicao)).map((j) => j.nome);
       expect(dif, s).toEqual([]);
     }
   });
 });
 
-describe("Excel: Conta correta das linhas que valem 0 por esta regra", () => {
-  it("Etapa 1: a conta não diz mais '10 pontos fixos = 0' no Dia Final de quem jogou flight, e os termos proibidos não aparecem", async () => {
+describe("Excel: Conta correta do Main Event", () => {
+  it("Etapa 1: nenhuma linha do Dia Final vale 0 e os textos da regra antiga não aparecem", async () => {
     const ExcelJS = (await import("exceljs")).default;
     const { exportacaoXlsx } = await import("../lib/excel");
     const { d, aud } = await depois(E1);
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load((await exportacaoXlsx(d, aud, identificador(d))) as unknown as ArrayBuffer);
     const ws = wb.getWorksheet("Dados")!;
-    const cedidas: string[] = [];
+    const zerados: string[] = [];
     ws.eachRow((row, i) => {
-      if (i > 1 && String(row.getCell(2).value) === "Final Main Event" && String(row.getCell(12).value) === "0") cedidas.push(String(row.getCell(11).value));
+      if (i > 1 && String(row.getCell(2).value) === "Final Main Event" && String(row.getCell(12).value) === "0") zerados.push(String(row.getCell(11).value));
     });
-    expect(cedidas).toHaveLength(51);
-    expect(cedidas.every((c) => c === "0: a pontuação do Main Event vale no flight")).toBe(true);
+    expect(zerados).toEqual([]);
     let texto = "";
     ws.eachRow((row) => row.eachCell((c) => (texto += `${String(c.value)}\n`)));
+    expect(texto).not.toContain("a pontuação do Main Event vale no flight");
     expect(texto).not.toContain("não pontua; vale o Dia Final");
   });
 });

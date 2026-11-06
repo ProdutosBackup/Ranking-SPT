@@ -89,17 +89,16 @@ type Bruta = {
 };
 
 export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneiosMotor: TorneioMotor[], acordos: Record<string, number> = {}, cancelados: string[] = []): Divergencia[] {
-  // Participantes do Main Event: soma das entradas (players) dos flights. Uma pontuação por jogador: o Dia Final vale só ele; sem Dia Final, só o primeiro flight.
+  // Participantes do Main Event: soma das entradas (players) dos flights. Cada linha do Main Event vale por si: o primeiro flight do jogador é participação
+  // (10 × fatores), os outros flights valem 0, e o Dia Final é avaliado pela própria posição [usuário, 06/11/2026].
   const somaFlights = d.torneios.filter(ehFlightV).reduce((a, t) => a + t.players, 0);
-  const comFinal = new Set<unknown>();
   const primeiro = new Map<unknown, string>();
   for (const j of d.jogadores) {
     let melhor: (typeof d.torneios)[number] | null = null;
     for (const r of j.resultados) {
       const t = d.torneios.find((x) => x.id === r.tournamentId);
       if (!t) continue;
-      if (ehFinalV(t)) comFinal.add(j);
-      else if (ehFlightV(t) && (melhor == null || ordemV(t) < ordemV(melhor))) melhor = t;
+      if (ehFlightV(t) && (melhor == null || ordemV(t) < ordemV(melhor))) melhor = t;
     }
     if (melhor) primeiro.set(j, melhor.id);
   }
@@ -142,7 +141,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       else if (t.status !== "FINISHED") motivo = "NAO_FINALIZADO";
       else if (naoPontuaVerificador(t.name)) satelite = true;
       else if (flight) {
-        if (comFinal.has(j) || primeiro.get(j) !== t.id) satelite = true; // já pontua em outra linha do Main Event: vale 0
+        if (primeiro.get(j) !== t.id) satelite = true; // já pontuou em outro flight: vale 0
         else particip = true;
       } else if (final && pos == null) particip = true; // Dia Final sem posição: 10 × fatores
       if (motivo == null && !particip && !satelite && daPlanilha && premiados[t.id] == null) motivo = "SEM_PREMIADOS"; // fora da lista de premiados
@@ -241,29 +240,9 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
   // Linhas: recalcula base, fatores, esperado, diferença e situação.
   if (brutas.length !== linhas.length)
     div.push({ jogador: "*", torneio: "*", posicao: null, campo: "nº de linhas", motor: linhas.length, verificador: brutas.length });
-  // Main Event, reescrito aqui: o primeiro flight de quem chegou ao Dia Final carrega a pontuação da linha do Dia Final, e a linha do Dia Final vale 0
-  // [CONFIRMADO 05/11/2026]. Só se o flight não está pendente nem zerado por outro motivo (cancelado pelo usuário ou torneio que não pontua).
-  // A dedução de inscritos acima já usou as linhas como estavam.
-  const fonteV = new Map<Bruta, Bruta>();
-  const cedeV = new Set<Bruta>();
-  const porJogV = new Map<number, Bruta[]>();
-  for (const b of brutas) (porJogV.get(b.ji) ?? porJogV.set(b.ji, []).get(b.ji)!).push(b);
-  for (const [ji, ls] of porJogV) {
-    const g = ls.find((b) => b.flight && b.torneioId === primeiro.get(d.jogadores[ji]));
-    const f = ls.find((b) => b.final);
-    if (!g || !f || g.pendente || (g.satelite && (g.canc || g.npNome))) continue;
-    fonteV.set(g, f);
-    cedeV.add(f);
-  }
-  brutas.forEach((b0, i) => {
+  brutas.forEach((b, i) => {
     const l = linhas[i];
     if (!l) return;
-    const fon = fonteV.get(b0);
-    const b: Bruta = fon
-      ? { ...fon, jogador: b0.jogador, pos: b0.pos, reg: b0.reg, prize: b0.prize, buyIn: b0.buyIn }
-      : cedeV.has(b0)
-        ? { ...b0, satelite: true, canc: false, particip: false, acordo: false, acDe: null, acAte: null, acOrigem: null, acCent: 0, pendente: false, motivo: null, fixo: true, suspeito: false, base: 0 }
-        : b0;
     const site = achados.get(b.torneioId);
     const explicada = site != null && !b.pendente && !b.fixo;
     const field = explicada ? site : b.field;
@@ -288,10 +267,10 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
           ? explicada ? "CORRETO_SITE" : "CORRETO"
           : !b.satelite && !b.particip && !b.acordo && Math.abs(dif) <= tol ? "ARREDONDAMENTO" : "ERRO";
     const esperado: Record<string, unknown> = {
-      jogador: b.jogador, torneioId: b0.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
+      jogador: b.jogador, torneioId: b.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
       fatorParticipantes: field * 100 + 5000, fatorBuyIn: b.f100, esperadoCent: cent, registradoCent: b.reg,
       diferenca: dif, situacao, pendencia: b.motivo, participacao: b.particip, canceladoUsuario: b.canc, acordo: b.acAte, acordoDe: b.acDe, acordoOrigem: b.acOrigem,
-      cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C == null ? (b.acoes == null && d.torneios.find((x) => x.id === b0.torneioId)?.acoesMotivo) || "reentradas não disponíveis: falta o Excel da etapa" : null, acoesCampo: b.acoes,
+      cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C == null ? (b.acoes == null && d.torneios.find((x) => x.id === b.torneioId)?.acoesMotivo) || "reentradas não disponíveis: falta o Excel da etapa" : null, acoesCampo: b.acoes,
     };
     const motor: Record<string, unknown> = {
       jogador: l.jogador, torneioId: l.torneioId, field: l.field, buyIn: l.buyIn, premiados: l.premiados, base: l.base,
@@ -300,7 +279,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       cenarioA: l.cenarios?.A ?? null, cenarioB: l.cenarios?.B ?? null, cenarioC: l.cenarios?.C ?? null, cenarioD: l.cenarios?.D ?? null, cenariosMotivo: l.cenariosMotivo ?? null, acoesCampo: l.acoesCampo ?? null,
     };
     for (const campo of Object.keys(esperado))
-      if (motor[campo] !== esperado[campo]) div.push({ jogador: b.jogador, torneio: nome(b0.torneioId), posicao: b.pos, campo, motor: motor[campo], verificador: esperado[campo] });
+      if (motor[campo] !== esperado[campo]) div.push({ jogador: b.jogador, torneio: nome(b.torneioId), posicao: b.pos, campo, motor: motor[campo], verificador: esperado[campo] });
   });
   return div;
 }

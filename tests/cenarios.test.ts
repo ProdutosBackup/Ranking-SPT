@@ -138,7 +138,7 @@ describe("cenários C e D: total de ações (entradas + reentradas)", () => {
   });
   it("contagem das linhas null em C e D por etapa", () => {
     const nulas = (s: string) => ({ C: auditados[s].aud.linhas.filter((l) => l.cenarios.C == null).length, D: auditados[s].aud.linhas.filter((l) => l.cenarios.D == null).length, total: auditados[s].aud.linhas.length });
-    expect(nulas(E1)).toEqual({ C: 547, D: 547, total: 642 });
+    expect(nulas(E1)).toEqual({ C: 598, D: 598, total: 642 }); // 2.7: as 51 linhas do Dia Final de quem jogou flight deixaram de valer 0 e não têm ações
     expect(nulas(E2)).toEqual({ C: 270, D: 270, total: 270 });
     expect(nulas(E3)).toEqual({ C: 214, D: 214, total: 554 });
     // A e B nunca são null
