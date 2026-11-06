@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
+  ABA_AUDITORIA, ABAS, ACOES, AUDITORIA, ACORDO, ATALHOS, BARRA_ITENS, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_ACOES, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -12,13 +12,27 @@ describe("estrutura da tela travada", () => {
     expect(
       ABAS.map((a) => a.rotulo),
       TRAVADA,
-    ).toEqual(["Resumo", "Erros", "Divergências de inscritos", "Jogadores", "Torneios", "Aguardando regra", "Regras"]);
-    expect(ABAS.map((a) => a.id), TRAVADA).toEqual(["resumo", "erros", "divergencias", "jogadores", "torneios", "aguardando", "regras"]);
+    ).toEqual(["Auditoria", "Resumo", "Erros", "Divergências de inscritos", "Jogadores", "Torneios", "Aguardando regra", "Regras", "Consolidado"]);
+    expect(ABAS.map((a) => a.id), TRAVADA).toEqual(["auditoria", "resumo", "erros", "divergencias", "jogadores", "torneios", "aguardando", "regras", "consolidado"]);
     expect(ABAS.filter((a) => a.comContador).map((a) => a.id), TRAVADA).toEqual(["erros", "divergencias", "jogadores", "torneios", "aguardando"]);
   });
 
+  // Aba Auditoria (06/11/2026): causas à esquerda, casos à direita; clicar num caso abre o painel lateral.
+  it("aba Auditoria: textos e menus", () => {
+    expect([AUDITORIA.antes, AUDITORIA.semErros, AUDITORIA.comoFicaram(1234), AUDITORIA.limpar, AUDITORIA.clique], TRAVADA).toEqual([
+      "Escolha a etapa e toque em “Auditar etapa”.", "Não há erros nesta etapa.", "Como ficaram os 1.234 resultados", "Limpar filtros",
+      "Clique em um resultado para ver a conta passo a passo. As causas são hipóteses.",
+    ]);
+    expect([AUDITORIA.todas, AUDITORIA.causa, AUDITORIA.torneio, AUDITORIA.ordenar, ...AUDITORIA.ordens.map((o) => o[1])], TRAVADA).toEqual(["Todas", "Causa", "Torneio", "Ordenar", "Maior diferença", "Jogador", "Torneio"]);
+    expect(ABA_AUDITORIA, TRAVADA).toBe(ABAS[0].id);
+    // v2 (no modelo do Resumo): cartões de causa, bloco de casos com colunas alinhadas e a versão curta das causas no celular
+    expect([AUDITORIA.todasAsCausas, AUDITORIA.casos, ...AUDITORIA.colunas, AUDITORIA.verTodas(7), AUDITORIA.verMenos], TRAVADA).toEqual([
+      "Todas as causas", "Casos", "Jogador", "Torneio · posição", "Site", "Correto", "Diferença", "Ver todas as causas (7)", "Mostrar só as 4 maiores",
+    ]);
+  });
+
   it("barra superior: itens e ordem", () => {
-    expect(BARRA_ITENS, TRAVADA).toEqual(["Etapa", "Auditar etapa", "Enviar planilha", "Baixar relatório", "Exportar dados", "Consolidado", "Faixa de confiança"]);
+    expect(BARRA_ITENS, TRAVADA).toEqual(["Etapa", "Auditar etapa", "Mais", "Enviar planilha", "Baixar relatório", "Exportar dados", "Faixa de confiança"]);
   });
 
   // Itens acrescentados com autorização do usuário em 21/10/2026 (envio de planilha).
@@ -28,6 +42,13 @@ describe("estrutura da tela travada", () => {
     ]);
     expect(TEXTOS_PLANILHA.faixa("a.xlsx", "21/10/2026 14:00"), TRAVADA).toBe("Dados da planilha a.xlsx, enviada em 21/10/2026 14:00 (Brasília)");
     expect(TEXTOS_PLANILHA.mudou, TRAVADA).toBe("A planilha foi trocada ou removida depois desta auditoria. Audite de novo.");
+  });
+
+  // Planilha de ações das Etapas 1 e 2 (a marca e a remoção são as mesmas, por etapa; só a mensagem de envio é nova).
+  it("planilha de ações: mensagem de envio com abas lidas, casadas e nomes sem casamento (até 5)", () => {
+    expect(TEXTOS_ACOES.guardada(2, 9, 8), TRAVADA).toBe("Planilha da 2ª Etapa guardada: 9 abas lidas, 8 casadas");
+    expect(TEXTOS_ACOES.semCasamento(["a", "b"]), TRAVADA).toBe("Sem casamento: a; b");
+    expect(TEXTOS_ACOES.semCasamento(["a", "b", "c", "d", "e", "f", "g"]), TRAVADA).toBe("Sem casamento: a; b; c; d; e e mais 2");
   });
 
   // Itens acrescentados com autorização do usuário em 21/10/2026 (Consolidado).

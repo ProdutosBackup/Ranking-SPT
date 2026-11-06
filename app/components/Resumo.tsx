@@ -2,26 +2,11 @@
 
 import { ENDERECO, ENDERECO_EXTRA, SECOES_RESUMO } from "./estrutura";
 import { n } from "./formato";
+import { CartoesIndicador, ListaDistribuicao } from "./Indicadores";
 import type { Navegar, Resposta } from "./tipos";
 
 export function Resumo({ d, navegar }: { d: Resposta; navegar: Navegar }) {
   const { indicadores: ind, grupos, torneios, veredito } = d.painel;
-  const c = ind.composicao;
-  const total = ind.auditados;
-  const partes = [
-    { id: "corretos", rotulo: "Corretos", qtd: c.corretos },
-    { id: "site", rotulo: "Corretos com inscritos do site", qtd: c.corretosSite },
-    { id: "erros", rotulo: "Erros", qtd: c.erros },
-    { id: "revisar", rotulo: "Revisar", qtd: c.revisar },
-    { id: "aguardando", rotulo: "Aguardando regra", qtd: c.aguardando },
-  ];
-  // Porcentagem só para exibição: maiores restos, em décimos, para as cinco linhas somarem 100,0%.
-  const decimos = partes.map((p) => (total > 0 ? (p.qtd * 1000) / total : 0));
-  const pctD = decimos.map(Math.floor);
-  let falta = (total > 0 ? 1000 : 0) - pctD.reduce((a, b) => a + b, 0);
-  [...decimos.keys()].sort((i, j) => decimos[j] - pctD[j] - (decimos[i] - pctD[i])).forEach((i) => { if (falta-- > 0) pctD[i]++; });
-  const pct = pctD.map((x) => x / 10);
-  const pc = (x: number) => x.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   const comProblema = torneios.filter((t) => t.erros > 0 || t.achado);
 
   const cartoes = [
@@ -37,39 +22,17 @@ export function Resumo({ d, navegar }: { d: Resposta; navegar: Navegar }) {
     <div className="resumo">
       <p data-secao={SECOES_RESUMO[0].id} className={`veredito ${ind.erros > 0 ? "com-erro" : "sem-erro"}`}>{veredito}</p>
 
-      <div data-secao={SECOES_RESUMO[1].id} className="cartoes">
-        {cartoes.map((k) => (
-          <button
-            key={k.rotulo}
-            type="button"
-            className={`cartao ${k.destaque ? "destaque" : ""}`}
-            onClick={() => navegar({ [ENDERECO.aba]: k.aba, [ENDERECO.causa]: null, [ENDERECO.torneio]: null, ...(k.extra ?? {}) })}
-          >
-            <b>{k.valor}</b>
-            <span>{k.rotulo}</span>
-          </button>
-        ))}
-      </div>
+      <CartoesIndicador
+        secao={SECOES_RESUMO[1].id}
+        cartoes={cartoes.map((k) => ({
+          rotulo: k.rotulo,
+          valor: k.valor,
+          destaque: k.destaque,
+          onClick: () => navegar({ [ENDERECO.aba]: k.aba, [ENDERECO.causa]: null, [ENDERECO.torneio]: null, ...(k.extra ?? {}) }),
+        }))}
+      />
 
-      <section data-secao={SECOES_RESUMO[2].id} aria-labelledby="t-comp">
-        <h2 id="t-comp">Como ficaram os {n(total)} resultados</h2>
-        <ul className="situacoes">
-          {partes.map((p, i) => (
-            <li key={p.id} className={`${p.id}${p.qtd === 0 ? " zero" : ""}`}>
-              <span className="vh">{`${p.rotulo}: ${n(p.qtd)}, ${pc(pct[i])}%`}</span>
-              <span className="amostra" aria-hidden="true" />
-              <span aria-hidden="true">{p.rotulo}</span>
-              <span className="barra" aria-hidden="true">
-                <span style={{ transform: `scaleX(${total > 0 ? p.qtd / total : 0})` }} />
-              </span>
-              <b className="qtd" aria-hidden="true">{n(p.qtd)}</b>
-              <span className="pct" aria-hidden="true">{pc(pct[i])}%</span>
-            </li>
-          ))}
-        </ul>
-        <p className="muted small">Porcentagens sobre os {n(total)} resultados da etapa.</p>
-        <p className="muted small">Satélites, Ladies e All in or Fold não pontuam</p>
-      </section>
+      <ListaDistribuicao d={d} secao={SECOES_RESUMO[2].id} />
 
       {grupos.length > 0 && (
         <section data-secao={SECOES_RESUMO[3].id} aria-labelledby="t-causas">

@@ -26,22 +26,31 @@ const porTexto = (a: unknown, b: unknown) => {
 
 /**
  * Identificador dos dados: hash SHA-256 só do conteúdo (torneios e resultados normalizados e ordenados, valores em
- * centésimos inteiros), os buy-ins e re-entries da planilha (base dos cenários C e D) e a VERSAO_REGRAS. O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
+ * centésimos inteiros), os buy-ins e re-entries da planilha (base dos cenários C e D) e a VERSAO_REGRAS (o segundo hash, `sha256Dados`, não os cobre). O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
  */
 export function identificador(d: DadosSpt, acordos: Record<string, number> = {}, cancelados: string[] = []) {
-  const torneios = d.torneios
-    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null, t.buyIns ?? null, t.reentries ?? null])
-    .sort(porTexto);
-  const jogadores = d.jogadores
-    .map((j) => [
-      j.name,
-      centDe(j.rankingPoints),
-      j.resultados.map((r) => [r.tournamentId, r.position, centDe(r.points), r.prize == null ? null : centDe(r.prize)]).sort(porTexto),
-    ])
-    .sort(porTexto);
+  // Dois hashes do mesmo conteúdo: `sha256` (o mostrado na tela e nos Excel) cobre também os buy-ins e re-entries; `sha256Dados` não os cobre.
+  // As marcas "revisado" usam o segundo: enviar ou trocar a planilha de ações não as apaga, mas qualquer mudança de resultado, de inscritos ou de regra sim.
+  const hash = (comAcoes: boolean) => {
+    const torneios = d.torneios
+      .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null, ...(comAcoes ? [t.buyIns ?? null, t.reentries ?? null, ...(t.acoesMotivo ? [t.acoesMotivo] : [])] : [])])
+      .sort(porTexto);
+    const jogadores = d.jogadores
+      .map((j) => [
+        j.name,
+        centDe(j.rankingPoints),
+        j.resultados.map((r) => [r.tournamentId, r.position, centDe(r.points), r.prize == null ? null : centDe(r.prize)]).sort(porTexto),
+      ])
+      .sort(porTexto);
+    return createHash("sha256")
+      .update(JSON.stringify({ stage: d.stage, versaoRegras: VERSAO_REGRAS, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) }))
+      .digest("hex");
+  };
   return {
     updatedAt: d.updatedAt,
-    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, versaoRegras: VERSAO_REGRAS, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) })).digest("hex"),
+    sha256: hash(true),
+    /** Igual ao `sha256`, sem os buy-ins e re-entries (chave das marcas "revisado"). */
+    sha256Dados: hash(false),
     versaoRegras: VERSAO_REGRAS,
   };
 }

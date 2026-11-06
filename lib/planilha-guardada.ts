@@ -1,11 +1,12 @@
-import ExcelJS from "exceljs";
 import { ErroExtracao, type Torneio } from "./api-spt";
 import { armazenamento, ETAPA_PLANILHA, MSG_SEM_ARMAZENAMENTO, sha256, type Registro } from "./armazenamento-planilha";
+import { casar, lerAcoes } from "./planilha-acoes";
 import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
 import { chaveTorneio } from "./premiados-etapa3";
 import { lerPlanilha, LIMITE_BYTES, MSG_GRANDE, MSG_NAO_XLSX, type DadosPlanilha } from "./planilha";
 
-const NUMERO_ETAPA = 3;
+/** Número da etapa (do título da planilha) → slug da etapa na API. */
+export const ETAPA_POR_NUMERO: Record<number, string> = { 1: "taua-2026", 2: "vale-suico-2026", 3: ETAPA_PLANILHA };
 const API = "https://supremapokertour.com/api/spt";
 
 /** De onde vieram os inscritos do Dia Final usados na auditoria. */
@@ -15,39 +16,46 @@ export type DadosGuardados = DadosPlanilha & { origem: OrigemPlanilha };
 
 export type ResultadoEnvio = { ok: true; registro: Registro } | { ok: false; erros: string[]; avisos: string[] };
 
-/** Números de etapa achados nos títulos: A1 da aba Consolidado e A1 da aba do Dia Final ("3a Etapa"). */
-async function numerosDeEtapa(bytes: Uint8Array) {
-  const wb = new ExcelJS.Workbook();
-  await wb.xlsx.load(Buffer.from(bytes) as unknown as ExcelJS.Buffer);
-  const textos = wb.worksheets
-    .filter((w) => /^consolidado$/i.test(w.name.trim()) || /dia final/i.test(w.name))
-    .map((w) => {
-      const v = w.getCell("A1").value as unknown;
-      return typeof v === "string" ? v : v && typeof v === "object" && "richText" in v ? (v as { richText: { text: string }[] }).richText.map((t) => t.text).join("") : "";
-    });
-  return textos.flatMap((t) => [...t.matchAll(/(\d+)\s*[aªº°]?\s*etapa/gi)].map((m) => Number(m[1])));
-}
+/**
+ * Guarda a planilha na etapa que o título dela diz (A1 da aba Consolidado ou do Dia Final): 1ª e 2ª só alimentam as ações (buy-ins e re-entries);
+ * a 3ª também traz os resultados. Planilha sem número de etapa, ou de outra etapa, é recusada sem gravar nada.
+ */
+export async function enviarPlanilha(bytes: Uint8Array, arquivo: string, inscritosDiaFinal: number | null): Promise<ResultadoEnvio & { etapa?: string }> {
+  const acoes = await lerAcoes(bytes);
+  if (!acoes.ok) return { ok: false, erros: acoes.erros, avisos: [] };
+  if (acoes.etapa == null) return { ok: false, avisos: [], erros: ["Não encontrei o número da etapa no título da planilha (A1 da aba Consolidado). Envie a planilha da 1ª, 2ª ou 3ª Etapa."] };
+  const etapa = ETAPA_POR_NUMERO[acoes.etapa];
+  if (!etapa) return { ok: false, avisos: [], erros: [`Esta planilha é da ${acoes.etapa}ª Etapa. Só as Etapas 1, 2 e 3 aceitam planilha.`] };
 
-export async function enviarPlanilha(bytes: Uint8Array, arquivo: string, inscritosDiaFinal: number | null): Promise<ResultadoEnvio> {
+  if (etapa !== ETAPA_PLANILHA) {
+    const doSite = await torneiosDoSite(etapa);
+    const c = casar(acoes.abas, doSite);
+    const avisos = [
+      ...(c.ambiguos.length ? [`Sem casamento por ambiguidade: ${c.ambiguos.join("; ")}.`] : []),
+      ...(acoes.abas.some((a) => a.buyIns != null || a.reentries != null) ? [] : ["Nenhuma aba tem o bloco Buy In / Rebuy."]),
+    ];
+    const resumo = { torneios: acoes.abas.length, jogadores: 0, linhas: 0, avisos: avisos.length, somaPontos: 0, porTipo: { FINAL: 0, STANDALONE: 0 }, semColocacaoPorAba: {}, consolidadoConferido: false };
+    const registro: Registro = {
+      arquivo, enviadoEm: new Date().toISOString(), tamanho: bytes.byteLength, sha256: sha256(bytes), inscritosDiaFinal: null, resumo, avisos,
+      acoes: { abas: acoes.abas.length, casadas: c.casados.size, abasSemTorneio: c.abasSemTorneio, torneiosSemAba: c.torneiosSemAba, ambiguos: c.ambiguos },
+    };
+    await armazenamento().salvar(bytes, registro, etapa);
+    return { ok: true, registro, etapa };
+  }
+
   const lida = await lerPlanilha(bytes, { stage: ETAPA_PLANILHA, arquivo });
   if (!lida.ok) return lida;
   const avisos = [...lida.avisos];
-  const numeros = await numerosDeEtapa(bytes);
-  const outro = numeros.find((n) => n !== NUMERO_ETAPA);
-  if (outro != null)
-    return { ok: false, avisos, erros: [`Esta planilha é da ${outro}ª Etapa. Só a Etapa ${NUMERO_ETAPA} aceita planilha; as outras etapas continuam lidas do site.`] };
-  if (!numeros.length) avisos.push(`Não encontrei o número da etapa nos títulos da planilha; considerei a Etapa ${NUMERO_ETAPA}.`);
-
   const registro: Registro = { arquivo, enviadoEm: new Date().toISOString(), tamanho: bytes.byteLength, sha256: sha256(bytes), inscritosDiaFinal, resumo: { ...lida.resumo, avisos: avisos.length }, avisos };
   await armazenamento().salvar(bytes, registro);
-  return { ok: true, registro };
+  return { ok: true, registro, etapa };
 }
 
 /** Torneios que o site lista para a etapa, com o bounty (vazio se não houver ou se o site não responder). Duas tentativas. */
-export async function torneiosDoSite(): Promise<Torneio[]> {
+export async function torneiosDoSite(stage = ETAPA_PLANILHA): Promise<Torneio[]> {
   for (let i = 0; i < 2; i++) {
     try {
-      const r = await fetch(`${API}/tournaments?stage=${encodeURIComponent(ETAPA_PLANILHA)}`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      const r = await fetch(`${API}/tournaments?stage=${encodeURIComponent(stage)}`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
       if (!r.ok) continue;
       const lista = ((await r.json()) as { tournaments?: Torneio[] }).tournaments;
       if (!Array.isArray(lista)) continue;
@@ -113,9 +121,9 @@ export async function dadosDaPlanilha(bytes: Uint8Array, registro: Registro): Pr
 export { LIMITE_BYTES, MSG_GRANDE, MSG_NAO_XLSX };
 
 /** Registro da planilha guardada, ou null se não houver (ou se o armazenamento não estiver configurado neste ambiente). */
-export async function lerRegistro(): Promise<Registro | null> {
+export async function lerRegistro(etapa = ETAPA_PLANILHA): Promise<Registro | null> {
   try {
-    return await armazenamento().estado();
+    return await armazenamento().estado(etapa);
   } catch (e) {
     if ((e as Error).message === MSG_SEM_ARMAZENAMENTO) return null;
     throw new ErroExtracao("Não foi possível ler a planilha guardada. Tente novamente em instantes.");

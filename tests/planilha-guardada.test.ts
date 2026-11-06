@@ -92,19 +92,34 @@ describe("rotas /api/planilha", () => {
     expect(await estado()).toMatchObject({ arquivo: "outra.xlsx", sha256: b.sha256 });
   });
 
-  it("etapa diferente de 3 é bloqueada; sem número aceita com aviso", async () => {
-    const dois = await enviar(await variante((wb) => (wb.getWorksheet("Consolidado")!.getCell("A1").value = "SPT - 2a Etapa — Ranking consolidado")));
-    expect(dois.status).toBe(400);
-    expect((await dois.json()).erro).toContain("é da 2ª Etapa");
-    expect(await estado()).toEqual({ carregada: false });
+  it("a etapa vem do título: outra etapa vai para a etapa dela (a 3ª fica vazia); 4ª e sem número são recusadas sem gravar", async () => {
+    const dois = await enviar(await variante((wb) => {
+        wb.getWorksheet("Consolidado")!.getCell("A1").value = "SPT - 2a Etapa — Ranking consolidado";
+        wb.getWorksheet("Main Event SPT - Dia Final")!.getCell("A1").value = "2a Etapa - Main Event SPT · Dia Final";
+      }));
+    expect(dois.status).toBe(200);
+    expect((await dois.json()).etapa).toBe("vale-suico-2026");
+    expect(await estado()).toEqual({ carregada: false }); // a 3ª etapa continua sem planilha
+    expect((await (await GET(new Request("http://x/api/planilha?etapa=vale-suico-2026"))).json()).carregada).toBe(true);
+    await DELETE(new Request("http://x/api/planilha?etapa=vale-suico-2026", { method: "DELETE" }));
+    expect((await (await GET(new Request("http://x/api/planilha?etapa=vale-suico-2026"))).json()).carregada).toBe(false);
+
+    const quatro = await enviar(await variante((wb) => {
+        wb.getWorksheet("Consolidado")!.getCell("A1").value = "SPT - 4a Etapa — Ranking consolidado";
+        wb.getWorksheet("Main Event SPT - Dia Final")!.getCell("A1").value = "4a Etapa - Main Event SPT · Dia Final";
+      }));
+    expect(quatro.status).toBe(400);
+    expect((await quatro.json()).erro).toContain("é da 4ª Etapa");
     const sem = await enviar(
       await variante((wb) => {
         wb.getWorksheet("Consolidado")!.getCell("A1").value = "Ranking consolidado";
         wb.getWorksheet("Main Event SPT - Dia Final")!.getCell("A1").value = "Main Event · Dia Final";
       }),
     );
-    expect(sem.status).toBe(200);
-    expect((await sem.json()).avisos.join(" ")).toContain("Não encontrei o número da etapa");
+    expect(sem.status).toBe(400);
+    expect((await sem.json()).erro).toContain("Não encontrei o número da etapa");
+    expect(await estado()).toEqual({ carregada: false });
+    expect((await GET(new Request("http://x/api/planilha?etapa=outra"))).status).toBe(400);
   });
 
   it("arquivo inválido, grande demais ou ausente", async () => {
@@ -210,9 +225,10 @@ describe("Etapas 1 e 2 não mudam", () => {
   const proibido = async () => {
     throw new Error("não devia usar o armazenamento");
   };
-  const semArmazenamento: Armazenamento = { salvar: proibido, ler: proibido, estado: proibido, remover: proibido };
+  // As Etapas 1 e 2 só consultam se há planilha de ações (não há); nada é gravado nem removido.
+  const semArmazenamento: Armazenamento = { salvar: proibido, ler: async () => null, estado: async () => null, remover: proibido };
 
-  it("Etapa 2: 16 erros e 3.908,95 pontos, sem tocar na planilha", async () => {
+  it("Etapa 2: 149 erros, sem planilha de ações e sem gravar nada", async () => {
     trocarArmazenamento(semArmazenamento);
     const { stage, dados, aud, regras, id } = await auditoria("vale-suico-2026");
     const r = montarResposta(stage, dados, regras, aud, id);
@@ -221,7 +237,7 @@ describe("Etapas 1 e 2 não mudam", () => {
     expect(r.origem).toEqual({ tipo: "site" });
   });
 
-  it("Etapa 1: 0 erros, sem tocar na planilha", async () => {
+  it("Etapa 1: 253 erros, sem planilha de ações e sem gravar nada", async () => {
     trocarArmazenamento(semArmazenamento);
     const { aud } = await auditoria("taua-2026");
     expect(aud.resumo).toMatchObject({ ERRO: 253, SUSPEITO: 0, PENDENTE_REGRA: 0 });

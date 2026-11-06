@@ -32,6 +32,7 @@
   /* ---------- cor de destaque (única) e cores de estado ---------- */
   --destaque: var(--orange);
   --destaque-hover: var(--orange-2);
+  --dif-neg-fundo: #9b0e0f; /* fundo do selo da diferença negativa */
   --estado-erro: var(--caneta);
   --estado-erro-texto: #ff8a8d;
   --estado-erro-claro: #ffb3b5;
@@ -181,6 +182,21 @@ select:hover, input[type="search"]:hover, input[type="text"]:hover { border-colo
 .b-sec:hover:not(:disabled) { border-color: var(--destaque); color: var(--destaque); }
 .b-sec[aria-pressed="true"] { background: var(--camada-2); border-color: var(--mist-2); }
 .b-btn:disabled { background: transparent; border-color: var(--linha); color: var(--mist-2); cursor: not-allowed; }
+/* linha de ação: logo e título, seletor de Etapa, "Auditar etapa" (o único botão laranja) e "Mais" */
+.linha-acao { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--e-2) var(--e-5); max-width: 1440px; margin: 0 auto; }
+.marca { display: flex; align-items: center; gap: var(--e-3); min-height: 44px; min-width: 0; }
+.marca .logo { --logo-w: 112px; flex: none; }
+.marca h1 { font-size: clamp(18px, 1.8vw, 24px); letter-spacing: -0.01em; white-space: nowrap; }
+.linha-acao .controles { flex: 1 1 auto; margin: 0; max-width: none; }
+.mais-envoltorio { position: relative; }
+/* menu "Mais": itens de 44 px, contorno de foco laranja de 2 px, sem sombra */
+.menu-mais { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; min-width: 230px; padding: 6px; display: grid; gap: 2px; background: var(--camada-1); border: 1px solid var(--linha-forte); border-radius: var(--r-bloco); }
+.menu-item { min-height: 44px; width: 100%; padding: 0 14px; border: 0; border-radius: var(--r-controle); background: transparent; color: var(--mist); text-align: left; white-space: nowrap; }
+.menu-item:hover { background: var(--camada-2); }
+.menu-item:focus-visible { outline: 2px solid var(--destaque); outline-offset: -2px; border-radius: var(--r-controle); }
+.menu-item[aria-disabled="true"] { color: var(--mist-2); cursor: not-allowed; }
+.menu-item[aria-disabled="true"]:hover { background: transparent; }
+.barra-topo .b-btn:focus-visible { outline-color: var(--destaque); }
 .barra-topo select { border-radius: var(--r-controle); border-color: var(--contorno-controle); }
 .barra-topo select:hover { border-color: var(--destaque); }
 
@@ -266,8 +282,9 @@ section { margin-top: 28px; }
 .comparativo { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; justify-content: flex-end; }
 .comparativo.grande { font-size: 18px; justify-content: flex-start; }
 .dif { padding: 1px 10px; border-radius: 999px; font-weight: var(--peso-medio); font-variant-numeric: tabular-nums; background: var(--camada-2); }
-.dif.neg { background: color-mix(in srgb, var(--estado-erro) 35%, transparent); color: var(--estado-erro-claro); }
-.dif.pos { background: color-mix(in srgb, var(--estado-atencao) 25%, transparent); color: var(--orange-2); }
+/* selo da diferença (06/11/2026): negativo em vinho com texto creme; positivo em laranja com texto escuro. Nenhum vermelho como cor de texto. */
+.dif.neg { background: var(--dif-neg-fundo); color: var(--mist); }
+.dif.pos { background: var(--destaque); color: var(--ink); }
 .revisado { margin-left: var(--e-2); font-size: var(--fs-rotulo); color: var(--peach); }
 .icone { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; border-radius: 50%; font-weight: var(--peso-forte); background: var(--camada-2); }
 .icone.ok { background: var(--estado-correto); color: var(--ink); }
@@ -358,6 +375,7 @@ details.expandivel[open] { padding-bottom: 12px; }
 
 /* ---------- envio de planilha ---------- */
 .erro-envio { max-width: 1440px; margin: var(--e-2) auto 0; font-size: var(--fs-apoio); color: var(--estado-erro-texto); }
+.info-envio { max-width: 1440px; margin: var(--e-2) auto 0; font-size: var(--fs-apoio); color: var(--mist-2); overflow-wrap: anywhere; }
 .marca-planilha { max-width: 1440px; margin: var(--e-2) auto 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-1) var(--e-3); font-size: var(--fs-apoio); color: var(--mist-2); animation: entrada var(--mov-200) var(--ease-saida) both; }
 .marca-texto { min-width: 0; overflow-wrap: anywhere; }
 .marca-texto b { color: var(--mist); font-weight: var(--peso-medio); }
@@ -476,9 +494,21 @@ details.expandivel[open] { padding-bottom: 12px; }
 @media (max-width: 720px) {
   .confianca.na-barra { display: none; }
   .confianca.abaixo-da-barra { display: flex; }
+  /* Celular: a primeira linha (logo e título) sai da tela ao rolar (top negativo); fica fixa só a linha de ação (e a marca da planilha), no máximo 20% da altura. */
+  .barra-topo { top: -60px; }
+  .linha-acao { gap: var(--e-2); }
+  .marca { width: 100%; height: 52px; }
+  .marca h1 { font-size: 18px; }
+  .linha-acao .controles { width: 100%; flex-wrap: nowrap; }
   .controles { gap: 6px var(--e-2); }
-  .campo.etapa { flex: 1 1 100%; }
+  .campo.etapa { flex: 1 1 0; min-width: 0; }
   .campo.etapa select { width: 100%; min-width: 0; }
+  .campo.etapa > label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* o rótulo "Etapa" segue para leitor de tela; o seletor já mostra o nome da etapa */
+  .menu-mais { min-width: min(260px, calc(100vw - 2 * var(--gutter))); }
+  /* a marca da planilha cabe em uma linha compacta (texto à esquerda, X à direita) */
+  .barra-topo .marca-planilha { flex-wrap: nowrap; margin-top: 4px; gap: var(--e-2); }
+  .barra-topo .marca-texto { flex: 1 1 0; }
+  .barra-topo .marca-planilha .texto-btn { flex: none; }
   fieldset.campo { flex: 1 1 auto; }
   .btn { padding: 0 var(--e-3); height: 44px; }
   .b-btn { padding: 0 var(--e-3); }
@@ -502,4 +532,93 @@ details.expandivel[open] { padding-bottom: 12px; }
   .painel { border-left: 0; }
   .painel-topo, .painel-corpo, .painel-rodape { padding-left: var(--e-3); padding-right: var(--e-3); }
   .cartao { padding: var(--e-3); }
+}
+
+/* ---------- aba Auditoria (v2, no modelo do Resumo): indicadores, distribuição, causas em cartões e casos em linhas alinhadas ---------- */
+.aud { --aud-borda: #383738; padding-top: var(--e-3); }
+.aud section { margin-top: var(--e-6); }
+.cartao.estatico:hover { background: var(--camada-1); border-color: var(--linha); transform: none; }
+.cartao.estatico.destaque:hover { background: var(--destaque); border-color: var(--destaque); }
+.aud-vazio { margin: var(--e-5) 0; font-size: var(--fs-subtitulo); font-weight: var(--peso-medio); line-height: 1.3; max-width: 34em; }
+.aud-vazio p { margin: 0 0 var(--e-3); }
+
+/* causas: um cartão por causa (e "Todas as causas"); a barra mostra a parcela dos erros */
+.causas-grade { list-style: none; margin: var(--e-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--e-3); }
+.causas-grade > li { display: flex; min-width: 0; }
+.causa-cartao { flex: 1; min-width: 0; display: grid; grid-template-rows: 1fr auto auto auto; gap: var(--e-2); text-align: left; padding: 16px 20px; border-radius: var(--r-card); background: var(--camada-1); border: 1px solid var(--linha); color: var(--mist); cursor: pointer; }
+.causa-cartao:hover { background: var(--camada-2); border-color: var(--linha-forte); }
+.causa-cartao[aria-pressed="true"] { background: var(--camada-2); border-color: var(--mist); }
+.cc-titulo { align-self: start; font-weight: var(--peso-medio); line-height: 1.3; overflow-wrap: anywhere; }
+.cc-num { color: var(--mist-2); font-size: var(--fs-apoio); }
+.cc-num b { color: var(--mist); font-size: clamp(28px, 2.4vw, 36px); font-weight: var(--peso-forte); letter-spacing: -0.02em; line-height: 1.1; margin-right: 2px; }
+.cc-pontos { color: var(--mist-2); font-size: var(--fs-apoio); }
+.cc-parcela { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--e-3); }
+.cc-parcela .barra { height: 4px; border-radius: 999px; background: var(--linha); overflow: hidden; }
+.cc-parcela .barra span { display: block; height: 100%; background: var(--mist); transform-origin: left; }
+.cc-parcela .pct { font-size: var(--fs-apoio); color: var(--mist-2); font-variant-numeric: tabular-nums; text-align: right; }
+.ver-todas-causas { display: none; margin-top: var(--e-3); }
+
+/* casos: um bloco, colunas em grade fixa para o torneio e os números ficarem alinhados na vertical */
+.aud-casos-topo { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px var(--e-4); }
+.aud-casos-topo h2 { margin: 0; scroll-margin-top: 120px; }
+.aud-contagem { margin: 0; font-weight: var(--peso-medio); }
+.aud-filtros { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-3); margin: var(--e-3) 0; }
+.casos-bloco { background: var(--camada-1); border: 1px solid var(--aud-borda); border-radius: var(--r-bloco); overflow: hidden; }
+.casos-cab, .caso { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 2fr) 104px 104px 112px; column-gap: var(--e-4); align-items: center; padding-inline: var(--e-4); }
+.casos-cab { min-height: 40px; font-size: var(--fs-rotulo); font-weight: var(--peso-medio); color: var(--mist-2); border-bottom: 1px solid var(--aud-borda); }
+.casos-lista { list-style: none; margin: 0; padding: 0; }
+.casos-lista > li + li { border-top: 1px solid var(--aud-borda); }
+.caso { width: 100%; min-height: 52px; padding-block: var(--e-2); border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.caso:hover { background: var(--camada-2); }
+.caso:focus-visible { outline: 2px solid var(--destaque); outline-offset: -2px; border-radius: 0; }
+.c-jogador, .c-onde { min-width: 0; overflow-wrap: anywhere; }
+.c-jogador b { font-weight: var(--peso-forte); }
+.c-onde { color: var(--mist-2); }
+.c-site, .c-correto { text-align: right; font-variant-numeric: tabular-nums; }
+.c-dif { justify-self: start; }
+.rot-celular, .seta-celular { display: none; }
+.casos-lista .mais { display: block; margin: var(--e-3); }
+
+/* menus de filtro (Torneio e Ordenar) */
+.menu-filtro { position: relative; min-width: 0; }
+.filtro-botao { max-width: 100%; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.filtro-rotulo { color: var(--mist-2); }
+.filtro-valor { overflow: hidden; text-overflow: ellipsis; max-width: 24ch; }
+.menu-filtro-lista { position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; width: min(380px, calc(100vw - 2 * var(--gutter))); max-height: 340px; overflow-y: auto; padding: 6px; display: grid; gap: 2px; align-content: start; background: var(--camada-1); border: 1px solid var(--linha-forte); border-radius: var(--r-bloco); }
+.filtro-busca { width: 100%; margin-bottom: 4px; border-radius: var(--r-controle); }
+.menu-filtro-lista .menu-item { white-space: normal; padding-block: 10px; }
+.menu-filtro-lista .menu-item[aria-selected="true"] { background: var(--camada-2); font-weight: var(--peso-medio); }
+.filtro-vazio { margin: var(--e-2) 14px; }
+
+/* carregando: esqueleto em #19191B e #2A2A2D, sem animação */
+.aud-esqueleto { display: grid; gap: var(--e-3); margin-top: var(--e-4); }
+.esq-linha { height: 28px; width: 50%; border-radius: 6px; background: var(--camada-2); }
+.esq-linha.larga { width: 70%; }
+.esq-grade { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e-3); }
+.esq-bloco { height: 110px; border-radius: var(--r-card); background: var(--camada-1); border: 1px solid var(--camada-2); }
+.esq-bloco.alto { height: 280px; }
+
+@media (max-width: 1099.98px) {
+  .casos-cab, .caso { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1.8fr) 88px 88px 104px; column-gap: var(--e-3); }
+}
+@media (max-width: 720px) {
+  .aud .cartoes { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--e-2); }
+  .aud .cartao { padding: 16px var(--e-3); }
+  .causas-grade { grid-template-columns: minmax(0, 1fr); }
+  .causas-grade > li.extra { display: none; }
+  .mostrar-todas-causas .causas-grade > li.extra { display: flex; }
+  .ver-todas-causas { display: inline-flex; align-items: center; }
+  .casos-cab { display: none; }
+  .caso { grid-template-columns: 96px 132px minmax(0, 1fr); column-gap: var(--e-2); grid-template-areas: "j j j" "o o o" "s c d"; row-gap: 2px; padding-block: 10px; min-height: 44px; } /* colunas fixas: Site e Correto começam no mesmo x em todas as linhas */
+  .c-jogador { grid-area: j; }
+  .c-onde { grid-area: o; }
+  .c-site { grid-area: s; text-align: left; }
+  .c-correto { grid-area: c; text-align: left; }
+  .c-dif { grid-area: d; justify-self: end; }
+  .rot-celular, .seta-celular { display: inline; }
+  .rot-celular { color: var(--mist-2); }
+  .menu-filtro { position: static; }
+  .menu-filtro-lista { left: 0; right: 0; width: auto; }
+  .filtro-valor { max-width: 14ch; }
+  .esq-grade { grid-template-columns: minmax(0, 1fr); }
 }
