@@ -55,7 +55,7 @@ export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNod
             </>
           )}
           <dt>Prêmio</dt>
-          <dd>{l.premioInferido ? "—" : l.prize ? reais(l.prize) : "sem prêmio"}</dd>
+          <dd>{l.semPremio ? "—" : l.prize ? reais(l.prize) : "sem prêmio"}</dd>
           <dt>Inscritos</dt>
           <dd>
             {n(l.field)}

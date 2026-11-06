@@ -431,6 +431,13 @@ details.expandivel[open] { padding-bottom: 12px; }
 .acordo-link:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; border-radius: 4px; }
 .acordo-confirma { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-3); padding-top: var(--e-2); border-top: 1px solid var(--linha); font-size: var(--fs-apoio); }
 .acordo-botoes { display: flex; gap: var(--e-2); }
+/* Torneio cancelado (aba Torneios): o controle fica logo abaixo do cartão do torneio, sempre visível. */
+.torneio-item { display: grid; gap: 2px; }
+.cancelado-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--e-3); padding: 0 var(--e-3); }
+.cancelado-confirma { border-top: 0; padding-top: 0; flex: 1 1 260px; }
+.cancelado-ctl .acordo-erro { flex-basis: 100%; }
+.linha-erro.torneio.cancelado { border-style: dashed; }
+.cancelado-marca { color: var(--estado-atencao); font-weight: var(--peso-medio); }
 .btn.perigo { background: var(--estado-erro); border-color: var(--estado-erro); color: var(--mist); }
 .btn.perigo:hover { background: color-mix(in srgb, var(--estado-erro) 85%, var(--mist)); border-color: transparent; }
 .aviso-acordo { margin: 0 0 var(--e-3); padding: var(--e-2) var(--e-3); border-left: 3px solid var(--peach); background: var(--camada-2); border-radius: var(--r-pequeno); font-weight: var(--peso-medio); }

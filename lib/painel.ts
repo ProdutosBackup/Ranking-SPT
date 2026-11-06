@@ -5,7 +5,8 @@ import { descreverBase, type auditar } from "./auditoria";
 import { baseDaPosicao, fb100 } from "./calculo";
 import type { identificador } from "./integridade";
 import { acoesDe } from "./auditoria";
-import { ACORDO } from "./acordo";
+import { ACORDO, textoAcordoTorneio } from "./acordo";
+import { CANCELADO } from "./cancelados";
 import { CAMPO, PARTICIPACAO } from "./participacao";
 import type { Regras } from "./regras";
 
@@ -30,6 +31,8 @@ const MOTIVO_TEXTO: Record<string, string> = {
   NAO_FINALIZADO: "torneio não finalizado",
   CANCELADO: "torneio cancelado",
   SEM_BUYIN: "buy-in não informado",
+  SEM_PREMIADOS: "nº de premiados não informado",
+  SEM_BOUNTY: "bounty não obtido da API",
 };
 
 const EXPLICACAO: Record<string, string> = {
@@ -42,6 +45,8 @@ const EXPLICACAO: Record<string, string> = {
   FLIGHT_ZERO: "O jogador pontua uma vez só no Main Event: este flight vale 0, mas tem pontos registrados.",
   ACORDO: "Num torneio com acordo, os jogadores das posições 1 a K pontuam como o Kº colocado, mas o registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
+  CANCELADO_USUARIO: CANCELADO.explicacao,
+  PREMIADOS_LISTA: "O nº de premiados da lista informada pelo responsável é diferente do que a planilha pagou como premiado; vale a lista.",
 };
 
 // Faixas pelo limite superior (inclusivo); `amostra` é um valor dentro da faixa, usado para ler o fator. Centavos acima do limite passam para a seguinte.
@@ -71,18 +76,30 @@ const PENDENCIA: Record<string, { titulo: string; pendente: string; decisao: str
     pendente: "O site não informa o buy-in destes torneios, e sem ele não há como calcular o fator.",
     decisao: "Informar o buy-in do torneio no site.",
   },
+  SEM_PREMIADOS: {
+    titulo: "Nº de premiados não informado",
+    pendente: "Este torneio não está na lista de premiados da Etapa 3, e sem o nº de premiados não há como saber quem pontua pela tabela de posições.",
+    decisao: "Pedir ao responsável do ranking o nº de premiados do torneio.",
+  },
+  SEM_BOUNTY: {
+    titulo: "Bounty não obtido da API",
+    pendente: "O bounty deste torneio K.O ou Mystery não veio da API do site, e sem ele o fator de buy-in (buy-in total) não pode ser calculado.",
+    decisao: "Esperar o site responder e auditar a etapa de novo.",
+  },
 };
 
 type Achado = { fieldApi: number; fieldSite: number; diferenca: number; linhasExplicadas: number };
 
 /** De onde vieram os dados: o site ou uma planilha enviada (com o arquivo, a data de envio e a fonte dos inscritos do Dia Final). */
-export type OrigemDados = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosInferidos?: boolean; inscritosDiaFinal?: { texto: string } };
+export type OrigemDados = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosPorLista?: boolean; inscritosDiaFinal?: { texto: string } };
 
 export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, aud: Aud, id: ReturnType<typeof identificador>) {
   const ROTULO_PENDENCIA: Record<string, string> = {
     NAO_FINALIZADO: "Aguardando: torneio não finalizado",
     CANCELADO: "Aguardando: torneio cancelado",
     SEM_BUYIN: "Aguardando: buy-in não informado",
+    SEM_PREMIADOS: "Aguardando: nº de premiados não informado",
+    SEM_BOUNTY: "Aguardando: bounty não obtido da API",
   };
   // Hipótese da causa, já com os números formatados: a tela só exibe.
   const hipotese = (l: Linha): { texto: string; conta: string | null } | null => {
@@ -100,10 +117,14 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       case "SATELITE":
         return { texto: `${l.naoPontua ?? "Satélite"} com pontos registrados`, conta: null };
       case "ACORDO":
-        return { texto: ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
+        return { texto: l.acordoOrigem === "automatico" ? l.causaProvavel : ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
       case "PARTICIPACAO":
         return { texto: l.causaProvavel, conta: null };
       case "FLIGHT_ZERO":
+        return { texto: l.causaProvavel, conta: null };
+      case "PREMIADOS_LISTA":
+        return { texto: l.causaProvavel, conta: null };
+      case "CANCELADO_USUARIO":
         return { texto: l.causaProvavel, conta: null };
       case "SUSPEITO":
         return { texto: "Posição e prêmio não concordam", conta: null };
@@ -117,10 +138,10 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   };
   // Planilha: o prêmio é só um marcador interno (1 = premiado, deduzido dos pontos). Não vai para a tela nem para os arquivos.
   const origem = (dados as { origem?: OrigemDados }).origem;
-  const premioInferido = origem?.tipo === "planilha" && origem.premiadosInferidos === true;
+  const semPremio = origem?.tipo === "planilha" && origem.premiadosPorLista === true;
   const linhas = aud.linhas.map((l) => {
     const r = ROTULO[l.situacao];
-    return { ...l, prize: premioInferido ? null : l.prize, premioInferido, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyInFator), buyInParaFator: l.somaBounty != null ? `buy-in para o fator: R$ ${n(l.buyInFator)} (${n(l.buyIn)} + ${n(l.somaBounty)} ${l.tipoBounty === "KO" ? "K.O" : l.tipoBounty === "MYSTERY" ? "Mystery" : "bounty"})` : null };
+    return { ...l, prize: semPremio ? null : l.prize, semPremio, ...r, rotulo: (l.pendencia && ROTULO_PENDENCIA[l.pendencia]) || r.rotulo, hipotese: hipotese(l), faixaBuyIn: faixaDe(l.buyInFator), buyInParaFator: l.somaBounty != null ? `buy-in para o fator: R$ ${n(l.buyInFator)} (${n(l.buyIn)} + ${n(l.somaBounty)} ${l.tipoBounty === "KO" ? "K.O" : l.tipoBounty === "MYSTERY" ? "Mystery" : "bounty"})` : null };
   });
 
   // Erros agrupados pela causa.
@@ -142,6 +163,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       else if (primeira.causaCodigo === "FLIGHT_ZERO") titulo = primeira.causaProvavel.replace(/ \(campo: .*\)$/, "");
       else if (primeira.causaCodigo === "ACORDO") titulo = "Valor diferente do acordo";
       else if (primeira.causaCodigo === "SUSPEITO") titulo = "Posição e prêmio não concordam";
+      else if (primeira.causaCodigo === "CANCELADO_USUARIO") titulo = CANCELADO.titulo;
+      else if (primeira.causaCodigo === "PREMIADOS_LISTA") titulo = "Nº de premiados diferente da lista";
       else if (primeira.causaCodigo === "BASE") {
         const igual = indices.every((i) => linhas[i].posicao === primeira.posicao);
         const como = descreverBase(primeira.baseUsada ?? 0);
@@ -216,6 +239,11 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     reentries: (x.reentries as number | null) ?? null,
     acoes: x.buyIns != null && x.reentries != null ? (x.buyIns as number) + (x.reentries as number) : null,
     acordo: (x.acordo as number | null) ?? null,
+    /** Cancelamento: a chave do torneio (para a rota) e se o usuário o marcou como cancelado. */
+    chaveCancelamento: x.chaveCancelamento as string,
+    cancelado: (x as unknown as { cancelado: boolean }).cancelado,
+    /** Texto do acordo do torneio: informado, detectado automaticamente, ou o informado com o aviso de que o automático discorda. */
+    acordoTexto: textoAcordoTorneio((x.acordo as number | null) ?? null, (x.acordosAuto as unknown as { de: number; ate: number }[]) ?? [], (x as unknown as { acordoDiscorda: boolean }).acordoDiscorda),
     comPosicao: x.comPosicao as number,
     participacao: x.participacao as number,
     corretos: (x.CORRETO as number) + (x.CORRETO_SITE as number),
@@ -254,6 +282,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   if (linhas.some((l) => l.pendencia === "NAO_FINALIZADO")) avisos.push("Há torneios não finalizados nesta etapa.");
   if (linhas.some((l) => l.pendencia === "CANCELADO")) avisos.push("Há resultados registrados em torneio cancelado.");
   if (linhas.some((l) => l.pendencia === "SEM_BUYIN")) avisos.push("Há torneios sem buy-in informado.");
+  if (linhas.some((l) => l.pendencia === "SEM_PREMIADOS")) avisos.push("Há torneios sem nº de premiados informado.");
+  if (linhas.some((l) => l.pendencia === "SEM_BOUNTY")) avisos.push("Há torneios K.O ou Mystery sem o bounty da API.");
   // Opção "campo = ações": os torneios com resultados que não têm as ações informadas usam os inscritos (listados aqui).
   if (regras.field === "acoes") {
     const sem = dados.torneios.filter((t) => t.role !== "FINAL" && t.role !== "PARENT" && acoesDe(t) == null && linhas.some((l) => l.torneioId === t.id)).map((t) => t.name);
@@ -311,7 +341,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     updatedAt: dados.updatedAt,
     origem: origem ?? ({ tipo: "site" } as OrigemDados),
     identificador: id,
-    acordos: { aplicados: Object.keys(aud.acordos).length },
+    acordos: { aplicados: torneios.filter((t) => t.acordoTexto != null).length },
+    cancelados: { aplicados: torneios.filter((t) => t.cancelado).length },
     regras,
     resumo: aud.resumo,
     somas: aud.somas,

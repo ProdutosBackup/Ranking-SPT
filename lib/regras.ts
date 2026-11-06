@@ -17,7 +17,7 @@ export type Regras = {
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "2.0";
+export const VERSAO_REGRAS = "2.5";
 
 export const REGRAS_PADRAO: Regras = {
   foraDoItm: "base10xFatores",
@@ -56,3 +56,15 @@ export function lerRegras(q: URLSearchParams): Regras {
   }
   return r;
 }
+
+/**
+ * Cenários de cálculo pedidos pelo usuário (05/11/2026). Só mudam o número de participantes e o fator da faixa de buy-in até R$ 1.000:
+ * A = só entradas, faixa 1,0 (a regra padrão); B = só entradas, faixa 0,9; C = total de ações (entradas + reentradas), faixa 1,0; D = ações, faixa 0,9.
+ * O fator 0,9 é um cenário, não um padrão: `REGRAS_PADRAO.fatorFaixaAte1000` continua 1,0.
+ */
+export const CENARIOS = ["A", "B", "C", "D"] as const;
+export type Cenario = (typeof CENARIOS)[number];
+export const FATOR_FAIXA_CENARIO: Record<Cenario, number> = { A: 1, B: 0.9, C: 1, D: 0.9 };
+export const CAMPO_CENARIO: Record<Cenario, "entradas" | "acoes"> = { A: "entradas", B: "entradas", C: "acoes", D: "acoes" };
+/** Motivo escrito quando o cenário C ou D não pode ser calculado (as reentradas só vêm do Excel da Etapa 3). Nunca se estima. */
+export const MOTIVO_SEM_ACOES = "reentradas não disponíveis: falta o Excel da etapa";

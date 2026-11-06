@@ -1,8 +1,11 @@
 import type { DadosSpt, Torneio } from "./api-spt";
-import { BASES_TABELA, buyInParaFator, calcular, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
+import { BASES_TABELA, baseDaPosicao, buyInParaFator, calcular, calcularCenario, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
 import { ACORDO } from "./acordo";
+import { CANCELADO, chaveCancelamento } from "./cancelados";
 import { PARTICIPACAO } from "./participacao";
-import type { Regras } from "./regras";
+import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
+import { chaveTorneio, premiadosDaLista } from "./premiados-etapa3";
+import { CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_SEM_ACOES, type Cenario, type Regras } from "./regras";
 
 export type Situacao = "CORRETO" | "CORRETO_SITE" | "ARREDONDAMENTO" | "ERRO" | "SUSPEITO" | "PENDENTE_REGRA";
 const SITUACOES: Situacao[] = ["CORRETO", "CORRETO_SITE", "ARREDONDAMENTO", "ERRO", "SUSPEITO", "PENDENTE_REGRA"];
@@ -27,7 +30,7 @@ const DESCRICAO_BASE: Record<number, string> = {
 };
 export const descreverBase = (b: number) => DESCRICAO_BASE[b] ?? `base ${b}`;
 
-export type Pendencia = "NAO_FINALIZADO" | "CANCELADO" | "SEM_BUYIN";
+export type Pendencia = "NAO_FINALIZADO" | "CANCELADO" | "SEM_BUYIN" | "SEM_PREMIADOS" | "SEM_BOUNTY";
 
 // Flight: role=FLIGHT (etapas 2 e 3) ou, sem marcação, nome com "Dia 1" (etapa 1).
 const ehFlight = (t: Torneio) => t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
@@ -46,12 +49,48 @@ export const motivoNaoPontua = (nome: string): "Satélite" | "Ladies" | "All in 
   return /satelite/.test(n) ? "Satélite" : /\bladies\b/.test(n) ? "Ladies" : /\ball in or fold\b/.test(n) ? "All in or Fold" : null;
 };
 
+/** Grupo de posições consecutivas e diferentes (de..ate) que pontuaram igual: acordo detectado. `cent`: a pontuação registrada de todas (centésimos). */
+export type GrupoAcordo = { de: number; ate: number; cent: number };
+
+/**
+ * Detecta acordos num torneio. `linhas`: posição e pontos registrados (centésimos) de cada resultado que pontua e está dentro dos premiados.
+ * Acordo = posições CONSECUTIVAS e DIFERENTES (de..ate, ate > de), todas com a mesma pontuação (tolerância de 0,01) e com bases da tabela NÃO todas iguais.
+ * Não é acordo: a mesma posição repetida (eliminação simultânea) nem posições que compartilham a base (10º a 12º, 13º a 18º, depois do 18º).
+ */
+export function detectarAcordos(linhas: { posicao: number; cent: number }[], regras: Regras): GrupoAcordo[] {
+  const porPosicao = new Map<number, number[]>();
+  for (const l of linhas) (porPosicao.get(l.posicao) ?? porPosicao.set(l.posicao, []).get(l.posicao)!).push(l.cent);
+  const posicoes = [...porPosicao.keys()].sort((a, b) => a - b);
+  const grupos: GrupoAcordo[] = [];
+  let atual: GrupoAcordo | null = null;
+  const fecha = () => {
+    if (atual && atual.ate > atual.de && new Set(Array.from({ length: atual.ate - atual.de + 1 }, (_, i) => baseDaPosicao(atual!.de + i, regras))).size > 1) grupos.push(atual);
+    atual = null;
+  };
+  for (const p of posicoes) {
+    const v = porPosicao.get(p)!;
+    const uniforme = v.every((x) => Math.abs(x - v[0]) <= 1); // os resultados de uma mesma posição têm de pontuar igual
+    if (atual && uniforme && p === atual.ate + 1 && Math.abs(v[0] - atual.cent) <= 1) atual.ate = p;
+    else {
+      fecha();
+      if (uniforme) atual = { de: p, ate: p, cent: v[0] };
+    }
+  }
+  fecha();
+  return grupos;
+}
+
 /**
  * `acordos`: `torneioId → K`. Num torneio com acordo, os jogadores das posições 1 a K pontuam todos como o Kº colocado:
  * base da colocação K × fator de participantes × fator de buy-in (a fórmula normal, só a base muda).
+ * `cancelados`: chaves dos torneios que o usuário marcou como cancelados (lib/cancelados.ts). Torneio cancelado não pontua: esperado 0 em todas as linhas.
  */
-export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, number> = {}) {
+export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, number> = {}, cancelados: string[] = []) {
   const torneios = new Map(d.torneios.map((t) => [t.id, t]));
+  const porLista = (d as { origem?: { tipo?: string } }).origem?.tipo === "planilha"; // origem planilha (Etapa 3)
+  const canceladas = new Set(cancelados);
+  const chaveDe = (t: Torneio) => chaveCancelamento(t, porLista);
+  const canceladoPeloUsuario = (t: Torneio) => canceladas.has(chaveDe(t));
   // Participantes do Main Event: soma das entradas (players) dos flights da etapa [CONFIRMADO 05/11/2026].
   const flights = d.torneios.filter(ehFlight).sort((a, b) => (ordemFlight(a) < ordemFlight(b) ? -1 : ordemFlight(a) > ordemFlight(b) ? 1 : 0));
   const somaFlights = flights.reduce((a, t) => a + t.players, 0);
@@ -68,10 +107,21 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     }
     if (primeiro) primeiroFlight.set(j, primeiro.id);
   }
+  // Origem planilha (Etapa 3): a planilha não traz prêmio; o nº de premiados de cada torneio vem da lista fixa do responsável [CONFIRMADO 05/11/2026].
+  // Torneio fora da lista: sem nº de premiados (null) e a linha aguarda regra. Nas demais origens, premiado = prize > 0.
   const premiados = new Map<string, number>();
-  for (const j of d.jogadores)
-    for (const r of j.resultados)
-      if (r.prize != null && r.prize > 0) premiados.set(r.tournamentId, (premiados.get(r.tournamentId) ?? 0) + 1);
+  const pagosPelaPlanilha = new Map<string, number>(); // só para a divergência: linhas com pontos diferentes de 10 (o que a planilha pagou como premiado)
+  if (porLista) {
+    for (const t of d.torneios) {
+      const n = premiadosDaLista(t.name);
+      if (n != null) premiados.set(t.id, n);
+    }
+    for (const j of d.jogadores)
+      for (const r of j.resultados) if (r.points !== 10) pagosPelaPlanilha.set(r.tournamentId, (pagosPelaPlanilha.get(r.tournamentId) ?? 0) + 1);
+  } else
+    for (const j of d.jogadores)
+      for (const r of j.resultados)
+        if (r.prize != null && r.prize > 0) premiados.set(r.tournamentId, (premiados.get(r.tournamentId) ?? 0) + 1);
 
   // `buyIn` é o exibido. `buyInFator` escolhe o fator (em torneio com bounty, K.O ou Mystery, buy-in + bounty).
   // `somaBounty`: o bounty somado, só quando a soma foi aplicada; `tipoBounty`: o tipo (KO ou MYSTERY) nesse caso.
@@ -93,23 +143,33 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     premiados: premiados.get(t.id) ?? 0,
   });
 
+  // Origem planilha: os torneios com bounty (K.O e Mystery) precisam do bounty vindo da API; sem ele a linha aguarda, em vez de usar o buy-in base.
+  const chavesBounty = new Set(TORNEIOS_COM_BOUNTY_ETAPA3.map(chaveTorneio));
+  const semBounty = (t: Torneio) => porLista && chavesBounty.has(chaveTorneio(t.name)) && !(t.bountyType != null && t.bountyType !== "NONE" && typeof t.bountyAmount === "number");
+  const pagos = (id: string) => pagosPelaPlanilha.get(id) ?? 0;
+
   // K do acordo de cada torneio, ou null.
   const acordoDe = (t: Torneio): number | null => (acordos[t.id] >= 2 ? acordos[t.id] : null);
 
   // Passo 1: cada linha calculada com os inscritos da API (ou a soma dos flights, no Dia Final).
-  const pre = d.jogadores.flatMap((j) =>
+  // `auto`: acordos detectados por torneio. A primeira rodada (sem eles) só serve para saber quais linhas pontuam; a segunda aplica os acordos.
+  const calcPre = (auto: Map<string, GrupoAcordo[]>) => d.jogadores.flatMap((j) =>
     j.resultados.map((r) => {
       const t = torneios.get(r.tournamentId)!;
       const ctx = contexto(t);
-      const entrada = { posicao: r.position, prize: r.prize, buyIn: ctx.buyIn, buyInFator: ctx.buyInFator, field: ctx.field, premiados: ctx.premiados };
+      // Na planilha não há prêmio: quem tem posição dentro dos premiados da lista conta como premiado (prize 1 é só o marcador).
+      const entrada = { posicao: r.position, prize: porLista ? 1 : r.prize, buyIn: ctx.buyIn, buyInFator: ctx.buyInFator, field: ctx.field, premiados: ctx.premiados };
 
       let motivoPendente: string | null = null;
       let pendencia: Pendencia | null = null;
       // Linha que vale 0: torneio que não pontua (pelo nome) ou flight de quem já pontua em outra linha do Main Event.
-      let zero: { conta: string; causa: string; codigo: "SATELITE" | "FLIGHT_ZERO" } | null = null;
+      let zero: { conta: string; causa: string; codigo: "SATELITE" | "FLIGHT_ZERO" | "CANCELADO_USUARIO" } | null = null;
       const motivoNP = motivoNaoPontua(t.name);
       let part = false; // participação do Main Event: primeiro flight de quem não tem Dia Final, ou Dia Final sem posição (10 × fatores)
-      if (/^cancel/i.test(t.status ?? "")) {
+      if (canceladoPeloUsuario(t)) {
+        // Marcado como cancelado pelo usuário: não pontua, vale antes de qualquer pendência (o status da API não importa).
+        zero = { conta: CANCELADO.causa, causa: CANCELADO.causa, codigo: "CANCELADO_USUARIO" };
+      } else if (/^cancel/i.test(t.status ?? "")) {
         motivoPendente = "torneio cancelado com resultados";
         pendencia = "CANCELADO";
       } else if (t.status !== "FINISHED") {
@@ -123,6 +183,12 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         else part = true;
       } else if (ehDiaFinal(t) && r.position == null) {
         part = true; // Dia Final sem posição: 10 × fatores, uma vez só
+      } else if (porLista && !premiados.has(t.id)) {
+        motivoPendente = "nº de premiados não informado";
+        pendencia = "SEM_PREMIADOS";
+      } else if (semBounty(t)) {
+        motivoPendente = "bounty não obtido da API";
+        pendencia = "SEM_BOUNTY";
       } else if (ehDiaFinal(t) ? !(ctx.buyIn >= 0) : !(ctx.buyIn > 0)) {
         // Só o Dia Final aceita buy-in 0 [CONFIRMADO 05/11/2026]; nos demais torneios, 0 ou ausente aguarda.
         motivoPendente = "buy-in não informado: sem o buy-in não há como calcular o fator";
@@ -133,9 +199,19 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       const c0 = motivoPendente || part
         ? calcular({ ...entrada, posicao: null, prize: null }, { ...regras, foraDoItm: "base10xFatores" })
         : calcular(entrada, regras);
-      // Acordo: posições 1 a K de um torneio com acordo pontuam como o Kº colocado (não vale para satélite, flight nem pendente).
+      // Acordo (não vale para satélite, flight nem pendente). Informado (K salvo): as posições 1 a K pontuam como o Kº colocado, e vale no lugar do
+      // automático. Sem K salvo: o grupo de posições que pontuaram igual (detectarAcordos) pontua como a última posição do grupo.
       const tAcordo = acordoDe(t);
-      const acordo = tAcordo != null && !sat && !part && !motivoPendente && r.position != null && r.position <= tAcordo ? tAcordo : null;
+      let grupo: { de: number; ate: number; origem: "informado" | "automatico" } | null = null;
+      if (!sat && !part && !motivoPendente && r.position != null) {
+        const pos = r.position;
+        if (tAcordo != null) grupo = pos <= tAcordo ? { de: 1, ate: tAcordo, origem: "informado" } : null;
+        else {
+          const g = (auto.get(t.id) ?? []).find((x) => pos >= x.de && pos <= x.ate);
+          if (g) grupo = { de: g.de, ate: g.ate, origem: "automatico" };
+        }
+      }
+      const acordo = grupo?.ate ?? null;
       const c = sat
         ? { ...c0, itm: false, base: 0, conta: zero!.conta, esperado: 0, esperadoCent: 0 }
         : acordo != null
@@ -143,15 +219,25 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
           : c0;
       // 10 pontos fixos (opção da calculadora do site): não depende dos inscritos, então não entra na dedução.
       const fixo = sat || part || acordo != null || (!motivoPendente && !c.itm && regras.foraDoItm === "10fixos");
+      // Sem prêmio na planilha, não há "posição e prêmio não concordam".
       const suspeito =
-        !sat && !part && (
+        !porLista && !sat && !part && (
         (r.position != null && r.position <= ctx.premiados && !(r.prize != null && r.prize > 0)) ||
         (r.position == null && r.prize != null && r.prize > 0) ||
         // prêmio em posição além do número de premiados: a posição ou o prêmio estão errados
         (r.position != null && r.position > ctx.premiados && r.prize != null && r.prize > 0));
-      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, zero, motivoNP, part, acordo, tAcordo };
+      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, zero, motivoNP, part, acordo, grupo, tAcordo };
     }),
   );
+  const pre0 = calcPre(new Map());
+  // Acordos detectados: só entre as linhas que pontuam (sem pendência, satélite nem participação) e dentro dos premiados.
+  const acordosAuto = new Map<string, GrupoAcordo[]>();
+  for (const t of d.torneios) {
+    const ls = pre0.filter((p) => p.t.id === t.id && !p.motivoPendente && !p.sat && !p.part && p.r.position != null && p.r.position <= p.ctx.premiados);
+    const g = detectarAcordos(ls.map((p) => ({ posicao: p.r.position as number, cent: centDe(p.r.points) })), regras);
+    if (g.length) acordosAuto.set(t.id, g);
+  }
+  const pre = acordosAuto.size ? calcPre(acordosAuto) : pre0;
 
   // Passo 2: por torneio, o inteiro de inscritos que reproduz mais linhas não pendentes (em centésimos exatos).
   const deducao = new Map<string, { melhor: Candidato | null; achado: Achado | null }>();
@@ -175,11 +261,25 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
 
   // Passo 3: classificação final. Linhas explicadas por um achado são recalculadas com os inscritos do site.
   const linhas = pre.map((p) => {
-    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, zero, motivoNP, part, acordo, tAcordo } = p;
+    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, zero, motivoNP, part, acordo, grupo, tAcordo } = p;
     const achado = deducao.get(t.id)!.achado;
     const explicada = achado != null && !motivoPendente && !fixo;
     const field = explicada ? achado.fieldSite : ctx.field;
     const c = explicada ? calcular({ ...p.entrada, field }, regras) : p.c;
+
+    // Os 4 cenários (A a D): só mudam o número de participantes (entradas ou ações) e o fator da faixa até R$ 1.000. Tudo o mais (bounty, fora da
+    // premiação, acordo, cancelamento, premiados, o que não pontua, uma pontuação por jogador) é o da linha. Em centésimos; C e D são null onde
+    // as reentradas não existem (só o Excel da Etapa 3 as traz, nos torneios comuns), exceto na linha que vale 0 sem depender do campo.
+    const entradasLinha = explicada ? field : (ehFlight(t) || ehDiaFinal(t)) && somaFlights > 0 ? somaFlights : t.players;
+    const acoesLinha = ehFlight(t) || ehDiaFinal(t) ? null : acoesDe(t);
+    const regime = { zero: sat, semPosicao: !!(motivoPendente || part), acordo };
+    const cenarios = Object.fromEntries(
+      CENARIOS.map((k) => {
+        const campo = k === "A" || k === "B" ? entradasLinha : acoesLinha;
+        return [k, campo == null && !sat ? null : calcularCenario(p.entrada, regras, regime, campo ?? 0, FATOR_FAIXA_CENARIO[k])];
+      }),
+    ) as Record<Cenario, number | null>;
+    const cenariosMotivo = cenarios.C == null ? MOTIVO_SEM_ACOES : null;
 
     const registradoCent = centDe(r.points);
     const difCent = registradoCent - c.esperadoCent;
@@ -194,7 +294,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     let inverso: Inverso | null = null;
     let causa = motivoPendente ?? "";
     // Código estruturado da causa (hipótese), usado pelo painel para agrupar; `causa` é só texto para leitura.
-    let causaCodigo: "FIXOS10" | "CAMPO" | "BASE" | "SEM_CAUSA" | "SUSPEITO" | "INSCRITOS_SITE" | "SATELITE" | "FLIGHT_ZERO" | "PARTICIPACAO" | "ACORDO" | null = null;
+    let causaCodigo: "FIXOS10" | "CAMPO" | "BASE" | "SEM_CAUSA" | "SUSPEITO" | "INSCRITOS_SITE" | "SATELITE" | "FLIGHT_ZERO" | "PARTICIPACAO" | "ACORDO" | "PREMIADOS_LISTA" | "CANCELADO_USUARIO" | null = null;
     let baseUsada: number | null = null;
     if (situacao === "ERRO" || situacao === "SUSPEITO" || situacao === "CORRETO_SITE") {
       const fb = fb100(ctx.buyInFator, regras);
@@ -217,13 +317,17 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         causa = "Posição e prêmio não concordam";
       } else if (acordo != null) {
         causaCodigo = "ACORDO";
-        causa = ACORDO.causa(acordo, String(c.esperado).replace(".", ","));
+        causa = grupo!.origem === "automatico" ? ACORDO.causaAuto(grupo!.de, grupo!.ate) : ACORDO.causa(acordo, String(c.esperado).replace(".", ","));
       } else if (part) {
         causaCodigo = "PARTICIPACAO";
         causa = PARTICIPACAO.causa;
       } else if (sat) {
         causaCodigo = zero!.codigo;
         causa = zero!.causa;
+      } else if (porLista && r.position != null && r.position > Math.min(ctx.premiados, pagos(t.id)) && r.position <= Math.max(ctx.premiados, pagos(t.id))) {
+        // Divergência com a planilha: vale a lista (a planilha pagou como premiado quem a lista não premia, ou o contrário).
+        causaCodigo = "PREMIADOS_LISTA";
+        causa = `premiados informados: ${ctx.premiados}; a planilha pagou ${pagos(t.id)}`;
       } else if (fixos10) {
         causaCodigo = "FIXOS10";
         causa = "10 pontos fixos, sem multiplicar pelos fatores (como na calculadora do site)";
@@ -268,6 +372,13 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       esperadoCent: c.esperadoCent,
       /** Esperado com os inscritos da API (difere de `esperado` só nas linhas explicadas por um achado). */
       esperadoApi: p.c.esperado,
+      /** Valor esperado nos 4 cenários, em centésimos de ponto (inteiros): A = só entradas, faixa 1,0 (igual a `esperadoCent` com as regras padrão); B = só entradas, faixa 0,9;
+       * C = total de ações, faixa 1,0; D = total de ações, faixa 0,9. C e D são null quando as reentradas não existem. */
+      cenarios,
+      /** Por que C e D são null (o motivo escrito), ou null quando eles existem. */
+      cenariosMotivo,
+      /** Total de ações (entradas + reentradas) do torneio, o campo dos cenários C e D; null quando não há. */
+      acoesCampo: acoesLinha,
       registrado: r.points,
       registradoCent,
       diferenca: difCent / 100,
@@ -279,8 +390,14 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       participacao: part,
       /** Motivo de o torneio não pontuar (Satélite, Ladies ou All in or Fold), reconhecido pelo nome; null se pontua. */
       naoPontua: sat && zero!.codigo === "SATELITE" ? motivoNP : null,
+      /** O usuário marcou o torneio como cancelado: esperado 0. */
+      canceladoUsuario: sat && zero!.codigo === "CANCELADO_USUARIO",
       /** K do acordo, nas linhas das posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
       acordo,
+      /** Primeira posição do acordo (a linha pontua como a última, `acordo`): 1 no informado; no automático, o começo do grupo. */
+      acordoDe: grupo?.de ?? null,
+      /** Como o acordo foi achado: informado (K salvo) ou detectado automaticamente. */
+      acordoOrigem: grupo?.origem ?? null,
       /** K do acordo do torneio (em todas as linhas dele, também fora das posições 1 a K). */
       acordoK: tAcordo,
       inverso,
@@ -300,9 +417,18 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       field: ctx.field,
       buyIn: ctx.buyIn,
       premiados: ctx.premiados,
+      /** Origem planilha: quantas linhas a planilha pagou como premiadas (pontos diferentes de 10); só para mostrar a divergência com a lista. Null nas outras origens. */
+      premiadosPagos: porLista ? pagos(t.id) : null,
       buyIns: t.buyIns ?? null,
       reentries: t.reentries ?? null,
       acordo: acordoDe(t),
+      /** Chave do torneio nos cancelamentos (o ID do site, ou o nome normalizado na planilha) e se o usuário o marcou como cancelado. */
+      chaveCancelamento: chaveDe(t),
+      cancelado: canceladoPeloUsuario(t),
+      /** Acordos detectados automaticamente neste torneio (mesmo quando há um informado, que vale no lugar). */
+      acordosAuto: (acordosAuto.get(t.id) ?? []).map((g) => ({ de: g.de, ate: g.ate, pontos: g.cent / 100 })),
+      /** Há K informado e o automático discorda (não achou o mesmo grupo 1 a K). */
+      acordoDiscorda: acordoDe(t) != null && !((acordosAuto.get(t.id) ?? []).length === 1 && acordosAuto.get(t.id)![0].de === 1 && acordosAuto.get(t.id)![0].ate === acordoDe(t)),
       fatorTotalEsperado: arred(fatorParticipantes(ctx.field) * fatorBuyIn(ctx.buyInFator, regras)),
       fieldDeduzido: melhor?.field ?? null,
       fieldBateu: melhor ? melhor.field === ctx.field : null,
@@ -332,5 +458,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     };
   });
 
-  return { resumo, torneios: resumoTorneios, linhas, somas, acordos: Object.fromEntries(d.torneios.map((t) => [t.id, acordoDe(t)]).filter(([, k]) => k != null)) as Record<string, number> };
+  // Lista dos acordos detectados (e dos informados que o automático não confirma), para o relatório.
+  const detectados = resumoTorneios.flatMap((t) => t.acordosAuto.map((g) => ({ torneioId: t.torneioId, torneio: t.torneio, de: g.de, ate: g.ate, pontos: g.pontos, informado: t.acordo, discorda: t.acordoDiscorda })));
+  return { resumo, torneios: resumoTorneios, linhas, somas, acordosDetectados: detectados, acordos: Object.fromEntries(d.torneios.map((t) => [t.id, acordoDe(t)]).filter(([, k]) => k != null)) as Record<string, number> };
 }

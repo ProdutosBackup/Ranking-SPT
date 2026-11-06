@@ -4,6 +4,7 @@ import { buscarDados, type DadosSpt } from "../lib/api-spt";
 import { auditar } from "../lib/auditoria";
 import { conferir } from "../lib/integridade";
 import { dadosDaPlanilha } from "../lib/planilha-guardada";
+import { BOUNTY_API } from "./bounty-mock";
 import { REGRAS_PADRAO } from "../lib/regras";
 import { verificar } from "../lib/verificador";
 
@@ -29,7 +30,7 @@ const auditado = (d: DadosSpt) => {
 // Os cinco flights da Etapa 3 como o site os informa (flightsDoSite): 77 + 64 + 55 + 67 + 65 = 328.
 const FLIGHTS_E3 = [77, 64, 55, 67, 65].map((players, i) => ({ id: `f${i}`, name: `Dia 1 ${"ABCDE"[i]}`, buyIn: 1000, players, role: "FLIGHT", flightLabel: `1${"ABCDE"[i]}`, status: "FINISHED" }));
 async function etapa3() {
-  vi.stubGlobal("fetch", async () => ({ ok: true, status: 200, json: async () => ({ tournaments: FLIGHTS_E3 }) }));
+  vi.stubGlobal("fetch", async () => ({ ok: true, status: 200, json: async () => ({ tournaments: [...FLIGHTS_E3, ...BOUNTY_API] }) }));
   const registro = { arquivo: "x.xlsx", enviadoEm: "2026-11-05T00:00:00Z", tamanho: 1, sha256: "x", inscritosDiaFinal: null, resumo: {}, avisos: [] };
   return dadosDaPlanilha(new Uint8Array(readFileSync("tests/fixtures/ranking-spt-3a-etapa.xlsx")), registro as never);
 }

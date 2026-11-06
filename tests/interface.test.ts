@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CAMPO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
+  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CAMPO, CANCELADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -24,7 +24,7 @@ describe("estrutura da tela travada", () => {
   // Itens acrescentados com autorização do usuário em 21/10/2026 (envio de planilha).
   it("envio de planilha: marca, confirmação, bloco de resumo e textos de origem", () => {
     expect(PLANILHA_ITENS, TRAVADA).toEqual([
-      "Planilha carregada", "Remover planilha", "Remover a planilha para todos?", "Sim", "Não", "O que foi lido", "Premiados inferidos pelos pontos da planilha",
+      "Planilha carregada", "Remover planilha", "Remover a planilha para todos?", "Sim", "Não", "O que foi lido", "Premiados da lista informada pelo responsável",
     ]);
     expect(TEXTOS_PLANILHA.faixa("a.xlsx", "21/10/2026 14:00"), TRAVADA).toBe("Dados da planilha a.xlsx, enviada em 21/10/2026 14:00 (Brasília)");
     expect(TEXTOS_PLANILHA.mudou, TRAVADA).toBe("A planilha foi trocada ou removida depois desta auditoria. Audite de novo.");
@@ -70,16 +70,30 @@ describe("estrutura da tela travada", () => {
     expect([ACORDO.rotulo, ACORDO.caixa, ACORDO.pergunta, ACORDO.aplicar, ACORDO.remover, ACORDO.confirmar, ACORDO.confirmarSim, ACORDO.confirmarNao], TRAVADA).toEqual([
       "Acordo", "Houve acordo neste torneio", "Pontuam como qual colocação?", "Aplicar", "Remover acordo", "Remover o acordo deste torneio para todos?", "Remover", "Cancelar",
     ]);
-    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286")], TRAVADA).toEqual([
+    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286"), ACORDO.marcaAuto(1, 4), ACORDO.torneioAuto(1, 4), ACORDO.causaAuto(1, 4), ACORDO.discorda(4, ACORDO.semAuto)], TRAVADA).toEqual([
       "De 2 a 63 (premiados do torneio)",
       "Acordo: os 4 primeiros pontuam como 4º colocado",
       "Este torneio tem acordo: os 4 primeiros pontuam como 4º colocado",
       "Acordo: pontua como 4º colocado",
-      "Os 4 primeiros, como 4º colocado",
-      "Acordo: os 4 primeiros, como 4º colocado",
+      "Os 4 primeiros, como 4º colocado (informado)",
+      "Acordo: os 4 primeiros, como 4º colocado (informado)",
       "Acordos aplicados: 2 torneio(s)",
       "Acordo: os 4 primeiros pontuam como 4º colocado, 2.286 cada",
+      "Posições 1 a 4, como 4º colocado (detectado automaticamente)",
+      "Acordo: posições 1 a 4, como 4º colocado (detectado automaticamente)",
+      "acordo entre as posições 1 a 4; deveria pontuar como a posição 4",
+      "O acordo informado (os 4 primeiros) é diferente do detectado automaticamente: nenhum acordo detectado",
     ]);
+  });
+
+  // Item acrescentado com autorização do usuário em 05/11/2026 (torneio cancelado).
+  it("torneio cancelado: controle na aba Torneios, confirmação com Sim e Não, motivo e faixa de confiança", () => {
+    expect([CANCELADO.rotulo, CANCELADO.controle("EV #2"), CANCELADO.cancelar("EV #2"), CANCELADO.reativar("EV #2"), CANCELADO.sim, CANCELADO.nao, CANCELADO.causa, CANCELADO.faixa(2)], TRAVADA).toEqual([
+      "Cancelado", "Torneio cancelado: EV #2", "Deseja cancelar o torneio (EV #2)?", "Deseja reativar o torneio (EV #2)?", "Sim", "Não", "Torneio cancelado (marcado pelo usuário)", "Torneios cancelados: 2",
+    ]);
+    // o controle fica ao lado do cartão do torneio (não dentro do botão que abre o painel) e não mexe no painel lateral nem na aba Jogadores
+    const outras = readFileSync("app/components/Outras.tsx", "utf8");
+    expect(outras).toMatch(/<\/button>\s*<ControleCancelado/);
   });
 
   it("painel: o cartão Acordo fica no corpo, logo abaixo de Conta correta; o rodapé tem só Anterior, Próximo e Revisado", () => {

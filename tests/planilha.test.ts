@@ -5,6 +5,7 @@ import { auditar } from "../lib/auditoria";
 import { conferir, identificador } from "../lib/integridade";
 import { montarResposta } from "../lib/painel";
 import { lerPlanilha, LIMITE_BYTES, MSG_GRANDE, MSG_NAO_XLSX, type DadosPlanilha } from "../lib/planilha";
+import { comBounty } from "./bounty-mock";
 import { REGRAS_PADRAO } from "../lib/regras";
 
 const ARQUIVO = readFileSync("tests/fixtures/ranking-spt-3a-etapa.xlsx");
@@ -46,7 +47,7 @@ describe("leitura do exemplar", () => {
     expect(resumo).toMatchObject({ torneios: 11, jogadores: 241, linhas: 554, somaPontos: 102141.55, porTipo: { FINAL: 1, STANDALONE: 10 }, consolidadoConferido: true });
     expect(dados.jogadores.reduce((a, j) => a + j.rankingPoints, 0)).toBeCloseTo(102141.55, 2);
     expect(dados.jogadores.reduce((a, j) => a + j.resultados.length, 0)).toBe(554);
-    expect(dados.origem).toEqual({ tipo: "planilha", arquivo: "ranking-spt-3a-etapa.xlsx", premiadosInferidos: true });
+    expect(dados.origem).toEqual({ tipo: "planilha", arquivo: "ranking-spt-3a-etapa.xlsx", premiadosPorLista: true });
   });
 
   it("papéis, buy-in e inscritos do motor", () => {
@@ -56,8 +57,8 @@ describe("leitura do exemplar", () => {
     expect(new Set(dados.torneios.map((t) => t.id)).size).toBe(11);
   });
 
-  it("prêmio inferido: só linhas com pontos diferentes de 10", () => {
-    for (const j of dados.jogadores) for (const r of j.resultados) expect(r.prize != null).toBe(r.points !== 10);
+  it("a planilha não traz prêmio: prize é sempre null (o nº de premiados vem da lista)", () => {
+    for (const j of dados.jogadores) for (const r of j.resultados) expect(r.prize).toBeNull();
   });
 
   it("linhas com — viram posição nula, contadas por aba", () => {
@@ -233,7 +234,7 @@ describe("integração com o motor", () => {
   beforeAll(async () => {
     const r = await lerPlanilha(new Uint8Array(ARQUIVO), ENVIO);
     if (!r.ok) throw new Error(r.erros.join(" | "));
-    base = r.dados;
+    base = comBounty(r.dados);
   });
   const rodar = (d: DadosPlanilha, foraDoItm: "base10xFatores" | "10fixos") => {
     const regras = { ...REGRAS_PADRAO, foraDoItm };
@@ -242,33 +243,35 @@ describe("integração com o motor", () => {
     return aud;
   };
 
-  it('10 fixos, Dia Final com 328: só os três campeões erram', () => {
+  it('10 fixos, Dia Final com 328: as duas divergências com a lista erram e os acordos detectados fecham', () => {
     const aud = rodar(CAMPO_FINAL(base, 328), "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 416, CORRETO_SITE: 0, ERRO: 3 + 135, SUSPEITO: 0, PENDENTE_REGRA: 0 }); // + as 135 linhas sem posição do Dia Final (10 × 3,78 = 37,8 contra 10)
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 399, CORRETO_SITE: 8, ERRO: 2 + 10 + 135, SUSPEITO: 0, PENDENTE_REGRA: 0 }); // + os 2 da divergência com a lista (HORSE 4º, Omaha 5 K.O 11º) + as 135 linhas sem posição do Dia Final (10 × 3,78 = 37,8 contra 10)
     const erros = aud.linhas.filter((l) => l.situacao === "ERRO" && l.posicao != null).map((l) => [l.torneio, l.posicao, l.registrado, l.esperado]);
-    expect(erros.sort()).toEqual([
-      ["CHAMPIONSHIP HIGH ROLLER 200K", 1, 2300, 2875],
-      ["HIGH ROLLER 50K", 1, 972, 1215],
-      ["SUPER K.O", 1, 672, 840],
-    ]);
+    // 200K OMAHA 5 K.O: com o bounty da API (buy-in total 3.000, fator 2,5) as 11 posições premiadas erram, porque a planilha usou o buy-in base (fator 1,5)
+    const omaha = erros.filter((e) => e[0] === "200K OMAHA 5 K.O");
+    expect(omaha).toHaveLength(11);
+    expect(omaha.find((e) => e[1] === 11)).toEqual(["200K OMAHA 5 K.O", 11, 10, 500]); // a lista tem 11 premiados e a planilha pagou 10: 11º vale base 250 × 0,8 × 2,5 = 500
+    expect(erros.filter((e) => e[0] !== "200K OMAHA 5 K.O").sort()).toEqual([
+      ["HORSE", 4, 414, 10], // a lista tem 3 premiados e a planilha pagou 4: o 4º vale 10 (fixos)
+    ]); // os campeões do Championship, do HIGH ROLLER 50K e do SUPER K.O empatam com o 2º (acordo detectado) e estão corretos
   });
 
   it("10 fixos, Dia Final com os 79 da planilha: o motor aponta sozinho os 328", () => {
     const aud = rodar(base, "10fixos");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 352, CORRETO_SITE: 64, ERRO: 3 + 135, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 335, CORRETO_SITE: 72, ERRO: 2 + 10 + 135, PENDENTE_REGRA: 0 });
     const final = aud.torneios.find((t) => t.torneio.includes("Dia Final")) as unknown as { achado: { fieldApi: number; fieldSite: number; linhasExplicadas: number } };
     expect(final.achado).toMatchObject({ fieldApi: 79, fieldSite: 328, linhasExplicadas: 64 });
   });
 
   it("regra padrão (10 × fatores), Dia Final com 328: 276 erros (3 campeões + 273 linhas de 10 fixos)", () => {
     const aud = rodar(CAMPO_FINAL(base, 328), "base10xFatores");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 143, ERRO: 276 + 135, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 127, ERRO: 292 + 135, PENDENTE_REGRA: 0 });
     expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273 + 135);
   });
 
   it("regra padrão com os inscritos da planilha (79): as 64 linhas premiadas do Dia Final também erram", () => {
     const aud = rodar(base, "base10xFatores");
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 79, CORRETO_SITE: 0, ERRO: 340 + 135, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 63, CORRETO_SITE: 0, ERRO: 356 + 135, PENDENTE_REGRA: 0 });
     const final = aud.linhas.filter((l) => l.torneio.includes("Dia Final") && l.situacao === "ERRO" && l.registrado !== 10);
     expect(final).toHaveLength(64);
     expect(final.every((l) => /328 inscritos/.test(l.causaProvavel ?? ""))).toBe(true);

@@ -36,7 +36,7 @@ export const PLANILHA = {
   sim: "Sim",
   nao: "Não",
   lido: "O que foi lido",
-  premiadosInferidos: "Premiados inferidos pelos pontos da planilha",
+  premiadosPorLista: "Premiados da lista informada pelo responsável",
 } as const;
 export const PLANILHA_ITENS = Object.values(PLANILHA);
 /** Textos que mudam quando a origem dos dados é uma planilha. */
@@ -46,12 +46,18 @@ export const TEXTOS_PLANILHA = {
 } as const;
 
 import { ACORDO } from "../../lib/acordo";
+import { CANCELADO } from "../../lib/cancelado";
 import { ACOES, CAMPO, PARTICIPACAO } from "../../lib/participacao";
 /**
  * Participação de flight e ações por torneio (itens acrescentados com autorização do usuário em 21/10/2026): nome e explicação da
  * categoria, bloco da aba Regras, campos separados do Dia Final, colunas da aba Torneios e texto da aba "Aguardando regra" vazia.
  */
 export { ACOES, ACORDO, CAMPO, PARTICIPACAO };
+/**
+ * Torneio cancelado (item acrescentado com autorização do usuário em 05/11/2026): o controle "Cancelado" de cada torneio na aba Torneios,
+ * a confirmação ("Deseja cancelar o torneio (NOME)?" / "Deseja reativar o torneio (NOME)?", Sim / Não), o motivo na linha e a faixa de confiança.
+ */
+export { CANCELADO };
 
 /** Seções da aba Resumo, na ordem. */
 export const SECOES_RESUMO = [

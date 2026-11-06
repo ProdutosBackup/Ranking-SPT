@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
-import { ABAS, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
+import { ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
 import { consolidar, type EtapaConsolidado } from "../lib/consolidado";
 import { Barra, ETAPAS } from "./components/Barra";
 import { Consolidado, type EtapaOpcao } from "./components/Consolidado";
@@ -131,6 +131,23 @@ export default function Home() {
     }
   }
 
+  // Torneio cancelado (salvo para todos): grava ou desfaz e audita de novo a etapa que está na tela. Devolve a mensagem de erro, ou null.
+  async function mudarCancelado(chave: string, cancelar: boolean): Promise<string | null> {
+    try {
+      const r = cancelar
+        ? await fetch("/api/cancelados", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ etapa: stage, chave }) })
+        : await fetch(`/api/cancelados?etapa=${encodeURIComponent(stage)}&chave=${encodeURIComponent(chave)}`, { method: "DELETE" });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) return j?.erro ?? CANCELADO.erroGravar;
+      versaoAcordos.current += 1; // a mesma versão dos acordos: invalida as leituras guardadas das outras etapas
+      setVAc(versaoAcordos.current);
+      await auditar(stage);
+      return null;
+    } catch {
+      return "Não foi possível falar com o servidor. Verifique a conexão e tente novamente.";
+    }
+  }
+
   // Link compartilhado (?aba=...): lê a etapa do endereço e audita sozinho.
   const partiu = useRef(false);
   const ultimoFoco = useRef<HTMLElement | null>(null);
@@ -212,7 +229,7 @@ export default function Home() {
       etapas.push({
         numero: k,
         jogadores: d3.painel.jogadores.map((j) => ({ nome: j.nome, id: j.id })),
-        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicao, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao })),
+        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicao, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao, acordo: l.acordo != null })),
       });
     }
     return consolidar(etapas);
@@ -477,7 +494,7 @@ export default function Home() {
                 {aba === "erros" && <Erros d={d} q={q} navegar={navegar} revisados={revisados} />}
                 {aba === "divergencias" && <Divergencias d={d} navegar={navegar} />}
                 {aba === "jogadores" && <Jogadores d={d} q={q} navegar={navegar} />}
-                {aba === "torneios" && <Torneios d={d} navegar={navegar} />}
+                {aba === "torneios" && <Torneios d={d} navegar={navegar} onCancelado={mudarCancelado} />}
                 {aba === "aguardando" && <Aguardando d={d} />}
                 {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia, campo, setCampo }} />}
               </div>

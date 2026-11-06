@@ -86,3 +86,21 @@ export function calcular(e: EntradaCalculo, r: Regras): ResultadoCalculo {
     esperadoCent: cent,
   };
 }
+
+/**
+ * Como a linha pontua, para recalcular o esperado em outro cenário (outro número de participantes e/ou outro fator da faixa até R$ 1.000).
+ * `zero`: torneio que não pontua ou flight que vale 0; `semPosicao`: pendente ou participação (10 × fatores); `acordo`: posição pela qual o acordo pontua.
+ */
+export type RegimeLinha = { zero: boolean; semPosicao: boolean; acordo: number | null };
+
+/**
+ * Valor esperado (centésimos) da linha com `field` participantes e fator `faixa` na faixa de buy-in até R$ 1.000.
+ * É a mesma regra de `calcular`, na mesma ordem em que a auditoria a aplica; só mudam o campo e o fator da faixa.
+ */
+export function calcularCenario(e: EntradaCalculo, r: Regras, linha: RegimeLinha, field: number, faixa: number): number {
+  if (linha.zero) return 0;
+  const reg: Regras = { ...r, fatorFaixaAte1000: faixa };
+  if (linha.acordo != null) return calcular({ ...e, field, posicao: linha.acordo, prize: 1, premiados: Math.max(linha.acordo, e.premiados) }, reg).esperadoCent;
+  if (linha.semPosicao) return calcular({ ...e, field, posicao: null, prize: null }, { ...reg, foraDoItm: "base10xFatores" }).esperadoCent;
+  return calcular({ ...e, field }, reg).esperadoCent;
+}

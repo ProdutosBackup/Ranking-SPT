@@ -26,7 +26,7 @@ const conferido = (d: DadosSpt, regras: Regras = REGRAS_PADRAO) => {
 };
 
 describe("versão das regras", () => {
-  it("a versão das regras é 2.0", () => expect(VERSAO_REGRAS).toBe("2.0"));
+  it("a versão das regras é 2.5", () => expect(VERSAO_REGRAS).toBe("2.5"));
 });
 
 describe("opção de regra: campo do torneio", () => {

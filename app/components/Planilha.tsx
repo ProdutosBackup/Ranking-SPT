@@ -82,7 +82,7 @@ export function BlocoLido({ p, d, onFechar }: { p: PlanilhaGuardada; d: Resposta
           {n(p.resumo.torneios)} torneios · {n(p.resumo.jogadores)} jogadores · {n(p.resumo.linhas)} resultados
         </li>
         {inscritos && <li>Inscritos do Dia Final: {inscritos}</li>}
-        <li>{PLANILHA.premiadosInferidos}</li>
+        <li>{PLANILHA.premiadosPorLista}</li>
       </ul>
       {p.avisos.length > 0 ? (
         <details>

@@ -2,8 +2,8 @@ import ExcelJS from "exceljs";
 import type { DadosSpt, Jogador, Resultado, Torneio } from "./api-spt";
 import { centDe } from "./calculo";
 
-/** Dados vindos de planilha: o mesmo formato da API, mais a origem. `premiadosInferidos`: o `prize` de cada linha vale 1 se os pontos diferem de 10, senão null (a planilha não traz prêmio). */
-export type DadosPlanilha = DadosSpt & { origem: { tipo: "planilha"; arquivo: string | null; premiadosInferidos: true } };
+/** Dados vindos de planilha: o mesmo formato da API, mais a origem. `premiadosPorLista`: a planilha não traz prêmio (o `prize` é sempre null) nem nº de premiados; este vem da lista fixa do responsável (premiados-etapa3.ts). */
+export type DadosPlanilha = DadosSpt & { origem: { tipo: "planilha"; arquivo: string | null; premiadosPorLista: true } };
 
 export type ResumoPlanilha = {
   torneios: number;
@@ -161,7 +161,7 @@ export async function lerPlanilha(bytes: Uint8Array, opcoes: Opcoes = {}): Promi
         tournamentName: a.nome,
         position: l.posicao,
         points: l.pontos,
-        prize: l.pontos !== 10 ? 1 : null,
+        prize: null,
       };
       j.resultados.push(r);
       j.rankingPoints = (centDe(j.rankingPoints) + centDe(l.pontos)) / 100;
@@ -178,7 +178,7 @@ export async function lerPlanilha(bytes: Uint8Array, opcoes: Opcoes = {}): Promi
     updatedAt: { ranking: enviadoEm, tournaments: enviadoEm },
     torneios,
     jogadores,
-    origem: { tipo: "planilha", arquivo: opcoes.arquivo ?? null, premiadosInferidos: true },
+    origem: { tipo: "planilha", arquivo: opcoes.arquivo ?? null, premiadosPorLista: true },
   };
   const somaCent = abas.reduce((s, a) => s + a.linhas.reduce((t, l) => t + centDe(l.pontos), 0), 0);
   const resumo: ResumoPlanilha = {

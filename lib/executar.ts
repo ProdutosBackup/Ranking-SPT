@@ -2,6 +2,7 @@ import { assinaturaAcordos } from "./acordo";
 import { acordosDaEtapa, lerAcordos } from "./acordos";
 import { ErroExtracao } from "./api-spt";
 import { armazenamento, ETAPA_PLANILHA } from "./armazenamento-planilha";
+import { assinaturaCancelados, canceladosDaEtapa, lerCancelados } from "./cancelados";
 import { buscar, guardar, lerCompartilhado } from "./cache";
 import { auditar } from "./auditoria";
 import { conferir, ErroAuditoria, identificador } from "./integridade";
@@ -26,7 +27,9 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
   // então um novo envio ou uma remoção nunca devolve dados antigos.
   // Acordos da etapa (guardados para todos): entram no identificador dos dados e na chave do cache, então mudar um acordo invalida o cache.
   const acordos = acordosDaEtapa(await lerAcordos(), stage);
-  const sufixo = assinaturaAcordos(acordos) ? `|acordos:${assinaturaAcordos(acordos)}` : "";
+  // Torneios cancelados pelo usuário (também guardados para todos): entram no identificador e na chave do cache do mesmo jeito.
+  const cancelados = canceladosDaEtapa(await lerCancelados(), stage);
+  const sufixo = (assinaturaAcordos(acordos) ? `|acordos:${assinaturaAcordos(acordos)}` : "") + (cancelados.length ? `|cancelados:${assinaturaCancelados(cancelados)}` : "");
   const idPedido = q.get("id");
   const registro = stage === ETAPA_PLANILHA ? await lerRegistro() : null;
   const guardado = idPedido ? buscar(stage, idPedido, regras, (registro ? `planilha:${registro.sha256}` : "site") + sufixo) : null;
@@ -39,9 +42,9 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
     origem = `planilha:${planilha.registro.sha256}`;
     onProgresso?.(dados.jogadores.length, dados.jogadores.length);
   } else dados = await lerCompartilhado(stage, onProgresso);
-  const aud = auditar(dados, regras, acordos);
-  conferir(dados, regras, aud, acordos);
-  const id = identificador(dados, acordos);
+  const aud = auditar(dados, regras, acordos, cancelados);
+  conferir(dados, regras, aud, acordos, cancelados);
+  const id = identificador(dados, acordos, cancelados);
   guardar({ stage, origem: origem + sufixo, regras, dados, aud, id });
   return { stage, regras, dados, aud, id, mudou: idPedido != null && idPedido !== id.sha256 };
 }

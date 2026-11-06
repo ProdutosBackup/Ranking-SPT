@@ -6,11 +6,14 @@ export type Linha = {
   posicao: number | null;
   prize: number | null;
   /** Planilha: o prêmio não existe, foi deduzido dos pontos; a tela mostra "—". */
-  premioInferido: boolean;
+  semPremio: boolean;
   /** Participação de flight: vale 10 pontos fixos (flights e Dia Final sem posição). */
   participacao: boolean;
   /** K do acordo, nas posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
   acordo: number | null;
+  /** Primeira posição do acordo (a linha pontua como a posição `acordo`) e como foi achado. */
+  acordoDe: number | null;
+  acordoOrigem: "informado" | "automatico" | null;
   /** K do acordo do torneio, em todas as linhas dele (também fora das posições 1 a K). */
   acordoK: number | null;
   buyIn: number;
@@ -49,6 +52,11 @@ export type TorneioPainel = {
   /** Resultados com posição e participações de flight (o Dia Final mostra os dois separados). */
   /** K do acordo do torneio, ou null. */
   acordo: number | null;
+  /** Chave do torneio nos cancelamentos e se o usuário o marcou como cancelado (esperado 0 em todas as linhas). */
+  chaveCancelamento: string;
+  cancelado: boolean;
+  /** Texto do acordo do torneio (informado, detectado automaticamente, ou os dois quando discordam); null se não há. */
+  acordoTexto: string | null;
   comPosicao: number;
   participacao: number;
   /** Da planilha; null quando a fonte não informa (o site não informa). Ações = buy-ins + re-entries. */
@@ -62,7 +70,7 @@ export type Grupo = { codigo: string; titulo: string; explicacao: string; pontos
 export type JogadorPainel = { nome: string; id?: string | null; resultados: number; pontosSite: number; pontosCorretos: number; diferenca: number; erros: number };
 
 /** De onde vieram os dados. */
-export type Origem = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosInferidos?: boolean; inscritosDiaFinal?: { texto: string } };
+export type Origem = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosPorLista?: boolean; inscritosDiaFinal?: { texto: string } };
 
 /** Estado da planilha guardada (GET /api/planilha). */
 export type PlanilhaGuardada = {
@@ -79,6 +87,8 @@ export type Resposta = {
   stage: string;
   /** Quantos torneios da etapa têm acordo. */
   acordos: { aplicados: number };
+  /** Quantos torneios da etapa o usuário marcou como cancelados. */
+  cancelados: { aplicados: number };
   origem: Origem;
   updatedAt: { ranking: string; tournaments: string };
   identificador: { sha256: string };

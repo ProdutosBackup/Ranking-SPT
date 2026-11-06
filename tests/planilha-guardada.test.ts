@@ -4,6 +4,7 @@ import { join } from "node:path";
 import ExcelJS from "exceljs";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DELETE, GET, POST } from "../app/api/planilha/route";
+import { BOUNTY_API } from "./bounty-mock";
 import { MSG_SEM_RANKING } from "../lib/api-spt";
 import { ArmazenamentoBlob, ArmazenamentoLocal, ETAPA_PLANILHA, sha256, trocarArmazenamento, type Armazenamento, type Registro } from "../lib/armazenamento-planilha";
 import { exportacaoXlsx, relatorioXlsx } from "../lib/excel";
@@ -32,7 +33,7 @@ function site(opcoes: { flights?: boolean } = {}) {
     if (stage === ETAPA_PLANILHA) {
       const corpo = u.pathname.endsWith("/ranking")
         ? { updatedAt: "2026-10-21T00:00:00Z", ranking: [] }
-        : { updatedAt: "2026-10-21T00:00:00Z", tournaments: opcoes.flights === false ? [] : FLIGHTS };
+        : { updatedAt: "2026-10-21T00:00:00Z", tournaments: opcoes.flights === false ? [] : [...FLIGHTS, ...BOUNTY_API] };
       return { ok: true, status: 200, json: async () => corpo };
     }
     const fx = JSON.parse(readFileSync(`tests/fixtures/${stage}.json`, "utf8"));
@@ -190,8 +191,8 @@ describe("Etapa 3 usa a planilha", () => {
 
     // o prêmio "1" (marcador interno de premiado inferido) nunca aparece: nem na resposta, nem nos arquivos
     const r = montarResposta(stage, dados, regras, aud, id);
-    expect(r.linhas.every((l) => l.prize === null && l.premioInferido)).toBe(true);
-    expect(relatorio).toContain("Premiados inferidos pelos pontos da planilha");
+    expect(r.linhas.every((l) => l.prize === null && l.semPremio)).toBe(true);
+    expect(relatorio).toContain("Premiados da lista informada pelo responsável");
     for (const buf of [await relatorioXlsx(stage, dados, aud, regras, id), await exportacaoXlsx(dados, aud, id, regras)]) {
       const wb = new ExcelJS.Workbook();
       await wb.xlsx.load(buf as unknown as ExcelJS.Buffer);
@@ -216,7 +217,7 @@ describe("Etapas 1 e 2 não mudam", () => {
     const { stage, dados, aud, regras, id } = await auditoria("vale-suico-2026");
     const r = montarResposta(stage, dados, regras, aud, id);
     const ind = r.painel.indicadores;
-    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([153, 12363.55, 143, 0]);
+    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([149, 9139.75, 140, 0]);
     expect(r.origem).toEqual({ tipo: "site" });
   });
 

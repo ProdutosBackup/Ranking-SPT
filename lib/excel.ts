@@ -9,7 +9,8 @@ import type { auditar } from "./auditoria";
 import { gerarGraficos } from "./graficos-excel";
 import type { identificador } from "./integridade";
 import { montarResposta } from "./painel";
-import { ACORDO } from "./acordo";
+import { ACORDO, marcaLinha } from "./acordo";
+import { CANCELADO } from "./cancelados";
 import { ACOES, PARTICIPACAO } from "./participacao";
 import { REGRAS_PADRAO, type Regras } from "./regras";
 
@@ -169,9 +170,9 @@ function linhasCalculos(linhas: LinhaAud[]): Linha[] {
   return linhas.map((l) => ({
     classe: l.classe,
     v: [
-      l.jogador, l.torneio, l.posicao, l.premioInferido ? "—" : l.prize, l.buyIn, l.field, l.premiados,
+      l.jogador, l.torneio, l.posicao, l.semPremio ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
-      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? ACORDO.marca(l.acordo) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
+      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? marcaLinha(l.acordo, l.acordoDe, l.acordoOrigem) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
     ],
   }));
 }
@@ -234,7 +235,7 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
   }
   mesclar(1, 8, 2, NCOL, "Auditoria do Ranking", { size: 24, bold: true, cor: C.branco, fundo: TOPO, wrap: false });
   mesclar(3, 8, 3, NCOL, ETAPAS[stage] ?? stage, { size: 13, cor: C.pessego, fundo: BASE, wrap: false });
-  mesclar(4, 8, 4, NCOL, `${r.origem.tipo === "planilha" ? `Dados da planilha ${r.origem.arquivo ?? "enviada"} enviada em ${dataBrasilia(r.updatedAt.ranking)}` : `Dados do site de ${dataBrasilia(r.updatedAt.ranking)}`} (Brasília) · Identificador ${idCurto}${r.acordos.aplicados > 0 ? ` · ${ACORDO.faixa(r.acordos.aplicados)}` : ""}`, { size: 10, cor: C.branco, fundo: BASE, wrap: false });
+  mesclar(4, 8, 4, NCOL, `${r.origem.tipo === "planilha" ? `Dados da planilha ${r.origem.arquivo ?? "enviada"} enviada em ${dataBrasilia(r.updatedAt.ranking)}` : `Dados do site de ${dataBrasilia(r.updatedAt.ranking)}`} (Brasília) · Identificador ${idCurto}${r.acordos.aplicados > 0 ? ` · ${ACORDO.faixa(r.acordos.aplicados)}` : ""}${r.cancelados.aplicados > 0 ? ` · ${CANCELADO.faixa(r.cancelados.aplicados)}` : ""}`, { size: 10, cor: C.branco, fundo: BASE, wrap: false });
   mesclar(5, 8, 5, NCOL, "✓ Conta conferida por dois cálculos independentes", { size: 10, bold: true, cor: C.laranja, fundo: BASE, wrap: false });
   try {
     const logo = wb.addImage({ buffer: readFileSync(join(process.cwd(), "public", "logo-spt.png")) as unknown as ExcelJS.Buffer, extension: "png" });
@@ -243,9 +244,9 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
     /* sem a logo, o cabeçalho segue com o título */
   }
 
-  if (r.origem.tipo === "planilha" && r.origem.premiadosInferidos) {
+  if (r.origem.tipo === "planilha" && r.origem.premiadosPorLista) {
     ws.getRow(6).height = 22;
-    mesclar(6, 1, 6, NCOL, "Premiados inferidos pelos pontos da planilha", { size: 10, cor: C.tinta });
+    mesclar(6, 1, 6, NCOL, "Premiados da lista informada pelo responsável", { size: 10, cor: C.tinta });
   } else ws.getRow(6).height = 8;
   ws.getRow(7).height = 26;
   ws.getRow(8).height = 26;
@@ -420,7 +421,7 @@ function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     { h: "Torneio", t: "texto" }, { h: "Situação", t: "situacao" }, { h: "Inscritos na API", t: "int" }, { h: "Inscritos usados na conta", t: "int" },
     { h: "Premiados", t: "int" }, { h: "Resultados", t: "int" }, { h: PARTICIPACAO.comPosicao, t: "int" }, { h: PARTICIPACAO.rotulo, t: "int" }, { h: "Corretos", t: "int" }, { h: "Corretos com inscritos do site", t: "int" },
     { h: "Erros", t: "int" }, { h: "Revisar", t: "int" }, { h: "Aguardando regra", t: "int" }, { h: "Pontos em discordância", t: "ponto" },
-    { h: ACOES.buyIns, t: "int" }, { h: ACOES.reentries, t: "int" }, { h: ACOES.acoes, t: "int" }, { h: "Observação", t: "longo" }, { h: ACORDO.rotulo, t: "texto" },
+    { h: ACOES.buyIns, t: "int" }, { h: ACOES.reentries, t: "int" }, { h: ACOES.acoes, t: "int" }, { h: "Observação", t: "longo" }, { h: ACORDO.rotulo, t: "texto" }, { h: CANCELADO.rotulo, t: "texto" },
   ];
   const porT = new Map<string, { ok: number; site: number; erro: number; revisar: number; ag: number; pts: number }>();
   for (const l of r.linhas) {
@@ -438,7 +439,7 @@ function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     const v = porT.get(t.id) ?? { ok: 0, site: 0, erro: 0, revisar: 0, ag: 0, pts: 0 };
     return {
       classe: CLASSE[t.estado],
-      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo), t.acordo != null ? ACORDO.marca(t.acordo) : ""],
+      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo), t.acordoTexto ?? "", t.cancelado ? CANCELADO.causa : ""],
     };
   });
   tabela(ws, cols, linhas, rodape, { semCor: false, barraDif: 13 });
@@ -593,12 +594,13 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
       ? ([
           ["Origem dos dados", `Planilha ${r.origem.arquivo ?? "enviada"}, enviada em ${dataBrasilia(r.updatedAt.ranking)} (Brasília)`],
           ["Inscritos do Dia Final", r.origem.inscritosDiaFinal?.texto ?? "valor da planilha"],
-          ["Premiados", "Inferidos pelos pontos da planilha"],
+          ["Premiados", "Da lista informada pelo responsável"],
         ] as [string, string][])
       : ([["Data dos dados do site", `${dataBrasilia(r.updatedAt.ranking)} (Brasília)`]] as [string, string][])),
     ["Identificador", id.sha256.slice(0, 8)],
     ["Identificador completo", id.sha256],
-    ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordo != null).map((t) => `${t.nome} (${ACORDO.marca(t.acordo!).toLowerCase()})`).join("; ")}`]] as [string, string][]) : []),
+    ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordoTexto != null).map((t) => `${t.nome} (${t.acordoTexto!.replace(/^Acordo: /, "")})`).join("; ")}`]] as [string, string][]) : []),
+    ...(r.cancelados.aplicados > 0 ? ([["Torneios cancelados", `${r.cancelados.aplicados}: ${r.painel.torneios.filter((t) => t.cancelado).map((t) => t.nome).join("; ")} (${CANCELADO.causa.toLowerCase()})`]] as [string, string][]) : []),
     ["Resultados", String(r.linhas.length)],
     ["Arquivo gerado em", `${dataBrasilia(new Date())} (Brasília)`],
   ];
