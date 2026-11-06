@@ -182,7 +182,7 @@ describe("efeito: torneio cancelado não pontua", () => {
     const com = conferido(d, [t.id]);
     const linhas = com.linhas.filter((l) => l.torneioId === t.id);
     expect(linhas).toHaveLength(12);
-    expect(linhas.every((l) => l.esperado === 0 && l.esperadoCent === 0 && l.canceladoUsuario && l.conta === CANCELADO.causa)).toBe(true);
+    expect(linhas.every((l) => l.esperado === 0 && l.esperadoCent === 0 && l.canceladoUsuario && l.conta === `0: ${CANCELADO.causa.charAt(0).toLowerCase()}${CANCELADO.causa.slice(1)}`)).toBe(true);
     // com pontos registrados > 0: Erro com a causa; o torneio sai do painel como cancelado
     expect(linhas.every((l) => l.registrado > 0 && l.situacao === "ERRO" && l.causaCodigo === "CANCELADO_USUARIO" && l.causaProvavel === CANCELADO.causa)).toBe(true);
     expect(com.torneios.find((x) => x.torneioId === t.id)).toMatchObject({ cancelado: true, chaveCancelamento: t.id });

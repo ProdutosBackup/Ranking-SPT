@@ -23,7 +23,7 @@ function dadosDe(stage: string): DadosSpt {
   };
 }
 
-const ABAS = ["Resumo", "Erros", "Divergências de inscritos", "Jogadores", "Torneios", "Aguardando regra", "Regras", "Todos os cálculos"];
+const ABAS = ["Resumo", "Erros", "Divergências de inscritos", "Jogadores", "Torneios", "Aguardando regra", "Regras", "Consolidado", "Todos os cálculos"];
 const PROIBIDOS_TEXTO = ["foraDoItm", "base10xFatores", "10fixos", "field", "buyInDiaFinalZero", "fatorBuyInAbaixo500", "fatorFaixaAte1000", "aposDecimoOitavo", "satelitesPontuam", "toleranciaArredondamento", "CORRETO_SITE", "PENDENTE_REGRA", "updatedAt", "SHA-256", "UTC"];
 const PROIBIDOS_PALAVRA = ["TRUE", "FALSE", "STANDALONE", "FLIGHT", "FINAL", "PARENT"].map((p) => new RegExp(`\\b${p}\\b`));
 const proibidos = (t: string) => [...PROIBIDOS_TEXTO.filter((p) => t.includes(p)), ...PROIBIDOS_PALAVRA.filter((r) => r.test(t)).map((r) => r.source)];

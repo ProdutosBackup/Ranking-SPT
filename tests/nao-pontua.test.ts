@@ -55,7 +55,7 @@ describe("linhas de torneios que não pontuam", () => {
     const aud = auditar(d, REGRAS_PADRAO);
     const ls = aud.linhas.filter((l) => l.torneio === nome);
     expect(ls.length).toBeGreaterThan(0);
-    expect(ls.every((l) => l.situacao === "ERRO" && l.esperado === 0 && l.naoPontua === motivo && l.causaProvavel === `${motivo} com pontos registrados` && l.conta === `${motivo} não pontua`)).toBe(true);
+    expect(ls.every((l) => l.situacao === "ERRO" && l.esperado === 0 && l.naoPontua === motivo && l.causaProvavel === `${motivo} com pontos registrados` && l.conta === `0: ${motivo === "Satélite" ? "satélite" : motivo} não pontua`)).toBe(true);
     expect(verificar(d, REGRAS_PADRAO, aud.linhas, aud.torneios)).toEqual([]);
   });
   it("torneio que pontua não ganha motivo", async () => {

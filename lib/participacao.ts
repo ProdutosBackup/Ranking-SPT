@@ -19,7 +19,7 @@ export const PARTICIPACAO = {
   finalCedido: "Dia Final de jogador que jogou flight: a pontuação do jogador vale no flight dele",
   zeroMaisDeUm: "Jogou mais de um flight: vale só o primeiro",
   contaZeroFlight: "0: a pontuação do Main Event vale no flight",
-  contaZeroMaisDeUm: "Não pontua: vale só o primeiro flight",
+  contaZeroMaisDeUm: "0: já pontuou em outro flight (pontua uma vez só)",
   campo: (soma: number, partes: number[]) => `campo: soma dos flights ${soma} = ${partes.join("+")}`,
 } as const;
 

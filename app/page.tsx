@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
 import { ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
 import { consolidar, type EtapaConsolidado } from "../lib/consolidado";
+import { etapaParaConsolidar } from "../lib/consolidado-etapas";
 import { Barra, ETAPAS } from "./components/Barra";
 import { Consolidado, type EtapaOpcao } from "./components/Consolidado";
 import { lerAuditoria } from "./components/lerAuditoria";
@@ -225,12 +226,7 @@ export default function Home() {
     const etapas: EtapaConsolidado[] = [];
     for (let k = 1; k <= ate; k++) {
       if (!fresca(guardadas, k)) return null;
-      const d3 = guardadas[ETAPAS[k - 1].v].dados;
-      etapas.push({
-        numero: k,
-        jogadores: d3.painel.jogadores.map((j) => ({ nome: j.nome, id: j.id })),
-        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicaoPontua, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao, acordo: l.acordo != null, registradoCent: l.registradoCent, cenarios: l.cenarios, cenariosMotivo: l.cenariosMotivo })),
-      });
+      etapas.push(etapaParaConsolidar(k, guardadas[ETAPAS[k - 1].v].dados));
     }
     return consolidar(etapas);
     // eslint-disable-next-line react-hooks/exhaustive-deps

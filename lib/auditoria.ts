@@ -170,7 +170,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       let part = false; // participação do Main Event: primeiro flight de quem não tem Dia Final, ou Dia Final sem posição (10 × fatores)
       if (canceladoPeloUsuario(t)) {
         // Marcado como cancelado pelo usuário: não pontua, vale antes de qualquer pendência (o status da API não importa).
-        zero = { conta: CANCELADO.causa, causa: CANCELADO.causa, codigo: "CANCELADO_USUARIO" };
+        zero = { conta: `0: ${CANCELADO.causa.charAt(0).toLowerCase()}${CANCELADO.causa.slice(1)}`, causa: CANCELADO.causa, codigo: "CANCELADO_USUARIO" };
       } else if (/^cancel/i.test(t.status ?? "")) {
         motivoPendente = "torneio cancelado com resultados";
         pendencia = "CANCELADO";
@@ -178,7 +178,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         motivoPendente = `torneio não finalizado (situação: ${t.status ?? "desconhecida"})`;
         pendencia = "NAO_FINALIZADO";
       } else if (motivoNP) {
-        zero = { conta: `${motivoNP} não pontua`, causa: `${motivoNP} com pontos registrados`, codigo: "SATELITE" }; // satélite, Ladies e All in or Fold nunca pontuam
+        zero = { conta: `0: ${motivoNP === "Satélite" ? "satélite" : motivoNP} não pontua`, causa: `${motivoNP} com pontos registrados`, codigo: "SATELITE" }; // satélite, Ladies e All in or Fold nunca pontuam
       } else if (ehFlight(t)) {
         // Flight de quem chegou ao Dia Final: o primeiro flight carrega a pontuação do Dia Final (passo 3, `fonteDe`); os demais valem 0.
         if (primeiroFlight.get(j) !== t.id) zero = { conta: PARTICIPACAO.contaZeroMaisDeUm, causa: PARTICIPACAO.zeroMaisDeUm, codigo: "FLIGHT_ZERO" };

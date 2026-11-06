@@ -13,6 +13,10 @@ import { ACORDO, marcaLinha } from "./acordo";
 import { CANCELADO } from "./cancelados";
 import { ACOES, PARTICIPACAO } from "./participacao";
 import { REGRAS_PADRAO, VERSAO_REGRAS, type Regras } from "./regras";
+import { consolidar, type Consolidado } from "./consolidado";
+import { etapaParaConsolidar } from "./consolidado-etapas";
+import { montarColuna, type ColunaId, type Fator, type Item } from "../app/components/colunas";
+import { CONSOLIDADO } from "../app/components/estrutura";
 
 type Aud = ReturnType<typeof auditar>;
 type Id = ReturnType<typeof identificador>;
@@ -58,7 +62,8 @@ export function dataBrasilia(d: Date | string): string {
   );
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
-const FMT = { ponto: "#,##0.00", dif: "#,##0.00;-#,##0.00;0.00", int: "#,##0", fator: "0.00##", pos: "0", pct: '0.0"%"' };
+// `posEmpate`: posição numérica que mostra o "=" do empate (5 aparece como "5=").
+const FMT = { ponto: "#,##0.00", dif: "#,##0.00;-#,##0.00;0.00", int: "#,##0", fator: "0.00##", pos: "0", posEmpate: '0"="', pct: '0.0"%"' };
 
 // ---------- construção de tabelas ----------
 type Tipo = "texto" | "longo" | "ponto" | "dif" | "int" | "fator" | "pos" | "situacao";
@@ -157,7 +162,7 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
 
 const conta = (l: LinhaAud) =>
   (l.acordo != null ? `${ACORDO.conta(l.acordo)}: ` : "") +
-  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : l.conta === PARTICIPACAO.contaZeroFlight ? l.conta : `10 pontos fixos = ${n(l.esperado)}`);
+  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : l.conta.startsWith("0: ") ? l.conta : `10 pontos fixos = ${n(l.esperado)}`);
 const aguarda = (l: LinhaAud) => l.classe === "aguarda";
 
 /** Texto da célula de um cenário sem dados (o parcial nunca aparece). */
@@ -575,8 +580,124 @@ function todos(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
   tabela(ws, COLS_CALCULOS, linhasCalculos(r.linhas, r.painel.numeroEtapa), rodape, { barraDif: 13 });
 }
 
-/** Relatório: painel de auditoria em 8 abas. */
-export async function relatorioXlsx(stage: string, dados: DadosSpt, aud: Aud, regrasUsadas: Regras, id: Id) {
+// ---------- Consolidado ----------
+/** Uma etapa anterior à escolhida, já auditada (o resultado de executar()). */
+export type EtapaAnterior = { stage: string; dados: DadosSpt; aud: Aud; id: Id; regras: Regras };
+
+/** Aba "Consolidado": ranking acumulado da Etapa 1 até a escolhida, uma linha por jogador, com os 3 grupos de rankings e os 4 cenários (A a D). */
+function consolidadoAba(wb: ExcelJS.Workbook, rodape: string, etapas: { numero: number; stage: string; r: Resp }[]) {
+  const ws = wb.addWorksheet("Consolidado");
+  ws.views = [{ showGridLines: false }];
+  const c: Consolidado = consolidar(etapas.map((e) => etapaParaConsolidar(e.numero, e.r)));
+  const ate = etapas[etapas.length - 1].numero;
+  const NCOLS = 27;
+  const mescla = (linha: number, c1: number, c2: number, valor: string, estilo: { size?: number; bold?: boolean; cor?: string; fundo?: string }) => {
+    ws.mergeCells(linha, c1, linha, c2);
+    const cell = ws.getCell(linha, c1);
+    cell.value = valor;
+    cell.font = { name: FONTE, size: estilo.size ?? 10, bold: estilo.bold, color: { argb: estilo.cor ?? C.tinta } };
+    cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+    if (estilo.fundo) cell.fill = fill(estilo.fundo);
+  };
+
+  // cabeçalho: etapas incluídas, com o identificador e a origem de cada uma
+  mescla(1, 1, 12, `Consolidado — Etapa 1 até Etapa ${ate}: ranking acumulado, sem descarte`, { size: 14, bold: true });
+  etapas.forEach((e, i) => {
+    const origem = e.r.origem.tipo === "planilha" ? `planilha ${e.r.origem.arquivo ?? "enviada"}, enviada em ${dataBrasilia(e.r.updatedAt.ranking)} (Brasília)` : `site, dados de ${dataBrasilia(e.r.updatedAt.ranking)} (Brasília)`;
+    mescla(2 + i, 1, 12, `${ETAPAS[e.stage] ?? e.stage} · Identificador ${e.r.identificador.sha256.slice(0, 8)} · Origem: ${origem}`, { cor: C.apoio });
+  });
+  const nota = 2 + etapas.length;
+  mescla(nota, 1, 12, `Os cenários A a D estão definidos na aba Regras. "${INSUFICIENTE}" é texto, sem valor parcial, e a última coluna traz o motivo. Desempate: mais primeiros lugares; quem continua empatado divide a posição (=).`, { size: 9, cor: C.apoio });
+  ws.getRow(nota).height = 28;
+  const gr = nota + 2; // linha dos títulos dos grupos
+  const lr = gr + 1; // linha dos rótulos (com o filtro)
+
+  // grupos: título mesclado em cima, rótulos embaixo
+  const grupos: { titulo: string; col: ColunaId; fator: Fator }[] = [
+    { titulo: CONSOLIDADO.titulos[0], col: "estava", fator: "1,0" },
+    { titulo: `${CONSOLIDADO.titulos[1]}, fator 1,0 (A)`, col: "entradas", fator: "1,0" },
+    { titulo: `${CONSOLIDADO.titulos[1]}, fator 0,9 (B)`, col: "entradas", fator: "0,9" },
+    { titulo: `${CONSOLIDADO.titulos[2]}, fator 1,0 (C)`, col: "acoes", fator: "1,0" },
+    { titulo: `${CONSOLIDADO.titulos[2]}, fator 0,9 (D)`, col: "acoes", fator: "0,9" },
+  ];
+  const rotulos = [CONSOLIDADO.colunas[0], CONSOLIDADO.colunas[2], "SPT1", "SPT2", "SPT3"];
+  const cab = (cell: ExcelJS.Cell, v: string) => {
+    cell.value = v;
+    cell.font = { name: FONTE, size: 10, bold: true, color: { argb: C.branco } };
+    cell.fill = fill(C.cabecalho);
+    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    cell.border = fino;
+  };
+  ws.getRow(gr).height = 34;
+  ws.getRow(lr).height = 24;
+  cab(ws.getCell(lr, 1), CONSOLIDADO.colunas[1]);
+  grupos.forEach((g, i) => {
+    const c1 = 2 + i * 5;
+    ws.mergeCells(gr, c1, gr, c1 + 4);
+    const t = ws.getCell(gr, c1);
+    t.value = g.titulo;
+    t.font = { name: FONTE, size: 10, bold: true, color: { argb: C.tinta } };
+    t.fill = fill(i === 0 ? C.zebra : i < 3 ? C.creme : C.pessego);
+    t.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    for (let k = 0; k < 5; k++) { ws.getCell(gr, c1 + k).border = fino; cab(ws.getCell(lr, c1 + k), rotulos[k]); }
+  });
+  cab(ws.getCell(lr, NCOLS), "Motivo (dados insuficientes)");
+
+  // linhas: uma por jogador, na ordem da posição de A
+  const visao = { tipo: "acumulado" } as const;
+  const colunas = grupos.map((g) => new Map<string, Item>(montarColuna(c.jogadores, g.col, g.fator, visao).map((i) => [i.chave, i])));
+  const ordem = montarColuna(c.jogadores, "entradas", "1,0", visao);
+  const porChave = new Map(c.jogadores.map((j) => [`${j.id ?? j.nome}`, j]));
+  const cenarioDe = (g: (typeof grupos)[number]) => (g.col === "entradas" ? (g.fator === "1,0" ? "A" : "B") : g.fator === "1,0" ? "C" : "D") as "A" | "B" | "C" | "D";
+  const celula = (cell: ExcelJS.Cell, v: number | string | null, fmt?: string) => {
+    cell.value = v;
+    cell.font = { name: FONTE, size: 10, color: { argb: C.tinta } };
+    cell.border = fino;
+    cell.alignment = { vertical: "top", horizontal: typeof v === "string" ? "left" : "right", wrapText: false };
+    if (fmt) cell.numFmt = fmt;
+    if (v === INSUFICIENTE) cell.fill = fill(C.pendenteSuave);
+  };
+  for (const it of ordem) {
+    const j = porChave.get(it.chave)!;
+    const row = ws.addRow([]);
+    const nomeCell = row.getCell(1);
+    celula(nomeCell, j.nome);
+    nomeCell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+    grupos.forEach((g, i) => {
+      const x = colunas[i].get(it.chave)!;
+      const c1 = 2 + i * 5;
+      // posição numérica; com empate, o formato mostra o "="; sem posição (dados insuficientes), vazia
+      celula(row.getCell(c1), x.pos, x.empate ? FMT.posEmpate : FMT.pos);
+      row.getCell(c1).alignment = { vertical: "top", horizontal: "center" };
+      celula(row.getCell(c1 + 1), x.cent == null ? INSUFICIENTE : x.cent / 100, FMT.ponto);
+      for (let k = 0; k < 3; k++) {
+        const e = g.col === "estava" ? (j.publicadoPorEtapa[k] ?? null) : j.cenarios[cenarioDe(g)].porEtapa[k] == null ? null : (j.cenarios[cenarioDe(g)].porEtapa[k]!.cent ?? INSUFICIENTE);
+        const cent = typeof e === "number" ? e / 100 : e; // etapa que o jogador não jogou (ou fora do alcance): vazia
+        celula(row.getCell(c1 + 2 + k), cent, FMT.ponto);
+      }
+    });
+    // motivo: o de C (D tem o mesmo conjunto), uma etapa por linha
+    const motivos = (colunas[3].get(it.chave)!.motivos.length ? colunas[3] : colunas[4]).get(it.chave)!.motivos;
+    const texto = motivos.map((m) => CONSOLIDADO.motivoEtapa(m.etapa, m.motivo, m.linhas));
+    const mc = row.getCell(NCOLS);
+    celula(mc, texto.join("\n") || null);
+    mc.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+    if (texto.length > 1) row.height = 14 * texto.length + 2;
+  }
+  ws.getColumn(1).width = 34;
+  for (let g = 0; g < 5; g++) {
+    ws.getColumn(2 + g * 5).width = 9;
+    ws.getColumn(3 + g * 5).width = 17;
+    for (let k = 0; k < 3; k++) ws.getColumn(4 + g * 5 + k).width = 17;
+  }
+  ws.getColumn(NCOLS).width = 62;
+  ws.views = [{ state: "frozen", xSplit: 1, ySplit: lr, showGridLines: false }];
+  ws.autoFilter = { from: { row: lr, column: 1 }, to: { row: ws.rowCount, column: NCOLS } };
+  impressao(ws, rodape, false, `${gr}:${lr}`);
+}
+
+/** Relatório: painel de auditoria em 9 abas. `anteriores`: as etapas antes da escolhida, já auditadas (a aba Consolidado soma da Etapa 1 até a escolhida); texto = por que não foi possível montá-las (a aba mostra o aviso, como a tela). */
+export async function relatorioXlsx(stage: string, dados: DadosSpt, aud: Aud, regrasUsadas: Regras, id: Id, anteriores: EtapaAnterior[] | string = []) {
   const r = montarResposta(stage, dados, regrasUsadas, aud, id);
   const wb = new ExcelJS.Workbook();
   propriedades(wb);
@@ -588,6 +709,19 @@ export async function relatorioXlsx(stage: string, dados: DadosSpt, aud: Aud, re
   torneios(wb, r, rodape);
   aguardando(wb, r, rodape);
   regras(wb, r, rodape);
+  if (typeof anteriores === "string") {
+    const ws = wb.addWorksheet("Consolidado");
+    ws.getColumn(1).width = 110;
+    ws.getCell(1, 1).value = `Não foi possível montar o consolidado. ${anteriores}`;
+    ws.getCell(1, 1).font = { name: FONTE, size: 11, bold: true };
+  } else {
+    const numeros = Object.keys(ETAPAS);
+    const lista = [
+      ...anteriores.map((a) => ({ stage: a.stage, r: montarResposta(a.stage, a.dados, a.regras, a.aud, a.id) })),
+      { stage, r },
+    ].map((e) => ({ ...e, numero: numeros.indexOf(e.stage) + 1 }));
+    consolidadoAba(wb, rodape, lista);
+  }
   todos(wb, r, rodape);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
