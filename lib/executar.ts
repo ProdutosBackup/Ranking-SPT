@@ -6,6 +6,7 @@ import { assinaturaCancelados, canceladosDaEtapa, lerCancelados } from "./cancel
 import { buscar, guardar, lerCompartilhado } from "./cache";
 import { auditar } from "./auditoria";
 import { conferir, ErroAuditoria, identificador } from "./integridade";
+import { lerAcoes, mesclarAcoes } from "./planilha-acoes";
 import { dadosDaPlanilha, lerRegistro } from "./planilha-guardada";
 import { lerRegras } from "./regras";
 
@@ -32,7 +33,10 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
   const sufixo = (assinaturaAcordos(acordos) ? `|acordos:${assinaturaAcordos(acordos)}` : "") + (cancelados.length ? `|cancelados:${assinaturaCancelados(cancelados)}` : "");
   const idPedido = q.get("id");
   const registro = stage === ETAPA_PLANILHA ? await lerRegistro() : null;
-  const guardado = idPedido ? buscar(stage, idPedido, regras, (registro ? `planilha:${registro.sha256}` : "site") + sufixo) : null;
+  // Etapas 1 e 2: a planilha (se houver) só traz os buy-ins e re-entries; o hash dela entra na chave do cache.
+  const registroAcoes = stage !== ETAPA_PLANILHA ? await lerRegistro(stage) : null;
+  const sufixoAcoes = registroAcoes ? `|acoes:${registroAcoes.sha256}` : "";
+  const guardado = idPedido ? buscar(stage, idPedido, regras, (registro ? `planilha:${registro.sha256}` : "site") + sufixoAcoes + sufixo) : null;
   if (guardado) return { ...guardado, mudou: false };
   let dados;
   let origem = "site";
@@ -41,11 +45,17 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
     dados = await dadosDaPlanilha(planilha.bytes, planilha.registro);
     origem = `planilha:${planilha.registro.sha256}`;
     onProgresso?.(dados.jogadores.length, dados.jogadores.length);
-  } else dados = await lerCompartilhado(stage, onProgresso);
+  } else {
+    dados = await lerCompartilhado(stage, onProgresso);
+    const guardada = registroAcoes ? await armazenamento().ler(stage) : null;
+    const acoes = guardada ? await lerAcoes(guardada.bytes) : null;
+    if (acoes && !acoes.ok) throw new ErroExtracao(`A planilha guardada da etapa não pôde ser lida: ${acoes.erros.join(" ")}`);
+    if (acoes) dados = mesclarAcoes(dados, acoes).dados;
+  }
   const aud = auditar(dados, regras, acordos, cancelados);
   conferir(dados, regras, aud, acordos, cancelados);
   const id = identificador(dados, acordos, cancelados);
-  guardar({ stage, origem: origem + sufixo, regras, dados, aud, id });
+  guardar({ stage, origem: origem + sufixoAcoes + sufixo, regras, dados, aud, id });
   return { stage, regras, dados, aud, id, mudou: idPedido != null && idPedido !== id.sha256 };
 }
 

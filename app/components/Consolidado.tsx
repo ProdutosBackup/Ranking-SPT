@@ -67,7 +67,8 @@ export function Consolidado({
     if (!el || !comDados) return;
     const medir = () => {
       const h = (e: Element | null) => (e as HTMLElement | null)?.offsetHeight ?? 0;
-      const [b, f, c] = [h(barra), h(el.querySelector(".cons-faixa")), h(el.querySelector(".cons-cab"))];
+      // A barra pode estar presa com a primeira linha (logo e título) fora da tela (top negativo no celular): conta só o que fica fixo.
+      const [b, f, c] = [h(barra) + (barra ? parseFloat(getComputedStyle(barra).top) || 0 : 0), h(el.querySelector(".cons-faixa")), h(el.querySelector(".cons-cab"))];
       el.style.setProperty("--h-barra", `${b}px`);
       el.style.setProperty("--h-faixa", `${f}px`);
       el.dataset.fixo = b + f + c <= window.innerHeight / 2 ? "sim" : "nao";

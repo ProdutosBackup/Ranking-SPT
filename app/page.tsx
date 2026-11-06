@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
-import { ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
+import { Auditoria } from "./components/Auditoria";
+import { ABA_AUDITORIA, ABA_CONSOLIDADO, ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_ACOES, TEXTOS_PLANILHA } from "./components/estrutura";
 import { consolidar, type EtapaConsolidado } from "../lib/consolidado";
 import { etapaParaConsolidar } from "../lib/consolidado-etapas";
 import { Barra, ETAPAS } from "./components/Barra";
@@ -27,7 +28,7 @@ const CAMPOS: Record<string, string> = {
   "diferença de inscritos": "diferença de inscritos", "linhas explicadas": "resultados explicados", "torneio presente": "torneio presente",
 };
 
-const ABAS_VALIDAS: string[] = ABAS.map((a) => a.id);
+const ABAS_VALIDAS: string[] = ABAS.filter((a) => a.id !== ABA_CONSOLIDADO).map((a) => a.id); // o Consolidado abre pelo parâmetro `visao`, não por `aba`
 // A planilha só vale para a Etapa 3.
 const ETAPA_PLANILHA = ETAPAS[2].v;
 const MSG_SEM_RANKING = "Esta etapa ainda não tem ranking publicado.";
@@ -48,6 +49,9 @@ export default function Home() {
   const [baixando, setBaixando] = useState<string | null>(null);
   const [revisados, setRevisados] = useState<Set<string>>(new Set());
   const [planilha, setPlanilha] = useState<PlanilhaGuardada | null>(null);
+  // Planilhas de ações das Etapas 1 e 2 (uma por etapa; só trazem buy-ins e re-entries).
+  const [planilhasAcoes, setPlanilhasAcoes] = useState<Record<string, PlanilhaGuardada | null>>({});
+  const [infoEnvio, setInfoEnvio] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [removendo, setRemovendo] = useState(false);
   const [erroEnvio, setErroEnvio] = useState<string | null>(null);
@@ -167,6 +171,14 @@ export default function Home() {
     } catch {
       setPlanilha(null);
     }
+    for (const e of [ETAPAS[0].v, ETAPAS[1].v]) {
+      try {
+        const j = await (await fetch(`/api/planilha?etapa=${e}`, { cache: "no-store" })).json();
+        setPlanilhasAcoes((p) => ({ ...p, [e]: j?.carregada ? (j as PlanilhaGuardada) : null }));
+      } catch {
+        setPlanilhasAcoes((p) => ({ ...p, [e]: null }));
+      }
+    }
   }
   useEffect(() => {
     void carregarPlanilha();
@@ -216,7 +228,7 @@ export default function Home() {
       cancelado = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, tolerancia, versaoAcordos.current]);
+  }, [visaoCons, pronto, ate, planilha?.sha256, planilhasAcoes[ETAPAS[0].v]?.sha256, planilhasAcoes[ETAPAS[1].v]?.sha256, semRanking3, tolerancia, versaoAcordos.current]);
 
   const consolidado = useMemo(() => {
     if (!visaoCons) return null;
@@ -236,11 +248,16 @@ export default function Home() {
   }));
   function sairConsolidado() {
     navegar({ [ENDERECO_EXTRA.visao]: null });
-    setTimeout(() => document.getElementById("btn-consolidado")?.focus(), 0);
+    setTimeout(() => document.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.focus(), 0); // o foco volta para a aba ativa
   }
-  function alternarConsolidado() {
-    if (visaoCons) sairConsolidado();
-    else navegar({ [ENDERECO_EXTRA.visao]: CONSOLIDADO.visao, [ENDERECO.etapa]: ETAPAS[ate - 1].v, [ENDERECO.item]: null });
+  function abrirConsolidado() {
+    navegar({ [ENDERECO_EXTRA.visao]: CONSOLIDADO.visao, [ENDERECO.etapa]: ETAPAS[ate - 1].v, [ENDERECO.item]: null });
+  }
+  // Clique ou seta nas abas: o Consolidado abre a visão acumulada; as outras voltam para a auditoria e abrem a aba.
+  function mudarAba(id: string) {
+    if (id === ABA_CONSOLIDADO) {
+      if (!visaoCons) abrirConsolidado();
+    } else navegar(visaoCons ? { [ENDERECO_EXTRA.visao]: null, [ENDERECO.aba]: id, [ENDERECO.item]: null } : { [ENDERECO.aba]: id, [ENDERECO.item]: null });
   }
   useEffect(() => {
     if (!visaoCons) return;
@@ -255,6 +272,7 @@ export default function Home() {
   async function enviarPlanilha(arquivo: File) {
     setEnviando(true);
     setErroEnvio(null);
+    setInfoEnvio(null);
     try {
       const f = new FormData();
       f.set("arquivo", arquivo);
@@ -265,10 +283,21 @@ export default function Home() {
         return;
       }
       await carregarPlanilha();
-      setStage(ETAPA_PLANILHA);
-      navegar({ [ENDERECO.etapa]: ETAPA_PLANILHA, [ENDERECO.item]: null }, "replace");
-      setLidoAberto(true);
-      await auditar(ETAPA_PLANILHA);
+      const etapa: string = j?.etapa ?? ETAPA_PLANILHA;
+      setStage(etapa);
+      navegar({ [ENDERECO.etapa]: etapa, [ENDERECO.item]: null }, "replace");
+      if (etapa === ETAPA_PLANILHA) setLidoAberto(true);
+      else {
+        // Etapas 1 e 2: a planilha só traz as ações. Diz o que casou e refaz a leitura guardada (os cenários C e D mudam).
+        const a = j?.acoes as PlanilhaGuardada["acoes"];
+        const sem = [...(a?.abasSemTorneio ?? []), ...(a?.ambiguos ?? [])];
+        setInfoEnvio(TEXTOS_ACOES.guardada(ETAPAS.findIndex((e) => e.v === etapa) + 1, a?.abas ?? 0, a?.casadas ?? 0) + (sem.length ? `. ${TEXTOS_ACOES.semCasamento(sem)}` : ""));
+        setGuardadas((g) => {
+          const { [etapa]: _, ...outras } = g;
+          return outras;
+        });
+      }
+      await auditar(etapa);
     } catch {
       setErroEnvio("Não foi possível falar com o servidor. Verifique a conexão e tente novamente.");
     } finally {
@@ -279,7 +308,19 @@ export default function Home() {
   async function removerPlanilha() {
     setRemovendo(true);
     setErroEnvio(null);
+    setInfoEnvio(null);
     try {
+      if (stage !== ETAPA_PLANILHA) {
+        const r = await fetch(`/api/planilha?etapa=${stage}`, { method: "DELETE" });
+        if (!r.ok) throw new Error("falhou");
+        setPlanilhasAcoes((p) => ({ ...p, [stage]: null }));
+        setGuardadas((g) => {
+          const { [stage]: _, ...outras } = g;
+          return outras;
+        });
+        await auditar(stage);
+        return;
+      }
       const r = await fetch("/api/planilha", { method: "DELETE" });
       if (!r.ok) throw new Error("falhou");
       setPlanilha(null);
@@ -329,8 +370,8 @@ export default function Home() {
     }
   }
 
-  // "Marcar como revisado": guardado só neste navegador, por etapa e versão dos dados.
-  const chaveRevisados = d ? `spt-revisados:${stage}:${d.identificador.sha256.slice(0, 8)}` : null;
+  // "Marcar como revisado": guardado só neste navegador, por etapa e versão dos dados (o hash sem buy-ins e re-entries: enviar a planilha de ações não apaga as marcas).
+  const chaveRevisados = d ? `spt-revisados:${stage}:${d.identificador.sha256Dados.slice(0, 8)}` : null;
   useEffect(() => {
     if (!chaveRevisados) return;
     try {
@@ -364,21 +405,22 @@ export default function Home() {
         aguardando: d.painel.indicadores.aguardando,
       }
     : {};
-  const abas: Aba[] = d ? ABAS.map((a) => (a.comContador ? { id: a.id, rotulo: a.rotulo, contador: contadores[a.id] } : { id: a.id, rotulo: a.rotulo })) : [];
-  const listaNavegacao = useMemo(() => (d && aba === "erros" ? filtrarErros(d, q) : null), [d, aba, q]);
+  // Antes de auditar, as abas da auditoria aparecem desabilitadas (não há o que mostrar); o Consolidado funciona sempre.
+  const abas: Aba[] = ABAS.map((a) => ({ id: a.id, rotulo: a.rotulo, ...(d && a.comContador ? { contador: contadores[a.id] } : {}), ...(!d && a.id !== ABA_CONSOLIDADO && a.id !== ABA_AUDITORIA ? { desabilitada: true } : {}) }));
+  const abaAtual = visaoCons ? ABA_CONSOLIDADO : d ? aba : ABA_AUDITORIA;
+  const barraAbas = <Abas abas={abas} atual={abaAtual} onMudar={mudarAba} />;
+  // Anterior/Próximo do painel seguem a lista que está na tela: a das abas Erros (pelo endereço) e Auditoria (pelo estado local da aba).
+  const [listaAud, setListaAud] = useState<number[] | null>(null);
+  const listaNavegacao = useMemo(() => (d && aba === "erros" ? filtrarErros(d, q) : d && aba === ABA_AUDITORIA ? listaAud : null), [d, aba, q, listaAud]);
 
   return (
     <div className="pagina">
       <div inert={ver ? true : undefined} onFocusCapture={(e) => { ultimoFoco.current = e.target as HTMLElement; }}>
-        <header className="topo">
-          <img className="logo" src="/logo-spt-transparente-560.png" alt="Suprema Poker Tour" width={560} height={195} decoding="async" fetchPriority="high" />
-          <h1>Auditoria do Ranking</h1>
-        </header>
-
         <Barra
           stage={stage}
           onEtapa={(v) => {
             setStage(v);
+            setInfoEnvio(null);
             navegar({ [ENDERECO.etapa]: v, [ENDERECO.item]: null }, "replace");
           }}
           carregando={carregando}
@@ -387,7 +429,8 @@ export default function Home() {
           onBaixar={baixar}
           baixando={baixando}
           d={d}
-          planilha={planilha}
+          planilha={stage === ETAPA_PLANILHA ? planilha : (planilhasAcoes[stage] ?? null)}
+          infoEnvio={infoEnvio}
           enviando={enviando}
           removendo={removendo}
           erroEnvio={erroEnvio}
@@ -395,12 +438,13 @@ export default function Home() {
           onRemover={removerPlanilha}
           lidoFechado={!lidoAberto}
           onAbrirLido={() => setLidoAberto(true)}
-          consolidadoAtivo={visaoCons}
-          onConsolidado={alternarConsolidado}
         />
 
         <main className="wrap">
           {visaoCons ? (
+            <>
+            {barraAbas}
+            <div role="tabpanel" id="conteudo-aba" aria-labelledby="aba-consolidado" className="conteudo-aba">
             <Consolidado
               ate={ate}
               etapas={opcoesEtapa}
@@ -413,8 +457,11 @@ export default function Home() {
               navegar={navegar}
               onSair={sairConsolidado}
             />
+            </div>
+            </>
           ) : (
             <>
+          {!d && barraAbas}
           {falha && (
             <div className="aviso bloqueio" role="alert">
               <b>Não foi possível concluir.</b> {falha}
@@ -447,30 +494,11 @@ export default function Home() {
             </div>
           )}
 
-          {!d && !carregando && !bloqueio && !falha && (
-            <section className="comecar" aria-labelledby="t-comecar">
-              <h2 id="t-comecar">Como começar</h2>
-              <p className="muted">Em poucos segundos você vê quantos erros existem, quais são e por quê.</p>
-              <ol className="passos">
-                <li>
-                  <span className="numero" aria-hidden="true">1</span>
-                  <b>Escolher a etapa</b>
-                  <span className="muted">Etapa 1, 2 ou 3, no seletor da barra acima.</span>
-                </li>
-                <li>
-                  <span className="numero" aria-hidden="true">2</span>
-                  <b>Auditar etapa</b>
-                  <span className="muted">A ferramenta lê os resultados do site e refaz a conta de cada um.</span>
-                </li>
-                <li>
-                  <span className="numero" aria-hidden="true">3</span>
-                  <b>Ler os erros</b>
-                  <span className="muted">Veja quantos são, quais são e por quê.</span>
-                </li>
-              </ol>
-            </section>
+          {!d && !bloqueio && !falha && (
+            <div role="tabpanel" id="conteudo-aba" aria-labelledby={`aba-${ABA_AUDITORIA}`} className="conteudo-aba">
+              <Auditoria d={undefined} carregando={carregando} navegar={navegar} revisados={revisados} onLista={setListaAud} />
+            </div>
           )}
-
           {d && (
             <>
               {d.painel.numeroEtapa === 1 && <div className="aviso referencia">Etapa de referência: usada para conferir as regras.</div>}
@@ -482,9 +510,10 @@ export default function Home() {
 
               {planilha && lidoAberto && d.origem?.tipo === "planilha" && <BlocoLido p={planilha} d={d} onFechar={() => setLidoAberto(false)} />}
 
-              <Abas abas={abas} atual={aba} onMudar={(id) => navegar({ [ENDERECO.aba]: id, [ENDERECO.item]: null })} />
+              {barraAbas}
 
               <div role="tabpanel" id="conteudo-aba" aria-labelledby={`aba-${aba}`} className="conteudo-aba">
+                {aba === ABA_AUDITORIA && <Auditoria d={d} carregando={carregando} navegar={navegar} revisados={revisados} onLista={setListaAud} />}
                 {aba === "resumo" && <Resumo d={d} navegar={navegar} />}
                 {aba === "erros" && <Erros d={d} q={q} navegar={navegar} revisados={revisados} />}
                 {aba === "divergencias" && <Divergencias d={d} navegar={navegar} />}

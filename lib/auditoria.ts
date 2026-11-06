@@ -33,9 +33,9 @@ export const descreverBase = (b: number) => DESCRICAO_BASE[b] ?? `base ${b}`;
 export type Pendencia = "NAO_FINALIZADO" | "CANCELADO" | "SEM_BUYIN" | "SEM_PREMIADOS" | "SEM_BOUNTY";
 
 // Flight: role=FLIGHT (etapas 2 e 3) ou, sem marcação, nome com "Dia 1" (etapa 1).
-const ehFlight = (t: Torneio) => t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
+export const ehFlight = (t: Torneio) => t.role === "FLIGHT" || (t.role === "STANDALONE" && /dia 1/i.test(t.name));
 // Dia Final do Main Event: role=FINAL (etapas 2 e 3) ou, sem marcação, "Final Main Event" (etapa 1).
-const ehDiaFinal = (t: Torneio) => t.role === "FINAL" || (t.role === "STANDALONE" && /^final main event/i.test(t.name));
+export const ehDiaFinal = (t: Torneio) => t.role === "FINAL" || (t.role === "STANDALONE" && /^final main event/i.test(t.name));
 /** Ordem dos flights (1A, 1B, 1C…): a letra do rótulo ou do nome. */
 const ordemFlight = (t: Torneio) => (/(?:^|dia\s*)1\s*([a-z])/i.exec(t.flightLabel ?? t.name)?.[1] ?? t.name).toUpperCase();
 /** Ações do torneio (buy-ins + re-entries), só quando a planilha informa as duas. */
@@ -300,7 +300,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         return [k, campo == null && !sat ? null : calcularCenario(p.entrada, regras, regime, campo ?? 0, FATOR_FAIXA_CENARIO[k])];
       }),
     ) as Record<Cenario, number | null>;
-    const cenariosMotivo = cenarios.C == null ? MOTIVO_SEM_ACOES : null;
+    const cenariosMotivo = cenarios.C == null ? (acoesLinha == null && t.acoesMotivo ? t.acoesMotivo : MOTIVO_SEM_ACOES) : null;
 
     const registradoCent = centDe(r.points);
     const difCent = registradoCent - c.esperadoCent;

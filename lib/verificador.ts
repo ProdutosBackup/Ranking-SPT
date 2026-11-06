@@ -291,7 +291,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       jogador: b.jogador, torneioId: b0.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
       fatorParticipantes: field * 100 + 5000, fatorBuyIn: b.f100, esperadoCent: cent, registradoCent: b.reg,
       diferenca: dif, situacao, pendencia: b.motivo, participacao: b.particip, canceladoUsuario: b.canc, acordo: b.acAte, acordoDe: b.acDe, acordoOrigem: b.acOrigem,
-      cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C == null ? "reentradas não disponíveis: falta o Excel da etapa" : null, acoesCampo: b.acoes,
+      cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C == null ? (b.acoes == null && d.torneios.find((x) => x.id === b0.torneioId)?.acoesMotivo) || "reentradas não disponíveis: falta o Excel da etapa" : null, acoesCampo: b.acoes,
     };
     const motor: Record<string, unknown> = {
       jogador: l.jogador, torneioId: l.torneioId, field: l.field, buyIn: l.buyIn, premiados: l.premiados, base: l.base,

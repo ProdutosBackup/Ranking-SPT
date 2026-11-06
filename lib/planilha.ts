@@ -28,9 +28,9 @@ export const MSG_SEM_TORNEIOS = "A planilha não tem nenhuma aba de torneio.";
 type Opcoes = { stage?: string; arquivo?: string; enviadoEm?: Date };
 
 // ---------- utilidades ----------
-const limpar = (s: unknown) => String(s ?? "").normalize("NFC").replace(/\s+/g, " ").trim();
+export const limpar = (s: unknown) => String(s ?? "").normalize("NFC").replace(/\s+/g, " ").trim();
 /** Chave de comparação de rótulos e nomes: sem acento, sem maiúsculas, espaços únicos. */
-const chave = (s: unknown) => limpar(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+export const chave = (s: unknown) => limpar(s).normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const SEM_COLOCACAO = new Set(["—", "–", "-"]);
 const nf = (x: number) => x.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 
@@ -44,10 +44,10 @@ function valor(c: ExcelJS.Cell): unknown {
   if ("text" in o) return o.text;
   return null;
 }
-const celula = (ws: ExcelJS.Worksheet, r: number, c: number) => valor(ws.getCell(r, c));
+export const celula = (ws: ExcelJS.Worksheet, r: number, c: number) => valor(ws.getCell(r, c));
 
 /** Primeira célula (linha, coluna) cujo texto normalizado é igual ao rótulo, nas linhas [de, ate]. */
-function achar(ws: ExcelJS.Worksheet, rotulo: string, de = 1, ate = ws.rowCount): { r: number; c: number } | null {
+export function achar(ws: ExcelJS.Worksheet, rotulo: string, de = 1, ate = ws.rowCount): { r: number; c: number } | null {
   const k = chave(rotulo);
   for (let r = de; r <= Math.min(ate, ws.rowCount); r++) {
     const linha = ws.getRow(r);
@@ -73,6 +73,25 @@ type Aba = {
 };
 
 const ROTULOS_ABA = ["Buy-in (R$)", "Inscritos", "Modelo de ranking", "Fator do torneio"];
+
+/**
+ * Bloco lateral "Buy In" / "Rebuy" (também "REENTRY" e "REENTRADA"): o valor é a célula logo abaixo do rótulo, onde quer que o bloco esteja (colunas E:F, F:G, G:H;
+ * rótulo na linha 2 ou 3). O rótulo vale em qualquer combinação de maiúsculas, minúsculas e espaços. Zero explícito é 0; célula vazia (ou texto) é null (ausente).
+ * As linhas "AÇÕES TOTAIS" e "AÇÕES:" não são lidas: o total é calculado (buy-ins + re-entries). `ate`: só procura acima desta linha (o cabeçalho da tabela).
+ */
+export function lerBloco(ws: ExcelJS.Worksheet, ate = ws.rowCount): { buyIns: number | null; reentries: number | null } {
+  const abaixo = (rotulos: string[]) => {
+    for (const r of rotulos) {
+      const a = achar(ws, r, 1, ate);
+      if (a) {
+        const v = celula(ws, a.r + 1, a.c);
+        return typeof v === "number" && Number.isFinite(v) ? v : null;
+      }
+    }
+    return null;
+  };
+  return { buyIns: abaixo(["BUY IN"]), reentries: abaixo(["REENTRY", "REENTRADA", "REBUY"]) };
+}
 
 // ---------- leitura ----------
 export async function lerPlanilha(bytes: Uint8Array, opcoes: Opcoes = {}): Promise<ResultadoPlanilha> {
@@ -268,10 +287,7 @@ function lerAba(ws: ExcelJS.Worksheet, nome: string, cab: number, erros: string[
     const falta = [...Array(maior).keys()].map((i) => i + 1).filter((x) => !vistas.has(x));
     if (falta.length) aviso(`faltam posições entre 1 e ${maior} (${falta.length} no total; há ${pos.length} linhas com posição).`);
   }
-  const bi = achar(ws, "BUY IN");
-  const lateral = bi ? celula(ws, bi.r + 1, bi.c) : undefined;
-  const re = achar(ws, "REENTRY") ?? achar(ws, "REENTRADA");
-  const reentries = re ? celula(ws, re.r + 1, re.c) : undefined;
+  const { buyIns: lateral, reentries } = lerBloco(ws);
   if (typeof lateral === "number" && lateral !== inscritos) aviso(`"Inscritos" (${inscritos}) é diferente dos buy-ins do bloco lateral (${lateral}).`);
   const soma = linhas.reduce((s, l) => s + centDe(l.pontos), 0);
   if (totalDaAba != null && centDe(totalDaAba) !== soma) aviso(`a soma dos pontos (${nf(soma / 100)}) é diferente do total da aba (${nf(totalDaAba)}).`);
@@ -283,8 +299,8 @@ function lerAba(ws: ExcelJS.Worksheet, nome: string, cab: number, erros: string[
     linhas,
     semColocacao,
     totalDaAba,
-    buyIns: typeof lateral === "number" ? lateral : null,
-    reentries: typeof reentries === "number" ? reentries : null,
+    buyIns: lateral,
+    reentries,
   };
 }
 

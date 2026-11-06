@@ -21,6 +21,8 @@ export type Torneio = {
   /** Só vêm da planilha (bloco lateral BUY IN / REENTRY). O site não informa quantas entradas e re-entries cada torneio teve. */
   buyIns?: number | null;
   reentries?: number | null;
+  /** Só quando a etapa tem planilha de ações e este torneio ficou sem Buy In/Reentry (sem aba ou sem bloco): o motivo escrito de C e D ficarem "Dados insuficientes". */
+  acoesMotivo?: string | null;
 };
 export type Resultado = {
   tournamentId: string;

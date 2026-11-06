@@ -2,8 +2,9 @@
 // Nomes, ordem, abas, seções, blocos, parâmetros do endereço e atalhos NÃO podem mudar sem autorização explícita
 // do usuário na conversa. Os componentes importam estas constantes; tests/interface.test.ts compara com os valores exatos.
 
-/** Abas, na ordem. `comContador`: a aba mostra o contador ao lado do nome. */
+/** Abas, na ordem. `comContador`: a aba mostra o contador ao lado do nome. "Consolidado" é a última aba (até 06/11/2026 era um botão da barra); as outras 7 são da auditoria. */
 export const ABAS = [
+  { id: "auditoria", rotulo: "Auditoria", comContador: false },
   { id: "resumo", rotulo: "Resumo", comContador: false },
   { id: "erros", rotulo: "Erros", comContador: true },
   { id: "divergencias", rotulo: "Divergências de inscritos", comContador: true },
@@ -11,16 +12,59 @@ export const ABAS = [
   { id: "torneios", rotulo: "Torneios", comContador: true },
   { id: "aguardando", rotulo: "Aguardando regra", comContador: true },
   { id: "regras", rotulo: "Regras", comContador: false },
+  { id: "consolidado", rotulo: "Consolidado", comContador: false },
 ] as const;
+/** Id da aba Auditoria: a primeira e a padrão (Resumo e Erros numa tela só: causas, casos e, ao clicar num caso, o painel lateral de sempre). */
+export const ABA_AUDITORIA = "auditoria";
+/**
+ * Textos da aba Auditoria (06/11/2026; v2 no modelo do Resumo): frase de abertura, cartões de indicador e "Como ficaram os N resultados" como no Resumo,
+ * "Principais causas (hipóteses)" em cartões e "Casos" num bloco com colunas alinhadas. Causa, torneio e ordem ficam em estado local da aba, sem parâmetros no endereço.
+ */
+export const AUDITORIA = {
+  antes: "Escolha a etapa e toque em “Auditar etapa”.",
+  carregando: "Carregando a auditoria…",
+  semErros: "Não há erros nesta etapa.",
+  erros: "Erros",
+  pontos: "Pontos em discordância",
+  jogadores: "Jogadores afetados",
+  corretos: "Resultados corretos (entre os conferidos)",
+  todasAsCausas: "Todas as causas",
+  casos: "Casos",
+  colunas: ["Jogador", "Torneio · posição", "Site", "Correto", "Diferença"] as const,
+  verTodas: (total: number) => `Ver todas as causas (${total.toLocaleString("pt-BR")})`,
+  verMenos: "Mostrar só as 4 maiores",
+  comoFicaram: (total: number) => `Como ficaram os ${total.toLocaleString("pt-BR")} resultados`,
+  causas: "Causas",
+  todas: "Todas",
+  causa: "Causa",
+  torneio: "Torneio",
+  ordenar: "Ordenar",
+  ordens: [["diferenca", "Maior diferença"], ["jogador", "Jogador"], ["torneio", "Torneio"]] as const,
+  limpar: "Limpar filtros",
+  filtros: "Filtros",
+  filtrosAtivos: "Filtros ativos",
+  semResultado: "Nenhum resultado com os filtros escolhidos.",
+  nenhumTorneio: "Nenhum torneio encontrado.",
+  buscarTorneio: "Buscar torneio",
+  todosTorneios: "Todos",
+  pontosEmDiscordancia: "pontos em discordância",
+  clique: "Clique em um resultado para ver a conta passo a passo. As causas são hipóteses.",
+};
+/** Id da aba Consolidado: ela abre a visão do ranking acumulado (parâmetro `visao`), não o parâmetro `aba`. */
+export const ABA_CONSOLIDADO = "consolidado";
 
-/** Itens da barra superior fixa, na ordem. */
+/**
+ * Itens da barra superior fixa, na ordem (reorganizada em 06/11/2026): linha de ação com a logo e o título, o seletor Etapa, o botão laranja "Auditar etapa"
+ * e o botão secundário "Mais"; "Mais" abre um menu com Enviar planilha, Baixar relatório e Exportar dados; depois, a faixa de confiança em uma linha.
+ * O Consolidado deixou a barra e virou a última aba (ABAS).
+ */
 export const BARRA = {
   etapa: "Etapa",
   auditar: "Auditar etapa",
+  mais: "Mais",
   enviar: "Enviar planilha",
   baixar: "Baixar relatório",
   exportar: "Exportar dados",
-  consolidado: "Consolidado",
   confianca: "Faixa de confiança",
 } as const;
 export const BARRA_ITENS = Object.values(BARRA);
@@ -39,6 +83,11 @@ export const PLANILHA = {
   premiadosPorLista: "Premiados da lista informada pelo responsável",
 } as const;
 export const PLANILHA_ITENS = Object.values(PLANILHA);
+/** Mensagem depois de guardar a planilha das Etapas 1 e 2 (só de ações): quantas abas foram lidas, quantas casaram e os nomes sem casamento (até 5). */
+export const TEXTOS_ACOES = {
+  guardada: (etapa: number, abas: number, casadas: number) => `Planilha da ${etapa}ª Etapa guardada: ${abas} abas lidas, ${casadas} casadas`,
+  semCasamento: (nomes: string[]) => `Sem casamento: ${nomes.slice(0, 5).join("; ")}${nomes.length > 5 ? ` e mais ${nomes.length - 5}` : ""}`,
+} as const;
 /** Textos que mudam quando a origem dos dados é uma planilha. */
 export const TEXTOS_PLANILHA = {
   faixa: (arquivo: string, data: string) => `Dados da planilha ${arquivo}, enviada em ${data} (Brasília)`,

@@ -87,6 +87,8 @@ export type PlanilhaGuardada = {
   sha256: string;
   resumo: { torneios: number; jogadores: number; linhas: number; inscritosDiaFinal?: { texto: string } | null };
   avisos: string[];
+  /** Etapas 1 e 2 (planilha só de ações): o que casou com os torneios do site. */
+  acoes?: { abas: number; casadas: number; abasSemTorneio: string[]; torneiosSemAba: string[]; ambiguos: string[] } | null;
 };
 
 export type Resposta = {
@@ -97,7 +99,7 @@ export type Resposta = {
   cancelados: { aplicados: number };
   origem: Origem;
   updatedAt: { ranking: string; tournaments: string };
-  identificador: { sha256: string };
+  identificador: { sha256: string; sha256Dados: string };
   linhas: Linha[];
   painel: {
     veredito: string;

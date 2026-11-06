@@ -4,8 +4,10 @@ import { join } from "node:path";
 import { del, get, put } from "@vercel/blob";
 import type { ResumoPlanilha } from "./planilha";
 
-/** A planilha só vale para esta etapa (a Etapa 3). */
+/** A Etapa 3: a planilha dela traz os resultados (as Etapas 1 e 2 só guardam a planilha de ações). Mantém os nomes de arquivo antigos. */
 export const ETAPA_PLANILHA = "bendito-cacao-2026";
+/** Etapas que aceitam planilha: uma por etapa. */
+export const ETAPAS_COM_PLANILHA = ["taua-2026", "vale-suico-2026", "bendito-cacao-2026"] as const;
 
 /** O que se guarda junto com os bytes originais do .xlsx. */
 export type Registro = {
@@ -17,14 +19,18 @@ export type Registro = {
   inscritosDiaFinal: number | null;
   resumo: ResumoPlanilha;
   avisos: string[];
+  /** Etapas 1 e 2 (planilha só de ações): o que casou com os torneios do site no envio. */
+  acoes?: ResumoAcoes;
 };
 
-/** Armazenamento compartilhado de uma única planilha (a da Etapa 3). */
+export type ResumoAcoes = { abas: number; casadas: number; abasSemTorneio: string[]; torneiosSemAba: string[]; ambiguos: string[] };
+
+/** Armazenamento compartilhado: uma planilha por etapa (sem `etapa`, a da Etapa 3). */
 export interface Armazenamento {
-  salvar(bytes: Uint8Array, registro: Registro): Promise<void>;
-  ler(): Promise<{ bytes: Uint8Array; registro: Registro } | null>;
-  estado(): Promise<Registro | null>;
-  remover(): Promise<void>;
+  salvar(bytes: Uint8Array, registro: Registro, etapa?: string): Promise<void>;
+  ler(etapa?: string): Promise<{ bytes: Uint8Array; registro: Registro } | null>;
+  estado(etapa?: string): Promise<Registro | null>;
+  remover(etapa?: string): Promise<void>;
 }
 
 export const sha256 = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
@@ -34,26 +40,27 @@ const MSG_INCONSISTENTE = "A planilha guardada está sendo atualizada agora. Ten
 // ---------- pasta local (desenvolvimento) ----------
 export class ArmazenamentoLocal implements Armazenamento {
   constructor(private pasta = process.env.PLANILHA_LOCAL_DIR || join(process.cwd(), ".planilha-local")) {}
-  private xlsx = () => join(this.pasta, "planilha.xlsx");
-  private json = () => join(this.pasta, "registro.json");
+  // A Etapa 3 mantém os nomes antigos (planilha.xlsx e registro.json); as outras usam o slug da etapa.
+  private xlsx = (e: string) => join(this.pasta, e === ETAPA_PLANILHA ? "planilha.xlsx" : `planilha-${e}.xlsx`);
+  private json = (e: string) => join(this.pasta, e === ETAPA_PLANILHA ? "registro.json" : `registro-${e}.json`);
 
-  async salvar(bytes: Uint8Array, registro: Registro) {
+  async salvar(bytes: Uint8Array, registro: Registro, etapa = ETAPA_PLANILHA) {
     await mkdir(this.pasta, { recursive: true });
-    await writeFile(this.xlsx(), bytes);
-    await writeFile(this.json(), JSON.stringify(registro)); // o registro vem por último: é ele que "confirma" o envio
+    await writeFile(this.xlsx(etapa), bytes);
+    await writeFile(this.json(etapa), JSON.stringify(registro)); // o registro vem por último: é ele que "confirma" o envio
   }
-  async estado() {
+  async estado(etapa = ETAPA_PLANILHA) {
     try {
-      return JSON.parse(await readFile(this.json(), "utf8")) as Registro;
+      return JSON.parse(await readFile(this.json(etapa), "utf8")) as Registro;
     } catch {
       return null;
     }
   }
-  async ler() {
-    const registro = await this.estado();
+  async ler(etapa = ETAPA_PLANILHA) {
+    const registro = await this.estado(etapa);
     if (!registro) return null;
     try {
-      const bytes = new Uint8Array(await readFile(this.xlsx()));
+      const bytes = new Uint8Array(await readFile(this.xlsx(etapa)));
       if (sha256(bytes) !== registro.sha256) throw new Error(MSG_INCONSISTENTE);
       return { bytes, registro };
     } catch (e) {
@@ -61,16 +68,16 @@ export class ArmazenamentoLocal implements Armazenamento {
       throw e;
     }
   }
-  async remover() {
-    await rm(this.json(), { force: true }); // registro primeiro: o estado passa a "sem planilha" de imediato
-    await rm(this.xlsx(), { force: true });
+  async remover(etapa = ETAPA_PLANILHA) {
+    await rm(this.json(etapa), { force: true }); // registro primeiro: o estado passa a "sem planilha" de imediato
+    await rm(this.xlsx(etapa), { force: true });
   }
 }
 
 // ---------- Vercel Blob (produção) ----------
 // Exige um Blob store privado ligado ao projeto; a Vercel cria BLOB_READ_WRITE_TOKEN (ou usa OIDC com BLOB_STORE_ID).
-const CAMINHO_XLSX = `planilha/${ETAPA_PLANILHA}.xlsx`;
-const CAMINHO_JSON = `planilha/${ETAPA_PLANILHA}.json`;
+const CAMINHO_XLSX = (etapa: string) => `planilha/${etapa}.xlsx`;
+const CAMINHO_JSON = (etapa: string) => `planilha/${etapa}.json`;
 
 async function lerBlob(caminho: string) {
   const r = await get(caminho, { access: "private", useCache: false }); // useCache: false → sempre a versão mais recente
@@ -79,27 +86,27 @@ async function lerBlob(caminho: string) {
 }
 
 export class ArmazenamentoBlob implements Armazenamento {
-  async salvar(bytes: Uint8Array, registro: Registro) {
+  async salvar(bytes: Uint8Array, registro: Registro, etapa = ETAPA_PLANILHA) {
     const opcoes = { access: "private", allowOverwrite: true, addRandomSuffix: false } as const;
-    await put(CAMINHO_XLSX, Buffer.from(bytes), { ...opcoes, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    await put(CAMINHO_JSON, JSON.stringify(registro), { ...opcoes, contentType: "application/json" }); // por último: confirma o envio
+    await put(CAMINHO_XLSX(etapa), Buffer.from(bytes), { ...opcoes, contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    await put(CAMINHO_JSON(etapa), JSON.stringify(registro), { ...opcoes, contentType: "application/json" }); // por último: confirma o envio
   }
-  async estado() {
-    const b = await lerBlob(CAMINHO_JSON);
+  async estado(etapa = ETAPA_PLANILHA) {
+    const b = await lerBlob(CAMINHO_JSON(etapa));
     return b ? (JSON.parse(new TextDecoder().decode(b)) as Registro) : null;
   }
-  async ler() {
+  async ler(etapa = ETAPA_PLANILHA) {
     for (let tentativa = 0; tentativa < 2; tentativa++) {
-      const registro = await this.estado();
+      const registro = await this.estado(etapa);
       if (!registro) return null;
-      const bytes = await lerBlob(CAMINHO_XLSX);
+      const bytes = await lerBlob(CAMINHO_XLSX(etapa));
       if (bytes && sha256(bytes) === registro.sha256) return { bytes, registro };
     }
     throw new Error(MSG_INCONSISTENTE);
   }
-  async remover() {
-    await del(CAMINHO_JSON);
-    await del(CAMINHO_XLSX);
+  async remover(etapa = ETAPA_PLANILHA) {
+    await del(CAMINHO_JSON(etapa));
+    await del(CAMINHO_XLSX(etapa));
   }
 }
 
