@@ -257,14 +257,16 @@ describe("painel: indicadores e grupos das duas etapas", () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
     expect(r.painel.indicadores).toMatchObject({
-      auditados: 642, corretos: 440, divergenciasInscritos: { torneios: 5, resultadosExplicados: 386 }, erros: 202,
-      pontosEmDiscordancia: 2389, jogadoresAfetados: 158, aguardando: 0, arredondamento: 0,
+      auditados: 642, corretos: 389, divergenciasInscritos: { torneios: 5, resultadosExplicados: 386 }, erros: 253,
+      pontosEmDiscordancia: 5430.2, jogadoresAfetados: 158, aguardando: 0, arredondamento: 0,
     });
-    // Main Event como um torneio só: 107 flights valem 10 × fatores (campo 202) e 95 valem 0 (o jogador já pontua em outra linha).
+    // Main Event como um torneio só, com o Dia Final como continuação dos flights: 107 flights de quem só jogou flight valem 10 × fatores (campo 202);
+    // 51 jogadores que chegaram ao Dia Final levam a pontuação do Dia Final para o primeiro flight (e a linha do Dia Final vale 0); 44 flights valem 0.
     expect(r.painel.grupos.map((g) => [g.indices.length, g.titulo])).toEqual([
       [107, "Participação de flight com pontos diferentes de 10 × fatores"],
-      [72, "Flight de jogador que chegou ao Dia Final: não pontua; vale o Dia Final"],
-      [23, "Jogou mais de um flight: vale só o primeiro"],
+      [51, "Flight de jogador que chegou ao Dia Final: a pontuação do Main Event vale no flight"],
+      [51, "Dia Final de jogador que jogou flight: a pontuação do jogador vale no flight dele"],
+      [44, "Jogou mais de um flight: vale só o primeiro"],
     ]);
     expect(r.painel.impacto).toHaveLength(158);
     expect(r.painel.divergencias).toHaveLength(5);
@@ -336,12 +338,12 @@ describe("painel: dados entregues à tela", () => {
     expect(superKo.every((l) => l.buyInParaFator === "buy-in para o fator: R$ 1.000 (500 + 500 K.O)" && l.faixaBuyIn === "de R$ 0 a R$ 1.000")).toBe(true);
     expect(r.linhas.filter((l) => !/OMAHA MYSTERY|EV #2|SUPER K\.O/.test(l.torneio)).every((l) => l.buyInParaFator == null)).toBe(true);
   });
-  it("Etapa 1: veredito com os 202 flights em erro e as 5 divergências", async () => {
+  it("Etapa 1: veredito com os 253 resultados em erro e as 5 divergências", async () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
-    expect(r.painel.veredito).toBe("Etapa 1: 202 resultados com pontuação diferente da regra, afetando 158 jogadores (2.389 pontos em discordância). 5 torneios têm inscritos diferentes da API (386 resultados explicados).");
-    expect(r.painel.indicadores.percentualCorretos).toBe(68.5);
-    expect(r.painel.torneios.filter((t) => t.estado === "divergencia")).toHaveLength(5);
+    expect(r.painel.veredito).toBe("Etapa 1: 253 resultados com pontuação diferente da regra, afetando 158 jogadores (5.430,2 pontos em discordância). 5 torneios têm inscritos diferentes da API (386 resultados explicados).");
+    expect(r.painel.indicadores.percentualCorretos).toBe(60.6);
+    expect(r.painel.torneios.filter((t) => t.estado === "divergencia")).toHaveLength(4); // o Final Main Event, com erro, passa a "com erro"; as 5 divergências de inscritos seguem listadas
     expect(r.painel.divergencias.every((x) => x.torneioId)).toBe(true);
   });
 });

@@ -229,7 +229,7 @@ export default function Home() {
       etapas.push({
         numero: k,
         jogadores: d3.painel.jogadores.map((j) => ({ nome: j.nome, id: j.id })),
-        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicao, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao, acordo: l.acordo != null, registradoCent: l.registradoCent, cenarios: l.cenarios, cenariosMotivo: l.cenariosMotivo })),
+        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicaoPontua, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao, acordo: l.acordo != null, registradoCent: l.registradoCent, cenarios: l.cenarios, cenariosMotivo: l.cenariosMotivo })),
       });
     }
     return consolidar(etapas);

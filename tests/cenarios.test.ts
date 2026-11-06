@@ -145,7 +145,7 @@ describe("cenários C e D: total de ações (entradas + reentradas)", () => {
     for (const s of [E1, E2, E3]) expect(auditados[s].aud.linhas.every((l) => l.cenarios.A != null && l.cenarios.B != null)).toBe(true);
   });
   it("linha que vale 0 sem depender do campo (flight de quem já pontua) não é null em C e D", () => {
-    const zeros = auditados[E1].aud.linhas.filter((l) => l.causaCodigo === "FLIGHT_ZERO");
+    const zeros = auditados[E1].aud.linhas.filter((l) => l.causaCodigo === "FLIGHT_ZERO" && l.esperadoCent === 0);
     expect(zeros.length).toBeGreaterThan(0);
     expect(zeros.every((l) => CENARIOS.every((k) => l.cenarios[k] === 0))).toBe(true);
   });

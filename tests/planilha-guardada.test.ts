@@ -224,7 +224,7 @@ describe("Etapas 1 e 2 não mudam", () => {
   it("Etapa 1: 0 erros, sem tocar na planilha", async () => {
     trocarArmazenamento(semArmazenamento);
     const { aud } = await auditoria("taua-2026");
-    expect(aud.resumo).toMatchObject({ ERRO: 202, SUSPEITO: 0, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ ERRO: 253, SUSPEITO: 0, PENDENTE_REGRA: 0 });
   });
 });
 

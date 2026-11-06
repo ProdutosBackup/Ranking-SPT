@@ -76,7 +76,7 @@ export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNod
           <h4>{PAINEL_BLOCOS.conta}</h4>
           {l.acordo != null && <p className="conta-acordo">{ACORDO.conta(l.acordo)}</p>}
           {fixos ? (
-            <p className="resultado-conta">10 pontos fixos = {n(l.esperado)}</p>
+            <p className="resultado-conta">{l.conta === PARTICIPACAO.contaZeroFlight ? l.conta : `10 pontos fixos = ${n(l.esperado)}`}</p>
           ) : (
             <div className="conta-blocos">
               <div className="fator">

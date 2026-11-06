@@ -80,14 +80,14 @@ describe("Dia Final sem posição: 10 × fatores, uma vez", () => {
 });
 
 describe("Etapa 1: uma pontuação por jogador no Main Event", () => {
-  it("finalista com flight: o flight vale 0 e vale o Final (Anderson De Carvalho Costa)", async () => {
+  it("finalista com flight: a pontuação vale no flight e o Dia Final vale 0 (Anderson De Carvalho Costa)", async () => {
     const aud = auditado(await fixture("taua-2026"));
     const f = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio.endsWith("Dia 1D"))!;
-    expect([f.esperado, f.registrado, f.situacao, f.causaCodigo]).toEqual([0, 12.1, "ERRO", "FLIGHT_ZERO"]);
-    expect(f.causaProvavel).toContain("Flight de jogador que chegou ao Dia Final: não pontua; vale o Dia Final");
+    // O flight carrega a pontuação do Dia Final (76º, campo 202: 10 × 2,52 × 1,0 = 25,2 com os inscritos da API; 38,4 com os 334 do site, que reproduzem as 135 linhas do Dia Final).
+    expect([f.esperado, f.esperadoApi, f.field, f.fieldApi, f.registrado, f.situacao, f.causaCodigo]).toEqual([38.4, 25.2, 334, 202, 12.1, "ERRO", "FLIGHT_ZERO"]);
+    expect(f.causaProvavel).toContain("Flight de jogador que chegou ao Dia Final: a pontuação do Main Event vale no flight");
     const fin = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio === "Final Main Event")!;
-    // 76º, campo 202: 10 × 2,52 × 1,0 = 25,2 com os inscritos da API; o site pagou 38,4 (campo 334), explicado pela divergência de inscritos.
-    expect([fin.posicao, fin.esperadoApi, fin.registrado, fin.situacao, fin.field, fin.fieldApi]).toEqual([76, 25.2, 38.4, "CORRETO_SITE", 334, 202]);
+    expect([fin.posicao, fin.esperado, fin.registrado, fin.situacao, fin.conta]).toEqual([76, 0, 38.4, "ERRO", "0: a pontuação do Main Event vale no flight"]);
   });
   it("jogador com 2 ou 3 flights e sem Final: a primeira linha vale 10 × fatores e as outras 0", async () => {
     const aud = auditado(await fixture("taua-2026"));

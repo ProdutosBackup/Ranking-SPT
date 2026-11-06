@@ -52,14 +52,15 @@ describe("estrutura da tela travada", () => {
       "Participação de flight",
       "Vale 10 × fatores, com o campo igual à soma das entradas dos flights. O jogador pontua uma vez só no Main Event.",
       "Participação nos flights",
-      "O Main Event é um torneio só e cada jogador pontua uma vez. Quem tem linha no Dia Final vale só essa linha (com posição, a base da posição × fatores; sem posição, 10 × fatores) e os flights dele valem 0. Quem não tem linha no Dia Final vale 10 × fatores no primeiro flight que jogou (1A, 1C, 1D, 1E), e os outros valem 0. O campo, igual para todas as linhas do Main Event, é a soma das entradas dos flights; o buy-in do flight é R$ 1.000 e o do Dia Final é R$ 0 (fator 1,0 nos dois).",
+      "O Main Event é um torneio só e cada jogador pontua uma vez. A pontuação fica no primeiro flight que o jogador jogou (1A, 1C, 1D, 1E) e os outros flights valem 0. Quem chegou ao Dia Final leva para esse flight a pontuação do Dia Final (com posição, a base da posição × fatores; sem posição, 10 × fatores), e a linha do Dia Final dele vale 0, porque o Dia Final é continuação dos flights. Quem não jogou flight (Etapas 2 e 3) pontua no Dia Final. Quem só jogou flights vale 10 × fatores no primeiro flight. O campo, igual para todas as linhas do Main Event, é a soma das entradas dos flights; o buy-in do flight é R$ 1.000 e o do Dia Final é R$ 0 (fator 1,0 nos dois).",
       "Fonte: decisão do responsável do ranking, confirmada em 05/11/2026.",
       "Com posição",
       "Nenhum resultado aguardando regra.",
     ]);
     // Main Event como um torneio só (05/11/2026): textos das linhas de flight que valem 0.
-    expect([PARTICIPACAO.zeroComFinal, PARTICIPACAO.zeroMaisDeUm, PARTICIPACAO.campo(331, [96, 50, 64, 67, 54])], TRAVADA).toEqual([
-      "Flight de jogador que chegou ao Dia Final: não pontua; vale o Dia Final",
+    expect([PARTICIPACAO.flightComFinal, PARTICIPACAO.finalCedido, PARTICIPACAO.zeroMaisDeUm, PARTICIPACAO.campo(331, [96, 50, 64, 67, 54])], TRAVADA).toEqual([
+      "Flight de jogador que chegou ao Dia Final: a pontuação do Main Event vale no flight",
+      "Dia Final de jogador que jogou flight: a pontuação do jogador vale no flight dele",
       "Jogou mais de um flight: vale só o primeiro",
       "campo: soma dos flights 331 = 96+50+64+67+54",
     ]);

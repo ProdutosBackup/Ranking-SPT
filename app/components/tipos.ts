@@ -4,6 +4,8 @@ export type Linha = {
   torneioId: string;
   torneio: string;
   posicao: number | null;
+  /** Posição que deu a pontuação (no primeiro flight de quem chegou ao Dia Final, a do Dia Final). O Consolidado conta o 1º lugar por ela. */
+  posicaoPontua: number | null;
   prize: number | null;
   /** Planilha: o prêmio não existe, foi deduzido dos pontos; a tela mostra "—". */
   semPremio: boolean;

@@ -84,7 +84,7 @@ const ordemV = (t: { name: string; flightLabel: string | null }) => (/(?:^|dia\s
 export type Divergencia = { jogador: string; torneio: string; posicao: number | null; campo: string; motor: unknown; verificador: unknown };
 
 type Bruta = {
-  jogador: string; torneioId: string; pos: number | null; np: number; field: number; buyIn: number; f100: number;
+  ji: number; flight: boolean; final: boolean; npNome: boolean; jogador: string; torneioId: string; pos: number | null; np: number; field: number; buyIn: number; f100: number;
   base: number; bif: number; entradas: number; acoes: number | null; canc: boolean; satelite: boolean; particip: boolean; acordo: boolean; acDe: number | null; acAte: number | null; acOrigem: string | null; acCent: number; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
 };
 
@@ -116,6 +116,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       for (const r of j.resultados) if (r.prize != null && r.prize > 0) premiados[r.tournamentId] = (premiados[r.tournamentId] ?? 0) + 1;
 
   const brutas: Bruta[] = [];
+  const indiceJ = new Map(d.jogadores.map((j, i) => [j, i]));
   for (const j of d.jogadores)
     for (const r of j.resultados) {
       const t = d.torneios.find((x) => x.id === r.tournamentId);
@@ -160,7 +161,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const comPremio = r.prize != null && r.prize > 0;
       const suspeito = !daPlanilha && !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
-        jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && somaFlights > 0 ? somaFlights : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acDe: acordo ? 1 : null, acAte: acordo ? acK : null, acOrigem: acordo ? "informado" : null, acCent, pendente, motivo, itm, suspeito,
+        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && somaFlights > 0 ? somaFlights : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acDe: acordo ? 1 : null, acAte: acordo ? acK : null, acOrigem: acordo ? "informado" : null, acCent, pendente, motivo, itm, suspeito,
         fixo: satelite || acordo || (particip && !pendente) || (!pendente && !itm && regras.foraDoItm === "10fixos"), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }
@@ -240,9 +241,29 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
   // Linhas: recalcula base, fatores, esperado, diferença e situação.
   if (brutas.length !== linhas.length)
     div.push({ jogador: "*", torneio: "*", posicao: null, campo: "nº de linhas", motor: linhas.length, verificador: brutas.length });
-  brutas.forEach((b, i) => {
+  // Main Event, reescrito aqui: o primeiro flight de quem chegou ao Dia Final carrega a pontuação da linha do Dia Final, e a linha do Dia Final vale 0
+  // [CONFIRMADO 05/11/2026]. Só se o flight não está pendente nem zerado por outro motivo (cancelado pelo usuário ou torneio que não pontua).
+  // A dedução de inscritos acima já usou as linhas como estavam.
+  const fonteV = new Map<Bruta, Bruta>();
+  const cedeV = new Set<Bruta>();
+  const porJogV = new Map<number, Bruta[]>();
+  for (const b of brutas) (porJogV.get(b.ji) ?? porJogV.set(b.ji, []).get(b.ji)!).push(b);
+  for (const [ji, ls] of porJogV) {
+    const g = ls.find((b) => b.flight && b.torneioId === primeiro.get(d.jogadores[ji]));
+    const f = ls.find((b) => b.final);
+    if (!g || !f || g.pendente || (g.satelite && (g.canc || g.npNome))) continue;
+    fonteV.set(g, f);
+    cedeV.add(f);
+  }
+  brutas.forEach((b0, i) => {
     const l = linhas[i];
     if (!l) return;
+    const fon = fonteV.get(b0);
+    const b: Bruta = fon
+      ? { ...fon, jogador: b0.jogador, pos: b0.pos, reg: b0.reg, prize: b0.prize, buyIn: b0.buyIn }
+      : cedeV.has(b0)
+        ? { ...b0, satelite: true, canc: false, particip: false, acordo: false, acDe: null, acAte: null, acOrigem: null, acCent: 0, pendente: false, motivo: null, fixo: true, suspeito: false, base: 0 }
+        : b0;
     const site = achados.get(b.torneioId);
     const explicada = site != null && !b.pendente && !b.fixo;
     const field = explicada ? site : b.field;
@@ -267,7 +288,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
           ? explicada ? "CORRETO_SITE" : "CORRETO"
           : !b.satelite && !b.particip && !b.acordo && Math.abs(dif) <= tol ? "ARREDONDAMENTO" : "ERRO";
     const esperado: Record<string, unknown> = {
-      jogador: b.jogador, torneioId: b.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
+      jogador: b.jogador, torneioId: b0.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
       fatorParticipantes: field * 100 + 5000, fatorBuyIn: b.f100, esperadoCent: cent, registradoCent: b.reg,
       diferenca: dif, situacao, pendencia: b.motivo, participacao: b.particip, canceladoUsuario: b.canc, acordo: b.acAte, acordoDe: b.acDe, acordoOrigem: b.acOrigem,
       cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C == null ? "reentradas não disponíveis: falta o Excel da etapa" : null, acoesCampo: b.acoes,
@@ -279,7 +300,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       cenarioA: l.cenarios?.A ?? null, cenarioB: l.cenarios?.B ?? null, cenarioC: l.cenarios?.C ?? null, cenarioD: l.cenarios?.D ?? null, cenariosMotivo: l.cenariosMotivo ?? null, acoesCampo: l.acoesCampo ?? null,
     };
     for (const campo of Object.keys(esperado))
-      if (motor[campo] !== esperado[campo]) div.push({ jogador: b.jogador, torneio: nome(b.torneioId), posicao: b.pos, campo, motor: motor[campo], verificador: esperado[campo] });
+      if (motor[campo] !== esperado[campo]) div.push({ jogador: b.jogador, torneio: nome(b0.torneioId), posicao: b.pos, campo, motor: motor[campo], verificador: esperado[campo] });
   });
   return div;
 }

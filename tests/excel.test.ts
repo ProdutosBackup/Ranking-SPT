@@ -102,16 +102,16 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(aud.resumo.total).toBe(270);
   });
 
-  it("Etapa 1: 202 flights em erro, 5 divergências e gráficos com dados", async () => {
+  it("Etapa 1: 253 resultados em erro, 5 divergências e gráficos com dados", async () => {
     const { wb, r, buf } = await gerar("taua-2026");
     expect(wb.worksheets.map((w) => w.name)).toEqual(ABAS);
-    expect(r.painel.veredito).toContain("202 resultados com pontuação diferente da regra");
+    expect(r.painel.veredito).toContain("253 resultados com pontuação diferente da regra");
     const dv = wb.getWorksheet("Divergências de inscritos")!;
     expect(dv.rowCount - 1).toBe(5);
     expect(wb.getWorksheet("Todos os cálculos")!.rowCount - 1).toBe(642);
     expect(wb.getWorksheet("Resumo")!.getImages()).toHaveLength(4);
     const g1 = dadosDosGraficos(r);
-    expect(g1.causas.length).toBe(3); // participação de flight, flight de quem chegou ao Dia Final, mais de um flight
+    expect(g1.causas.length).toBe(4); // participação de flight, flight de quem chegou ao Dia Final, Dia Final de quem jogou flight, mais de um flight
     expect(g1.torneios.length).toBeGreaterThan(0);
     expect(await termosProibidos(buf, wb)).toEqual([]);
   });

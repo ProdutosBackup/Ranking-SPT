@@ -104,14 +104,17 @@ describe("etapa 1 (taua-2026), a referência correta", () => {
       ["Second Chance 20K", 95, 100, 95],
     ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
   });
-  it("440 corretos (54 + 386 com os inscritos do site); os 202 flights viram Erro (um valor esperado cada), nenhum aguarda regra", () => {
-    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 202, SUSPEITO: 0, ARREDONDAMENTO: 0, CORRETO: 54, CORRETO_SITE: 386, PENDENTE_REGRA: 0 });
-    expect(sit(aud).CORRETO + sit(aud).CORRETO_SITE).toBe(440);
+  it("389 corretos (54 + 335 com os inscritos do site); os 202 flights e as 51 linhas do Dia Final que cederam a pontuação viram Erro, nenhum aguarda regra", () => {
+    // Main Event [CONFIRMADO 05/11/2026]: o Dia Final é continuação dos flights. Quem jogou flight e chegou ao Dia Final leva a pontuação do Dia Final para o primeiro flight (51 jogadores);
+    // a linha do Dia Final dele vale 0 (eram corretas com os 334 inscritos do site: 386 → 335).
+    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 253, SUSPEITO: 0, ARREDONDAMENTO: 0, CORRETO: 54, CORRETO_SITE: 335, PENDENTE_REGRA: 0 });
+    expect(sit(aud).CORRETO + sit(aud).CORRETO_SITE).toBe(389);
     const flights = aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio));
     expect(flights).toHaveLength(202);
-    expect(flights.every((l) => l.situacao === "ERRO" && l.pendencia == null && l.field === 202)).toBe(true);
-    expect(flights.filter((l) => l.esperado === 0)).toHaveLength(95); // já pontuam no Final ou em outro flight
-    expect(flights.filter((l) => l.esperado === 25.2)).toHaveLength(107); // 10 × 2,52 × 1,0
+    expect(flights.every((l) => l.situacao === "ERRO" && l.pendencia == null && l.fieldApi === 202)).toBe(true);
+    expect(flights.filter((l) => l.esperado === 0)).toHaveLength(44); // já pontuam em outro flight
+    expect(flights.filter((l) => l.esperado === 25.2)).toHaveLength(107); // só flights: 10 × 2,52 × 1,0
+    expect(flights.filter((l) => l.esperado > 0 && l.esperado !== 25.2)).toHaveLength(51); // carregam a pontuação do Dia Final (campo 334 do site)
   });
   it("torneios sem divergência não têm achado", () => {
     for (const t of torn(aud).filter((x) => !x.achado && x.melhorCandidato)) expect(t.melhorCandidato!.field).toBe(t.players);

@@ -42,7 +42,7 @@ const EXPLICACAO: Record<string, string> = {
   SEM_CAUSA: "A diferença não corresponde a nenhuma causa conhecida. Confira a conta.",
   SATELITE: "Este torneio não pontua (satélite, Ladies ou All in or Fold), mas este resultado tem pontos registrados.",
   PARTICIPACAO: "Participação de flight vale 10 × fatores (campo: soma dos flights), mas o valor registrado é outro.",
-  FLIGHT_ZERO: "O jogador pontua uma vez só no Main Event: este flight vale 0, mas tem pontos registrados.",
+  FLIGHT_ZERO: "O jogador pontua uma vez só no Main Event, no primeiro flight que jogou; o Dia Final é continuação dos flights. O valor registrado é diferente do esperado.",
   ACORDO: "Num torneio com acordo, os jogadores das posições 1 a K pontuam como o Kº colocado, mas o registrado é outro.",
   SUSPEITO: "A posição e o prêmio não concordam (posição premiada sem prêmio, ou prêmio sem posição).",
   CANCELADO_USUARIO: CANCELADO.explicacao,
@@ -148,7 +148,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   const porCausa = new Map<string, number[]>();
   linhas.forEach((l, i) => {
     if (!ehProblema(l)) return;
-    const cod = l.causaCodigo === "BASE" ? `BASE_${l.baseUsada}` : l.causaCodigo === "SATELITE" && l.naoPontua !== "Satélite" ? `SATELITE_${l.naoPontua}` : l.causaCodigo === "FLIGHT_ZERO" ? `FLIGHT_ZERO_${l.causaProvavel.includes("Dia Final") ? "FINAL" : "PRIMEIRO"}` : (l.causaCodigo ?? "SEM_CAUSA");
+    const cod = l.causaCodigo === "BASE" ? `BASE_${l.baseUsada}` : l.causaCodigo === "SATELITE" && l.naoPontua !== "Satélite" ? `SATELITE_${l.naoPontua}` : l.causaCodigo === "FLIGHT_ZERO" ? `FLIGHT_ZERO_${l.causaProvavel.includes("chegou ao Dia Final") ? "FLIGHT" : l.causaProvavel.includes("Dia Final") ? "FINAL" : "PRIMEIRO"}` : (l.causaCodigo ?? "SEM_CAUSA");
     porCausa.set(cod, [...(porCausa.get(cod) ?? []), i]);
   });
   const grupos = [...porCausa.entries()]
