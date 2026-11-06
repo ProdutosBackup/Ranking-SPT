@@ -34,7 +34,7 @@ const auditoria = (stage: string) => executar(new Request(`http://x/api/auditori
 const url = (stage: string) => new Request(`http://x/api/planilha?etapa=${stage}`);
 
 describe.each([
-  ["taua-2026", "1a", 253, 6],
+  ["taua-2026", "1a", 202, 6],
   ["vale-suico-2026", "2a", 149, 8],
 ])("%s com a planilha de ações", (stage, f, erros, torneiosComAcoes) => {
   it("só os cenários C e D mudam", { timeout: 60000 }, async () => {

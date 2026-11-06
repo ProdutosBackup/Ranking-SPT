@@ -237,10 +237,10 @@ describe("Etapas 1 e 2 não mudam", () => {
     expect(r.origem).toEqual({ tipo: "site" });
   });
 
-  it("Etapa 1: 253 erros, sem planilha de ações e sem gravar nada", async () => {
+  it("Etapa 1: 202 erros, sem planilha de ações e sem gravar nada", async () => {
     trocarArmazenamento(semArmazenamento);
     const { aud } = await auditoria("taua-2026");
-    expect(aud.resumo).toMatchObject({ ERRO: 253, SUSPEITO: 0, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ ERRO: 202, SUSPEITO: 0, PENDENTE_REGRA: 0 });
   });
 });
 

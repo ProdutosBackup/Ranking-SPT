@@ -149,7 +149,7 @@ describe("Relatório: aba Consolidado", () => {
     ]);
     const ab = por("Abilio Moço Vieira Neto")!;
     expect(txt(ab.getCell(27).value).split("\n")).toEqual([
-      "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (5 linhas)",
+      "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (6 linhas)", // 2.7: a linha do Dia Final dele passou a contar (sem ações)
       "Etapa 2: reentradas não disponíveis: falta o Excel da etapa (2 linhas)",
     ]);
     expect([ab.getCell(18).value, ab.getCell(21).value, ab.getCell(26).value]).toEqual(["Dados insuficientes", 584.4, 535.67]); // C acumulado sem dados; sem Dia Final na Etapa 3, C e D por etapa têm valor

@@ -95,17 +95,15 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
   const flights = d.torneios.filter(ehFlight).sort((a, b) => (ordemFlight(a) < ordemFlight(b) ? -1 : ordemFlight(a) > ordemFlight(b) ? 1 : 0));
   const somaFlights = flights.reduce((a, t) => a + t.players, 0);
   const campoTexto = somaFlights > 0 ? PARTICIPACAO.campo(somaFlights, flights.map((t) => t.players)) : null;
-  // Uma pontuação por jogador, no primeiro flight que jogou [CONFIRMADO 05/11/2026: "O player premia ao longo dos flights e não no dia final.
-  // O dia final é somente uma continuação dos flights."]. Quem tem linha no Dia Final e linhas de flight: a pontuação da linha do Dia Final
-  // passa para o primeiro flight e o Dia Final vale 0. Quem não tem linha de flight (Etapas 2 e 3) segue com o Dia Final.
-  const temFinal = new Set<unknown>();
+  // Main Event avaliado por linha [usuário, 06/11/2026: "Dias classificatórios não tem premiação."; substitui a regra de 05/11 em que a pontuação
+  // do Dia Final ia para o flight]: o primeiro flight que o jogador jogou vale a participação (10 × fatores), os outros flights valem 0, e a linha
+  // do Dia Final é avaliada pela própria posição. Nenhuma pontuação passa de uma linha para outra.
   const primeiroFlight = new Map<unknown, string>();
   for (const j of d.jogadores) {
     let primeiro: Torneio | null = null;
     for (const r of j.resultados) {
       const t = torneios.get(r.tournamentId)!;
-      if (ehDiaFinal(t)) temFinal.add(j);
-      else if (ehFlight(t) && (primeiro == null || ordemFlight(t) < ordemFlight(primeiro))) primeiro = t;
+      if (ehFlight(t) && (primeiro == null || ordemFlight(t) < ordemFlight(primeiro))) primeiro = t;
     }
     if (primeiro) primeiroFlight.set(j, primeiro.id);
   }
@@ -175,9 +173,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       } else if (motivoNP) {
         zero = { conta: `0: ${motivoNP === "Satélite" ? "satélite" : motivoNP} não pontua`, causa: `${motivoNP} com pontos registrados`, codigo: "SATELITE" }; // satélite, Ladies e All in or Fold nunca pontuam
       } else if (ehFlight(t)) {
-        // Flight de quem chegou ao Dia Final: o primeiro flight carrega a pontuação do Dia Final (passo 3, `fonteDe`); os demais valem 0.
+        // Flight não tem premiação: o primeiro flight vale a participação (10 × fatores), chegando ou não ao Dia Final; os demais valem 0.
         if (primeiroFlight.get(j) !== t.id) zero = { conta: PARTICIPACAO.contaZeroMaisDeUm, causa: PARTICIPACAO.zeroMaisDeUm, codigo: "FLIGHT_ZERO" };
-        else if (temFinal.has(j)) zero = { conta: PARTICIPACAO.contaZeroFlight, causa: PARTICIPACAO.flightComFinal, codigo: "FLIGHT_ZERO" };
         else part = true;
       } else if (ehDiaFinal(t) && r.position == null) {
         part = true; // Dia Final sem posição: 10 × fatores, uma vez só
@@ -257,33 +254,10 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     deducao.set(t.id, { melhor, achado });
   }
 
-  // Main Event: o primeiro flight de quem chegou ao Dia Final carrega a pontuação do Dia Final (`fonteDe`), e a linha do Dia Final vale 0 (`cedentes`).
-  // Só vale se o flight não está pendente nem zerado por outro motivo (cancelado pelo usuário, satélite). A dedução de inscritos (passo 2) já usou as linhas como estavam.
-  type Pre = (typeof pre)[number];
-  const fonteDe = new Map<Pre, Pre>();
-  const cedentes = new Set<Pre>();
-  const porJogadorPre = new Map<unknown, Pre[]>();
-  for (const p of pre) (porJogadorPre.get(p.j) ?? porJogadorPre.set(p.j, []).get(p.j)!).push(p);
-  for (const [j, ls] of porJogadorPre) {
-    const g = ls.find((p) => ehFlight(p.t) && p.t.id === primeiroFlight.get(j));
-    const f = ls.find((p) => ehDiaFinal(p.t));
-    if (!g || !f || g.motivoPendente || (g.zero && g.zero.codigo !== "FLIGHT_ZERO")) continue;
-    fonteDe.set(g, f);
-    cedentes.add(f);
-  }
-
   // Passo 3: classificação final. Linhas explicadas por um achado são recalculadas com os inscritos do site.
-  const linhas = pre.map((p0) => {
-    const fonte = fonteDe.get(p0); // primeiro flight: a pontuação vem da linha do Dia Final (menos o registrado, a posição e o torneio, que são os do flight)
-    const carrega = fonte != null;
-    const p: Pre = fonte
-      ? { ...fonte, j: p0.j, r: p0.r, t: p0.t, ctx: { ...fonte.ctx, buyIn: p0.ctx.buyIn, somaBounty: p0.ctx.somaBounty, tipoBounty: p0.ctx.tipoBounty } }
-      : cedentes.has(p0)
-        ? { ...p0, sat: true, zero: { conta: PARTICIPACAO.contaZeroFlight, causa: PARTICIPACAO.finalCedido, codigo: "FLIGHT_ZERO" }, part: false, acordo: null, grupo: null, fixo: true, suspeito: false, motivoPendente: null, pendencia: null,
-            c: { ...p0.c, itm: false, base: 0, conta: PARTICIPACAO.contaZeroFlight, esperado: 0, esperadoCent: 0 } }
-        : p0;
+  const linhas = pre.map((p) => {
     const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, zero, motivoNP, part, acordo, grupo, tAcordo } = p;
-    const achado = deducao.get((fonte ? fonte.t : t).id)!.achado;
+    const achado = deducao.get(t.id)!.achado;
     const explicada = achado != null && !motivoPendente && !fixo;
     const field = explicada ? achado.fieldSite : ctx.field;
     const c = explicada ? calcular({ ...p.entrada, field }, regras) : p.c;
@@ -321,7 +295,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       const fb = fb100(ctx.buyInFator, regras);
       const fixos10 = situacao === "ERRO" && r.points === 10 && c.esperado !== 10;
       // 10 pontos fixos não permitem deduzir inscritos nem comparar bases.
-      inverso = sat || part || acordo != null || carrega
+      inverso = sat || part || acordo != null
         ? null
         : fixos10
         ? { fatorTotal: arred(r.points / c.base), fieldImplicito: null, candidatos: [] }
@@ -336,9 +310,6 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       } else if (situacao === "SUSPEITO") {
         causaCodigo = "SUSPEITO";
         causa = "Posição e prêmio não concordam";
-      } else if (carrega) {
-        causaCodigo = "FLIGHT_ZERO";
-        causa = PARTICIPACAO.flightComFinal;
       } else if (acordo != null) {
         causaCodigo = "ACORDO";
         causa = grupo!.origem === "automatico" ? ACORDO.causaAuto(grupo!.de, grupo!.ate) : ACORDO.causa(acordo, String(c.esperado).replace(".", ","));
@@ -377,8 +348,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       torneio: t.name,
       role: t.role,
       posicao: r.position,
-      /** Posição da linha que deu a pontuação: no primeiro flight de quem chegou ao Dia Final, a posição no Dia Final; nas demais, a própria. O Consolidado conta o 1º lugar por ela. */
-      posicaoPontua: (fonte ?? p).r.position,
+      /** Posição da linha (o Consolidado conta o 1º lugar por ela; as linhas de flight são participação e não contam). */
+      posicaoPontua: r.position,
       prize: r.prize,
       buyIn: ctx.buyIn,
       buyInFator: ctx.buyInFator,

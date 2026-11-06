@@ -104,8 +104,8 @@ async function conferir(stage: string, dados: DadosSpt, esperado: { insuficiente
 }
 
 describe("cenários A a D no Excel", () => {
-  it("Etapa 1: 547 linhas com C e D null mostram o texto e o motivo; 95 valem 0", async () => {
-    const r = await conferir(E1, dadosSite(E1), { insuficientes: 547, zero: 95 });
+  it("Etapa 1: 598 linhas com C e D null mostram o texto e o motivo; 44 valem 0", async () => {
+    const r = await conferir(E1, dadosSite(E1), { insuficientes: 598, zero: 44 });
     expect(r.n).toBe(642);
   });
   it("Etapa 2: todas as 270 linhas mostram Dados insuficientes", async () => {

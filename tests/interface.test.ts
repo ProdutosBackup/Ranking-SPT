@@ -71,17 +71,15 @@ describe("estrutura da tela travada", () => {
       TRAVADA,
     ).toEqual([
       "Participação de flight",
-      "Vale 10 × fatores, com o campo igual à soma das entradas dos flights. O jogador pontua uma vez só no Main Event.",
+      "Vale 10 × fatores, com o campo igual à soma das entradas dos flights. Flight não tem premiação; só o primeiro flight do jogador pontua.",
       "Participação nos flights",
-      "O Main Event é um torneio só e cada jogador pontua uma vez. A pontuação fica no primeiro flight que o jogador jogou (1A, 1C, 1D, 1E) e os outros flights valem 0. Quem chegou ao Dia Final leva para esse flight a pontuação do Dia Final (com posição, a base da posição × fatores; sem posição, 10 × fatores), e a linha do Dia Final dele vale 0, porque o Dia Final é continuação dos flights. Quem não jogou flight (Etapas 2 e 3) pontua no Dia Final. Quem só jogou flights vale 10 × fatores no primeiro flight. O campo, igual para todas as linhas do Main Event, é a soma das entradas dos flights; o buy-in do flight é R$ 1.000 e o do Dia Final é R$ 0 (fator 1,0 nos dois).",
-      "Fonte: decisão do responsável do ranking, confirmada em 05/11/2026.",
+      "Cada linha do Main Event é avaliada por si. Flight não tem premiação: o primeiro flight que o jogador jogou (1A, 1C, 1D, 1E) vale 10 × fatores e os outros flights valem 0. A linha do Dia Final vale pela própria posição: com posição que premia, a base da posição × fatores; sem posição, 10 × fatores. Quem jogou flight e chegou ao Dia Final pontua nas duas linhas. O campo, igual para todas as linhas do Main Event, é a soma das entradas dos flights; o buy-in do flight é R$ 1.000 e o do Dia Final é R$ 0 (fator 1,0 nos dois).",
+      "Fonte: decisão do usuário em 06/11/2026, que substitui a de 05/11/2026 (pontuação do Dia Final no flight).",
       "Com posição",
       "Nenhum resultado aguardando regra.",
     ]);
-    // Main Event como um torneio só (05/11/2026): textos das linhas de flight que valem 0.
-    expect([PARTICIPACAO.flightComFinal, PARTICIPACAO.finalCedido, PARTICIPACAO.zeroMaisDeUm, PARTICIPACAO.campo(331, [96, 50, 64, 67, 54])], TRAVADA).toEqual([
-      "Flight de jogador que chegou ao Dia Final: a pontuação do Main Event vale no flight",
-      "Dia Final de jogador que jogou flight: a pontuação do jogador vale no flight dele",
+    // Main Event avaliado por linha (06/11/2026): texto das linhas de flight que valem 0 (as duas causas da regra de 05/11 foram removidas).
+    expect([PARTICIPACAO.zeroMaisDeUm, PARTICIPACAO.campo(331, [96, 50, 64, 67, 54])], TRAVADA).toEqual([
       "Jogou mais de um flight: vale só o primeiro",
       "campo: soma dos flights 331 = 96+50+64+67+54",
     ]);

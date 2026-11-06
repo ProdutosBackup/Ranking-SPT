@@ -36,7 +36,7 @@ describe("Conta correta das linhas que valem 0", () => {
       const d = await dadosDe(s);
       const aud = auditar(d, REGRAS_PADRAO);
       const zeros = aud.linhas.filter((l) => l.situacao !== "PENDENTE_REGRA" && l.esperadoCent === 0);
-      if (s === E[0]) expect(zeros).toHaveLength(95); // 51 do Dia Final que cederam ao flight + 44 "jogou mais de um flight"
+      if (s === E[0]) expect(zeros).toHaveLength(44); // "jogou mais de um flight" (2.7: o Dia Final não vale mais 0)
       for (const l of zeros) {
         expect(l.conta, `${s} ${l.jogador} ${l.torneio}`).toMatch(/^0: .+/);
         expect(l.conta).not.toContain("10 pontos fixos");
@@ -61,9 +61,8 @@ describe("Conta correta das linhas que valem 0", () => {
   it("cada categoria tem o seu motivo", async () => {
     const e1 = auditar(await dadosDe(E[0]), REGRAS_PADRAO);
     const contas = (f: (l: (typeof e1.linhas)[number]) => boolean) => [...new Set(e1.linhas.filter(f).map((l) => l.conta))];
-    expect(contas((l) => l.causaCodigo === "FLIGHT_ZERO" && l.causaProvavel.startsWith("Dia Final de jogador"))).toEqual(["0: a pontuação do Main Event vale no flight"]);
+    expect(contas((l) => l.causaProvavel.startsWith("Dia Final de jogador") || l.causaProvavel.startsWith("Flight de jogador que chegou"))).toEqual([]); // regra antiga (2.6)
     expect(contas((l) => l.causaProvavel.startsWith("Jogou mais de um flight"))).toEqual(["0: já pontuou em outro flight (pontua uma vez só)"]);
-    expect(contas((l) => l.causaCodigo === "FLIGHT_ZERO" && l.causaProvavel.startsWith("Dia Final de jogador"))).toHaveLength(1);
     // satélite, Ladies e All in or Fold: não existem nas fixtures; renomeio três torneios da Etapa 2 para cobrir o texto
     const d2 = await dadosDe(E[1]);
     const nomes = ["Satélite para o Main Event", "SPT Ladies", "ALL IN OR FOLD"];
