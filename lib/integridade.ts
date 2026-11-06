@@ -3,6 +3,7 @@ import type { DadosSpt } from "./api-spt";
 import type { auditar } from "./auditoria";
 import { centDe } from "./calculo";
 import { assinaturaAcordos } from "./acordo";
+import { assinaturaCancelados } from "./cancelados";
 import { VERSAO_REGRAS, type Regras } from "./regras";
 import { verificar } from "./verificador";
 
@@ -25,11 +26,11 @@ const porTexto = (a: unknown, b: unknown) => {
 
 /**
  * Identificador dos dados: hash SHA-256 só do conteúdo (torneios e resultados normalizados e ordenados, valores em
- * centésimos inteiros). O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
+ * centésimos inteiros), os buy-ins e re-entries da planilha (base dos cenários C e D) e a VERSAO_REGRAS. O `updatedAt` da API é a hora da consulta, não da mudança dos dados, por isso fica de fora.
  */
-export function identificador(d: DadosSpt, acordos: Record<string, number> = {}) {
+export function identificador(d: DadosSpt, acordos: Record<string, number> = {}, cancelados: string[] = []) {
   const torneios = d.torneios
-    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status])
+    .map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null, t.buyIns ?? null, t.reentries ?? null])
     .sort(porTexto);
   const jogadores = d.jogadores
     .map((j) => [
@@ -40,13 +41,13 @@ export function identificador(d: DadosSpt, acordos: Record<string, number> = {})
     .sort(porTexto);
   return {
     updatedAt: d.updatedAt,
-    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}) })).digest("hex"),
+    sha256: createHash("sha256").update(JSON.stringify({ stage: d.stage, versaoRegras: VERSAO_REGRAS, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) })).digest("hex"),
     versaoRegras: VERSAO_REGRAS,
   };
 }
 
 /** Roda checagens de integridade e o verificador independente. Lança ErroAuditoria se algo não fechar. */
-export function conferir(d: DadosSpt, regras: Regras, aud: Aud, acordos: Record<string, number> = {}) {
+export function conferir(d: DadosSpt, regras: Regras, aud: Aud, acordos: Record<string, number> = {}, cancelados: string[] = []) {
   const f: string[] = [];
   const ids = new Set(d.torneios.map((t) => t.id));
 
@@ -81,6 +82,6 @@ export function conferir(d: DadosSpt, regras: Regras, aud: Aud, acordos: Record<
   }
   if (f.length) throw new ErroAuditoria("Checagem de integridade falhou", f);
 
-  const div = verificar(d, regras, aud.linhas, aud.torneios, acordos);
+  const div = verificar(d, regras, aud.linhas, aud.torneios, acordos, cancelados);
   if (div.length) throw new ErroAuditoria(`Verificador independente divergiu em ${div.length} ponto(s)`, div);
 }

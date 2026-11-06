@@ -1,7 +1,8 @@
 "use client";
 
 import { Detalhe, Comparativo } from "./Detalhe";
-import { ACOES, ACORDO, CAMPO, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
+import { ControleCancelado } from "./Cancelado";
+import { ACOES, ACORDO, CANCELADO, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
 import { chaveLinha, classeDif, n, nSinal, semAcento } from "./formato";
 import { Paginada } from "./Paginada";
 import type { Navegar, Opcoes, Resposta } from "./tipos";
@@ -116,15 +117,15 @@ function LinhaAcoes({ t, origem }: { t: Resposta["painel"]["torneios"][number]; 
   );
 }
 
-export function Torneios({ d, navegar }: { d: Resposta; navegar: Navegar }) {
+export function Torneios({ d, navegar, onCancelado }: { d: Resposta; navegar: Navegar; onCancelado: (chave: string, cancelar: boolean) => Promise<string | null> }) {
   const lista = [...d.painel.torneios].sort((a, b) => Number(a.estado === "vazio") - Number(b.estado === "vazio"));
   return (
     <ul className="linhas">
       {lista.map((t) => {
         const e = ESTADO[t.estado];
         return (
-          <li key={t.id}>
-            <button type="button" className="linha-erro torneio" onClick={() => navegar({ [ENDERECO.item]: `t:${t.id}` })}>
+          <li key={t.id} className="torneio-item">
+            <button type="button" className={`linha-erro torneio${t.cancelado ? " cancelado" : ""}`} onClick={() => navegar({ [ENDERECO.item]: `t:${t.id}` })}>
               <span className={`icone ${t.estado}`} aria-hidden="true">
                 {e.icone}
               </span>
@@ -143,9 +144,11 @@ export function Torneios({ d, navegar }: { d: Resposta; navegar: Navegar }) {
                   </span>
                 )}
                 <LinhaAcoes t={t} origem={d.origem} />
-                {t.acordo != null && <span className="linha-extra acordo-torneio">{ACORDO.torneio(t.acordo)}</span>}
+                {t.acordoTexto != null && <span className="linha-extra acordo-torneio">{t.acordoTexto}</span>}
+                {t.cancelado && <span className="linha-extra cancelado-marca">{CANCELADO.causa}</span>}
               </span>
             </button>
+            <ControleCancelado nome={t.nome} cancelado={t.cancelado} onMudar={(cancelar) => onCancelado(t.chaveCancelamento, cancelar)} />
           </li>
         );
       })}
@@ -275,27 +278,6 @@ export function Regras({ d, opcoes }: { d: Resposta; opcoes: Opcoes }) {
         <summary>Opções avançadas</summary>
         <p className="muted small">Mudam a forma de conferir. Clique em “Auditar etapa” de novo para aplicar.</p>
         <div className="adv">
-          <div className="campo">
-            <label htmlFor="fora">Quem fica fora da premiação</label>
-            <select id="fora" value={opcoes.foraPremiacao} onChange={(e) => opcoes.setForaPremiacao(e.target.value)}>
-              <option value="base10xFatores">10 pontos × os fatores (regulamento)</option>
-              <option value="10fixos">10 pontos fixos (calculadora do site)</option>
-            </select>
-          </div>
-          <div className="campo">
-            <label htmlFor="apos18">Premiados depois do 18º lugar</label>
-            <select id="apos18" value={opcoes.apos18} onChange={(e) => opcoes.setApos18(e.target.value)}>
-              <option value="base100TodosItm">100 pontos de base para todos</option>
-              <option value="base10">10 pontos de base</option>
-            </select>
-          </div>
-          <div className="campo">
-            <label htmlFor="campo">{CAMPO.rotulo}</label>
-            <select id="campo" value={opcoes.campo} onChange={(e) => opcoes.setCampo(e.target.value)}>
-              <option value="inscritos">{CAMPO.inscritos}</option>
-              <option value="acoes">{CAMPO.acoes}</option>
-            </select>
-          </div>
           <div className="campo">
             <label htmlFor="tol">Diferença aceita como arredondamento (pontos)</label>
             <input id="tol" type="text" inputMode="decimal" size={6} value={opcoes.tolerancia} onChange={(e) => opcoes.setTolerancia(e.target.value)} />

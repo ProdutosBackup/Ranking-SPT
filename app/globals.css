@@ -397,6 +397,31 @@ details.expandivel[open] { padding-bottom: 12px; }
 .tabela-cons .num { text-align: right; }
 .tabela-cons .forte { font-weight: var(--peso-forte); }
 .tabela-cons .vazio { text-align: center; color: var(--mist-2); white-space: normal; }
+.cons-faixa { margin: var(--e-3) 0 var(--e-2); padding: 10px var(--e-3); border-radius: var(--r-bloco); border: 1px solid var(--linha-forte); background: var(--camada-2); font-weight: var(--peso-medio); }
+.cons-colunas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--e-3); align-items: start; }
+.cons-col { margin: 0; min-width: 0; border: 1px solid var(--linha); border-radius: var(--r-bloco); background: var(--camada-1); overflow: clip; }
+.cons-cab { padding: var(--e-3) var(--e-3) var(--e-2); background: var(--camada-1); }
+.cons-col h3 { margin: 0; }
+.cons-col .contagem-lista { margin: var(--e-1) 0 0; }
+/* Acompanham a rolagem só quando cabem (decidido em Consolidado.tsx: barra + faixa + título <= metade da altura). */
+.consolidado[data-fixo="sim"] .cons-faixa { position: sticky; top: var(--h-barra); z-index: 20; }
+.consolidado[data-fixo="sim"] .cons-cab { position: sticky; top: calc(var(--h-barra) + var(--h-faixa)); z-index: 10; border-bottom: 1px solid var(--linha); }
+.tabela-col { border-collapse: collapse; width: 100%; font-size: var(--fs-apoio); font-variant-numeric: tabular-nums; }
+.tabela-col th, .tabela-col td { padding: 10px var(--e-3); border-top: 1px solid var(--linha); text-align: left; vertical-align: top; }
+.tabela-col thead th { background: var(--camada-2); color: var(--mist-2); font-weight: var(--peso-medio); font-size: var(--fs-rotulo); }
+.tabela-col tbody th { font-weight: var(--peso-texto); overflow-wrap: anywhere; }
+.tabela-col .num { text-align: right; white-space: nowrap; }
+.tabela-col .forte { font-weight: var(--peso-forte); }
+.tabela-col .insuf { color: var(--mist-2); font-style: italic; white-space: normal; }
+.tabela-col .insuf-marca { cursor: help; border-bottom: 1px dotted var(--mist-2); }
+.tabela-col .insuf-marca:focus-visible { outline: 2px solid var(--peach); outline-offset: 2px; }
+.insuf-dica { display: none; margin-top: var(--e-1); font-style: normal; font-size: var(--fs-rotulo); }
+.insuf-dica > span { display: block; }
+.insuf-marca:focus + .insuf-dica, .insuf-marca:hover + .insuf-dica { display: block; }
+.cons-insuf-total { color: var(--mist); font-weight: var(--peso-medio); }
+.tabela-col .vazio { text-align: center; color: var(--mist-2); }
+.tabela-col tbody tr:hover > * { background: var(--camada-2); }
+@media (max-width: 1100px) { .cons-colunas { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) {
   .tabela-cons tbody th { position: sticky; left: 0; background: var(--camada-1); min-width: 150px; }
   .cons-controles .campo { flex: 1 1 100%; }
@@ -431,6 +456,13 @@ details.expandivel[open] { padding-bottom: 12px; }
 .acordo-link:focus-visible { outline: 2px solid var(--peach); outline-offset: 3px; border-radius: 4px; }
 .acordo-confirma { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e-2) var(--e-3); padding-top: var(--e-2); border-top: 1px solid var(--linha); font-size: var(--fs-apoio); }
 .acordo-botoes { display: flex; gap: var(--e-2); }
+/* Torneio cancelado (aba Torneios): o controle fica logo abaixo do cartão do torneio, sempre visível. */
+.torneio-item { display: grid; gap: 2px; }
+.cancelado-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--e-3); padding: 0 var(--e-3); }
+.cancelado-confirma { border-top: 0; padding-top: 0; flex: 1 1 260px; }
+.cancelado-ctl .acordo-erro { flex-basis: 100%; }
+.linha-erro.torneio.cancelado { border-style: dashed; }
+.cancelado-marca { color: var(--estado-atencao); font-weight: var(--peso-medio); }
 .btn.perigo { background: var(--estado-erro); border-color: var(--estado-erro); color: var(--mist); }
 .btn.perigo:hover { background: color-mix(in srgb, var(--estado-erro) 85%, var(--mist)); border-color: transparent; }
 .aviso-acordo { margin: 0 0 var(--e-3); padding: var(--e-2) var(--e-3); border-left: 3px solid var(--peach); background: var(--camada-2); border-radius: var(--r-pequeno); font-weight: var(--peso-medio); }

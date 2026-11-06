@@ -1,15 +1,34 @@
 "use client";
 
 // Padrão de página: Lista / Índice (ranking com busca). Este arquivo só exibe; a soma está em lib/consolidado.ts.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { avisoAguardando, chaveNome, type Consolidado as Dados } from "../../lib/consolidado";
-import { CONSOLIDADO } from "./estrutura";
+import { montarColuna, type Fator, type Motivo, type Visao } from "./colunas";
+import { CONSOLIDADO, ENDERECO_EXTRA } from "./estrutura";
+import type { Navegar } from "./tipos";
 import { n } from "./formato";
 
 export type EtapaOpcao = { numero: number; rotulo: string; estado: "ok" | "sem-dados" | "verificando" };
 
 const LOTE = 100;
 const pontos = (cent: number | null) => (cent == null ? "—" : n(cent / 100, 2));
+
+/** "Dados insuficientes" com o motivo: no title (mouse), em aria-describedby (leitor de tela) e visível ao focar pelo teclado. */
+function MarcaInsuficiente({ id, motivos }: { id: string; motivos: Motivo[] }) {
+  const linhas = motivos.map((m) => CONSOLIDADO.motivoEtapa(m.etapa, m.motivo, m.linhas));
+  return (
+    <>
+      <span className="insuf-marca" tabIndex={0} title={linhas.join("\n") || undefined} aria-describedby={id}>
+        {CONSOLIDADO.insuficiente}
+      </span>
+      <span className="insuf-dica" id={id}>
+        {linhas.map((l) => (
+          <span key={l}>{l}</span>
+        ))}
+      </span>
+    </>
+  );
+}
 
 export function Consolidado({
   ate,
@@ -20,6 +39,8 @@ export function Consolidado({
   erro,
   regra,
   onSair,
+  q,
+  navegar,
 }: {
   ate: number;
   etapas: EtapaOpcao[];
@@ -29,19 +50,56 @@ export function Consolidado({
   erro: string | null;
   regra: string | null;
   onSair: () => void;
+  q: URLSearchParams;
+  navegar: Navegar;
 }) {
   const [busca, setBusca] = useState("");
   const [mostrar, setMostrar] = useState(LOTE);
   const titulo = useRef<HTMLHeadingElement>(null);
   useEffect(() => titulo.current?.focus(), []); // ao abrir, o foco vai para o título da visão
 
+  // Faixa e título de coluna acompanham a rolagem só quando barra + faixa + título ocupam no máximo metade da altura da janela.
+  const raiz = useRef<HTMLElement>(null);
+  const comDados = dados != null;
+  useEffect(() => {
+    const el = raiz.current;
+    const barra = document.querySelector<HTMLElement>(".barra-topo");
+    if (!el || !comDados) return;
+    const medir = () => {
+      const h = (e: Element | null) => (e as HTMLElement | null)?.offsetHeight ?? 0;
+      const [b, f, c] = [h(barra), h(el.querySelector(".cons-faixa")), h(el.querySelector(".cons-cab"))];
+      el.style.setProperty("--h-barra", `${b}px`);
+      el.style.setProperty("--h-faixa", `${f}px`);
+      el.dataset.fixo = b + f + c <= window.innerHeight / 2 ? "sim" : "nao";
+    };
+    medir();
+    const ro = new ResizeObserver(medir);
+    for (const e of [barra, el, el.querySelector(".cons-faixa"), el.querySelector(".cons-cab")]) if (e) ro.observe(e);
+    window.addEventListener("resize", medir);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", medir);
+    };
+  }, [comDados]);
+
   const termo = chaveNome(busca);
-  const todos = dados?.jogadores ?? [];
-  const lista = termo ? todos.filter((j) => chaveNome(j.nome).includes(termo)) : todos;
+  // Seletores da visão: ficam só no endereço e escolhem entre dados já lidos; trocar qualquer um não faz requisição.
+  const fator: Fator = q.get(ENDERECO_EXTRA.fator) === "0,9" ? "0,9" : "1,0";
+  const modo = q.get(ENDERECO_EXTRA.modo) === "etapa" ? "etapa" : "acumulado";
+  const lidas = dados?.etapas ?? [];
+  const pedida = lidas.indexOf(Number(q.get(ENDERECO_EXTRA.spt)));
+  const indice = pedida >= 0 ? pedida : Math.max(lidas.length - 1, 0);
+  const colunas = useMemo(() => {
+    if (!dados) return [];
+    const v: Visao = modo === "etapa" ? { tipo: "etapa", indice, numero: lidas[indice] } : { tipo: "acumulado" };
+    return (["estava", "entradas", "acoes"] as const).map((c) => montarColuna(dados.jogadores, c, fator, v));
+  }, [dados, fator, modo, indice]);
+  const maisRestantes = Math.max(0, ...colunas.map((itens) => (termo ? itens.filter((i) => chaveNome(i.nome).includes(termo)) : itens).length - mostrar));
+  const trocar = (alt: Record<string, string | null>) => navegar(alt, "replace");
   const totalAguardando = dados?.aguardando.reduce((a, x) => a + x.n, 0) ?? 0;
 
   return (
-    <section className="consolidado" aria-labelledby="t-cons">
+    <section className="consolidado" aria-labelledby="t-cons" ref={raiz}>
       <div className="cons-topo">
         <h2 id="t-cons" ref={titulo} tabIndex={-1}>
           Consolidado
@@ -50,7 +108,7 @@ export function Consolidado({
           {CONSOLIDADO.sair}
         </button>
       </div>
-      <p className="muted">Ranking correto acumulado: a soma dos pontos corretos da Etapa 1 até a etapa escolhida.</p>
+      <p className="muted">Três rankings lado a lado: os pontos publicados e os pontos das novas regras (só entradas e total de ações), somando as etapas da Etapa 1 até a etapa escolhida.</p>
 
       <div className="cons-controles">
         <div className="campo etapa">
@@ -63,6 +121,41 @@ export function Consolidado({
             ))}
           </select>
         </div>
+        <fieldset className="campo">
+          <legend>{CONSOLIDADO.fator}</legend>
+          <div className="opcoes">
+            {CONSOLIDADO.fatores.map((f) => (
+              <label className="opcao" key={f}>
+                <input type="radio" name="cons-fator" checked={fator === f} onChange={() => trocar({ [ENDERECO_EXTRA.fator]: f === "1,0" ? null : f })} />
+                <span>{f}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset className="campo">
+          <legend>{CONSOLIDADO.modo}</legend>
+          <div className="opcoes">
+            {CONSOLIDADO.modos.map((m, i) => (
+              <label className="opcao" key={m}>
+                <input type="radio" name="cons-modo" checked={(i === 1) === (modo === "etapa")} onChange={() => trocar({ [ENDERECO_EXTRA.modo]: i === 1 ? "etapa" : null })} />
+                <span>{m}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {modo === "etapa" && (
+          <fieldset className="campo">
+            <legend>{CONSOLIDADO.etapaVisao}</legend>
+            <div className="opcoes">
+              {CONSOLIDADO.etapasVisao.map((r, i) => (
+                <label className="opcao" key={r}>
+                  <input type="radio" name="cons-spt" disabled={!lidas.includes(i + 1)} checked={lidas[indice] === i + 1} onChange={() => trocar({ [ENDERECO_EXTRA.spt]: String(i + 1) })} />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
         <div className="campo busca">
           <label htmlFor="cons-busca">{CONSOLIDADO.busca}</label>
           <input
@@ -123,60 +216,67 @@ export function Consolidado({
 
       {dados && (
         <>
-          <p className="contagem-lista" role="status">
-            {termo ? `${n(lista.length)} de ${n(todos.length)} jogadores` : `${n(todos.length)} jogadores`}
+          <p className="cons-faixa" role="status" aria-live="polite">
+            {CONSOLIDADO.faixa(fator, modo === "etapa" ? `Etapa ${dados.etapas[indice]}` : CONSOLIDADO.modos[0])}
           </p>
-          <div className="quadro-rolagem" tabIndex={0} role="region" aria-label={`Ranking correto acumulado até a Etapa ${ate}`}>
-            <table className="tabela-cons">
-              <thead>
-                <tr>
-                  <th scope="col" className="num">
-                    {CONSOLIDADO.colunas[0]}
-                  </th>
-                  <th scope="col">{CONSOLIDADO.colunas[1]}</th>
-                  <th scope="col" className="num">
-                    {CONSOLIDADO.colunas[2]}
-                  </th>
-                  {dados.etapas.map((e) => (
-                    <th scope="col" className="num" key={e}>
-                      Etapa {e}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {lista.slice(0, mostrar).map((j) => (
-                  <tr key={`${j.id ?? j.nome}`}>
-                    <td className="num" title={j.empate ? "Empate em pontos e em primeiros lugares" : undefined}>
-                      {j.posicao}
-                      {j.empate && <span aria-label=" (empate)">=</span>}
-                    </td>
-                    <th scope="row">{j.nome}</th>
-                    <td className="num forte">{pontos(j.totalCent)}</td>
-                    {j.porEtapa.map((p, i) => (
-                      <td className="num" key={i}>
-                        {pontos(p)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-                {lista.length === 0 && (
-                  <tr>
-                    <td colSpan={3 + dados.etapas.length} className="vazio">
-                      Nenhum jogador encontrado para “{busca}”.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div className="cons-colunas">
+            {colunas.map((itens, c) => {
+              const semDados = c === 2 ? itens.filter((i) => i.cent == null).length : 0; // conta todos, não só as linhas desenhadas
+              const visiveis = termo ? itens.filter((i) => chaveNome(i.nome).includes(termo)) : itens;
+              return (
+                <section className="cons-col" key={c} aria-labelledby={`cons-col-${c}`}>
+                  <div className="cons-cab">
+                    <h3 id={`cons-col-${c}`}>{CONSOLIDADO.titulos[c]}</h3>
+                    <p className="contagem-lista" role="status">
+                      {termo ? `${n(visiveis.length)} de ${n(itens.length)} jogadores` : `${n(itens.length)} jogadores`}
+                      {c === 2 && semDados > 0 && <b className="cons-insuf-total"> · {CONSOLIDADO.contador(semDados)}</b>}
+                    </p>
+                  </div>
+                  <table className="tabela-col">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="num">{CONSOLIDADO.colunas[0]}</th>
+                        <th scope="col">{CONSOLIDADO.colunas[1]}</th>
+                        <th scope="col" className="num">{CONSOLIDADO.colunas[2]}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visiveis.slice(0, mostrar).map((i) => (
+                        <tr key={i.chave}>
+                          <td className="num" title={i.empate ? "Empate" : undefined}>
+                            {i.pos}
+                            {i.empate && <span aria-label=" (empate)">=</span>}
+                          </td>
+                          <th scope="row">{i.nome}</th>
+                          {i.cent == null ? (
+                            <td className="num insuf">
+                              <MarcaInsuficiente id={`insuf-${c}-${i.chave}`} motivos={i.motivos} />
+                            </td>
+                          ) : (
+                            <td className="num forte">{pontos(i.cent)}</td>
+                          )}
+                        </tr>
+                      ))}
+                      {visiveis.length === 0 && (
+                        <tr>
+                          <td colSpan={3} className="vazio">
+                            {termo ? `Nenhum jogador encontrado para “${busca}”.` : "Nenhum jogador nesta etapa."}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </section>
+              );
+            })}
           </div>
-          {lista.length > mostrar && (
+          {maisRestantes > 0 && (
             <button type="button" className="btn sec mais" onClick={() => setMostrar((m) => m + LOTE)}>
-              Mostrar mais {n(Math.min(LOTE, lista.length - mostrar))}
+              Mostrar mais {n(Math.min(LOTE, maisRestantes))}
             </button>
           )}
           <p className="muted small">
-            {regra ? `Pontos corretos calculados com esta regra para quem fica fora da premiação: ${regra}. ` : ""}Resultados aguardando regra ficam fora da soma, sem pontos inventados. Em caso de empate em pontos, vale quem tem mais
+            {regra ? `Pontos corretos calculados com esta regra para quem fica fora da premiação: ${regra}. ` : ""}"Ranking como estava" soma todos os pontos publicados, inclusive os aguardando regra; nas novas regras esses resultados ficam fora da soma, sem pontos inventados. Em caso de empate em pontos, vale quem tem mais
             primeiros lugares (regulamento); como o site não informa mesas finais nem buy-ins investidos, quem continua empatado divide a posição (=).
           </p>
         </>

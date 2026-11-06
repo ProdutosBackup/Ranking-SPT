@@ -15,6 +15,9 @@ export type Torneio = {
   role: string;
   flightLabel: string | null;
   status: string;
+  /** Só a API informa (a planilha não traz). Em MYSTERY, `buyIn + bountyAmount` escolhe o fator de buy-in. */
+  bountyType?: string | null;
+  bountyAmount?: number | null;
   /** Só vêm da planilha (bloco lateral BUY IN / REENTRY). O site não informa quantas entradas e re-entries cada torneio teve. */
   buyIns?: number | null;
   reentries?: number | null;
@@ -90,7 +93,7 @@ const hashBase = (rk: Rk, tn: Tn) =>
     .update(
       JSON.stringify({
         r: rk.ranking.map((p) => [p.name, centDe(p.points)]).sort(porTexto),
-        t: tn.tournaments.map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status]).sort(porTexto),
+        t: tn.tournaments.map((t) => [t.id, t.name, t.buyIn, t.players, t.role, t.flightLabel ?? null, t.status, t.bountyType ?? null, t.bountyAmount ?? null]).sort(porTexto),
       }),
     )
     .digest("hex");

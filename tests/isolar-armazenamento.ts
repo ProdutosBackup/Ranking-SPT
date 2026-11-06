@@ -10,9 +10,11 @@ beforeAll(() => {
   raiz = mkdtempSync(join(tmpdir(), "spt-testes-"));
   process.env.ACORDOS_LOCAL_DIR = join(raiz, "acordos");
   process.env.PLANILHA_LOCAL_DIR = join(raiz, "planilha");
+  process.env.CANCELADOS_LOCAL_DIR = join(raiz, "cancelados");
 });
 afterAll(() => {
   delete process.env.ACORDOS_LOCAL_DIR;
   delete process.env.PLANILHA_LOCAL_DIR;
+  delete process.env.CANCELADOS_LOCAL_DIR;
   rmSync(raiz, { recursive: true, force: true });
 });

@@ -55,7 +55,7 @@ export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNod
             </>
           )}
           <dt>Prêmio</dt>
-          <dd>{l.premioInferido ? "—" : l.prize ? reais(l.prize) : "sem prêmio"}</dd>
+          <dd>{l.semPremio ? "—" : l.prize ? reais(l.prize) : "sem prêmio"}</dd>
           <dt>Inscritos</dt>
           <dd>
             {n(l.field)}
@@ -76,7 +76,7 @@ export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNod
           <h4>{PAINEL_BLOCOS.conta}</h4>
           {l.acordo != null && <p className="conta-acordo">{ACORDO.conta(l.acordo)}</p>}
           {fixos ? (
-            <p className="resultado-conta">10 pontos fixos = {n(l.esperado)}</p>
+            <p className="resultado-conta">{l.conta}</p>
           ) : (
             <div className="conta-blocos">
               <div className="fator">
@@ -95,6 +95,7 @@ export function Detalhe({ l, cartaoAcordo }: { l: Linha; cartaoAcordo?: ReactNod
                 <span className="rot">{CONTA_BLOCOS.buyIn}</span>
                 <b>{n(l.fatorBuyIn, 4)}</b>
                 <span className="muted">buy-in {l.faixaBuyIn}</span>
+                {l.buyInParaFator && <span className="muted">{l.buyInParaFator}</span>}
               </div>
               <span className="op" aria-hidden="true">=</span>
               <div className="fator total">

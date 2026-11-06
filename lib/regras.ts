@@ -1,56 +1,28 @@
-// Única fonte das opções de regra. Os itens abaixo são [PENDENTE]/[INFERIDO] no docs/compendio.md
-// (ou dependem de pendência) e por isso são configuráveis; nada aqui é regra fixa.
+// Única fonte dos parâmetros de regra. Só ficam aqui os parâmetros que não são regra fixa: a tolerância de arredondamento (regra definitiva pendente) e o fator
+// da faixa até R$ 1.000 (os cenários B e D usam 0,9). Confirmadas em 05/11/2026 e portanto fixas no código: fora da premiação vale 10 × fatores
+// e, depois do 18º, todo premiado recebe base 100.
 export type Regras = {
-  /** Fora do ITM: base 10 multiplicada pelos fatores (seção 5) ou 10 pontos fixos (calculadora do site, seção 4.4). */
-  foraDoItm: "base10xFatores" | "10fixos";
-  /**
-   * Campo do torneio: `players` (inscritos, só buy-ins; padrão) ou `acoes` (buy-ins + re-entries, onde a planilha informa; senão usa os inscritos).
-   * Exceção nas duas: role=FINAL usa a soma de `players` dos FLIGHT da etapa (seção 7.6).
-   */
-  field: "players" | "acoes";
-  /** Buy-in usado quando um torneio role=FINAL vem com buyIn 0 (seção 7.6). */
-  buyInDiaFinalZero: number;
-  /** Fator buy-in para buy-in abaixo de R$ 500 (seção 6.8). */
-  fatorBuyInAbaixo500: number;
-  /** Premiados depois do 18º: base 100 para todos (seção 6.3, como a calculadora) ou base 10. */
-  aposDecimoOitavo: "base100TodosItm" | "base10";
+  /** Fator da faixa de buy-in de R$ 0 a R$ 1.000 (seções 3.4 e 6.8). Padrão 1,0 [CONFIRMADO 05/11/2026]. */
+  fatorFaixaAte1000: number;
   /** Diferença (em pontos) até a qual o desvio é tratado como arredondamento (seção 2). */
   toleranciaArredondamento: number;
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "1.4";
+export const VERSAO_REGRAS = "2.6";
 
 export const REGRAS_PADRAO: Regras = {
-  foraDoItm: "base10xFatores",
-  field: "players",
-  buyInDiaFinalZero: 1000,
-  fatorBuyInAbaixo500: 1.0,
-  aposDecimoOitavo: "base100TodosItm",
+  fatorFaixaAte1000: 1.0,
   toleranciaArredondamento: 0.01,
 };
 
 /**
  * Sobrescreve os padrões com parâmetros de URL. Só aceita valores válidos; valor inválido é erro explícito.
- * Parâmetros: foraDoItm, aposDecimoOitavo, tolerancia (aceita vírgula decimal), campo (inscritos | acoes).
+ * Parâmetro: tolerancia (aceita vírgula decimal). Parâmetros antigos (foraDoItm, aposDecimoOitavo, campo, sat, satelitesPontuam) são ignorados em silêncio.
+ * O campo do torneio não é mais opção: "Pontos corretos" usa só entradas (cenário A) e os números em ações são os cenários C e D.
  */
 export function lerRegras(q: URLSearchParams): Regras {
   const r: Regras = { ...REGRAS_PADRAO };
-  const fora = q.get("foraDoItm");
-  if (fora != null) {
-    if (fora !== "base10xFatores" && fora !== "10fixos") throw new Error(`foraDoItm inválido: "${fora}"`);
-    r.foraDoItm = fora;
-  }
-  const apos = q.get("aposDecimoOitavo");
-  if (apos != null) {
-    if (apos !== "base100TodosItm" && apos !== "base10") throw new Error(`aposDecimoOitavo inválido: "${apos}"`);
-    r.aposDecimoOitavo = apos;
-  }
-  const campo = q.get("campo");
-  if (campo != null) {
-    if (campo !== "inscritos" && campo !== "acoes") throw new Error(`campo inválido: "${campo}"`);
-    r.field = campo === "acoes" ? "acoes" : "players";
-  }
   const tol = q.get("tolerancia");
   if (tol != null) {
     const n = Number(tol.replace(",", "."));
@@ -59,3 +31,15 @@ export function lerRegras(q: URLSearchParams): Regras {
   }
   return r;
 }
+
+/**
+ * Cenários de cálculo pedidos pelo usuário (05/11/2026). Só mudam o número de participantes e o fator da faixa de buy-in até R$ 1.000:
+ * A = só entradas, faixa 1,0 (a regra padrão); B = só entradas, faixa 0,9; C = total de ações (entradas + reentradas), faixa 1,0; D = ações, faixa 0,9.
+ * O fator 0,9 é um cenário, não um padrão: `REGRAS_PADRAO.fatorFaixaAte1000` continua 1,0.
+ */
+export const CENARIOS = ["A", "B", "C", "D"] as const;
+export type Cenario = (typeof CENARIOS)[number];
+export const FATOR_FAIXA_CENARIO: Record<Cenario, number> = { A: 1, B: 0.9, C: 1, D: 0.9 };
+export const CAMPO_CENARIO: Record<Cenario, "entradas" | "acoes"> = { A: "entradas", B: "entradas", C: "acoes", D: "acoes" };
+/** Motivo escrito quando o cenário C ou D não pode ser calculado (as reentradas só vêm do Excel da Etapa 3). Nunca se estima. */
+export const MOTIVO_SEM_ACOES = "reentradas não disponíveis: falta o Excel da etapa";

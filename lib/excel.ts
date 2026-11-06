@@ -9,9 +9,14 @@ import type { auditar } from "./auditoria";
 import { gerarGraficos } from "./graficos-excel";
 import type { identificador } from "./integridade";
 import { montarResposta } from "./painel";
-import { ACORDO } from "./acordo";
+import { ACORDO, marcaLinha } from "./acordo";
+import { CANCELADO } from "./cancelados";
 import { ACOES, PARTICIPACAO } from "./participacao";
-import { REGRAS_PADRAO, type Regras } from "./regras";
+import { REGRAS_PADRAO, VERSAO_REGRAS, type Regras } from "./regras";
+import { consolidar, type Consolidado } from "./consolidado";
+import { etapaParaConsolidar } from "./consolidado-etapas";
+import { montarColuna, type ColunaId, type Fator, type Item } from "../app/components/colunas";
+import { CONSOLIDADO } from "../app/components/estrutura";
 
 type Aud = ReturnType<typeof auditar>;
 type Id = ReturnType<typeof identificador>;
@@ -57,7 +62,8 @@ export function dataBrasilia(d: Date | string): string {
   );
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
-const FMT = { ponto: "#,##0.00", dif: "#,##0.00;-#,##0.00;0.00", int: "#,##0", fator: "0.00##", pos: "0", pct: '0.0"%"' };
+// `posEmpate`: posição numérica que mostra o "=" do empate (5 aparece como "5=").
+const FMT = { ponto: "#,##0.00", dif: "#,##0.00;-#,##0.00;0.00", int: "#,##0", fator: "0.00##", pos: "0", posEmpate: '0"="', pct: '0.0"%"' };
 
 // ---------- construção de tabelas ----------
 type Tipo = "texto" | "longo" | "ponto" | "dif" | "int" | "fator" | "pos" | "situacao";
@@ -133,6 +139,7 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
         horizontal: c.t === "pos" ? "center" : ehNumero(c.t) ? "right" : "left",
         wrapText: c.t === "longo" || c.t === "texto",
       };
+      if (cell.value === INSUFICIENTE) cell.fill = fill(C.pendenteSuave);
       if (c.t === "situacao" && l.classe && !opcoes.semCor) {
         const f = FORTE[l.classe];
         cell.fill = fill(f.fundo);
@@ -155,8 +162,24 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
 
 const conta = (l: LinhaAud) =>
   (l.acordo != null ? `${ACORDO.conta(l.acordo)}: ` : "") +
-  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : `10 pontos fixos = ${n(l.esperado)}`);
+  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : l.conta);
 const aguarda = (l: LinhaAud) => l.classe === "aguarda";
+
+/** Texto da célula de um cenário sem dados (o parcial nunca aparece). */
+export const INSUFICIENTE = "Dados insuficientes";
+/** Cabeçalhos das colunas 19 a 22 e o que cada cenário significa (legenda do Relatório e da Exportação). */
+export const CENARIOS_COLUNAS = ["A · Só entradas · fator 1,0", "B · Só entradas · fator 0,9", "C · Total de ações · fator 1,0", "D · Total de ações · fator 0,9"] as const;
+export const CENARIOS_LEGENDA: [string, string][] = [
+  ["Cenário A", "Só entradas (buy-ins), com o fator de buy-in da faixa até R$ 1.000 igual a 1,0."],
+  ["Cenário B", "Só entradas (buy-ins), com o fator de buy-in da faixa até R$ 1.000 igual a 0,9."],
+  ["Cenário C", "Total de ações (buy-ins + re-entries), com o fator de buy-in da faixa até R$ 1.000 igual a 1,0."],
+  ["Cenário D", "Total de ações (buy-ins + re-entries), com o fator de buy-in da faixa até R$ 1.000 igual a 0,9."],
+];
+const CEN = ["A", "B", "C", "D"] as const;
+const motivoCenarios = (l: LinhaAud, etapa: number | null) =>
+  aguarda(l) || !l.cenariosMotivo || CEN.every((k) => l.cenarios[k] != null) ? "" : `${etapa != null ? `Etapa ${etapa}: ` : ""}${l.cenariosMotivo} (1 linha)`;
+/** Linhas com dados insuficientes no cenário (fora as aguardando regra, que ficam vazias). */
+export const insuficientesEm = (linhas: LinhaAud[], k: (typeof CEN)[number]) => linhas.filter((l) => !aguarda(l) && l.cenarios[k] == null).length;
 
 /** Colunas de "Todos os cálculos" (a Exportação usa as mesmas). */
 const COLS_CALCULOS: Col[] = [
@@ -164,14 +187,17 @@ const COLS_CALCULOS: Col[] = [
   { h: "Buy-in (R$)", t: "ponto" }, { h: "Inscritos usados", t: "int" }, { h: "Premiados", t: "int" }, { h: "Base da posição", t: "int" },
   { h: "Fator de participantes", t: "fator" }, { h: "Fator de buy-in", t: "fator" }, { h: "Conta correta", t: "texto" },
   { h: "Pontos corretos", t: "ponto" }, { h: "Pontos no site", t: "ponto" }, { h: "Diferença", t: "dif" }, { h: "Situação", t: "situacao" }, { h: "Categoria", t: "texto" }, { h: ACORDO.rotulo, t: "texto" }, { h: "Causa (hipótese)", t: "longo" },
+  // Colunas 19 a 23: os 4 cenários (em pontos) e o motivo dos dados insuficientes. Ficam no fim para não deslocar as 18 primeiras.
+  ...CENARIOS_COLUNAS.map((h) => ({ h, t: "ponto" as Tipo })), { h: "Motivo (dados insuficientes)", t: "longo" },
 ];
-function linhasCalculos(linhas: LinhaAud[]): Linha[] {
+function linhasCalculos(linhas: LinhaAud[], etapa: number | null): Linha[] {
   return linhas.map((l) => ({
     classe: l.classe,
     v: [
-      l.jogador, l.torneio, l.posicao, l.premioInferido ? "—" : l.prize, l.buyIn, l.field, l.premiados,
+      l.jogador, l.torneio, l.posicao, l.semPremio ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
-      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? ACORDO.marca(l.acordo) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
+      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? marcaLinha(l.acordo, l.acordoDe, l.acordoOrigem) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
+      ...CEN.map((k) => (aguarda(l) ? null : l.cenarios[k] == null ? INSUFICIENTE : l.cenarios[k]! / 100)), motivoCenarios(l, etapa),
     ],
   }));
 }
@@ -234,7 +260,7 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
   }
   mesclar(1, 8, 2, NCOL, "Auditoria do Ranking", { size: 24, bold: true, cor: C.branco, fundo: TOPO, wrap: false });
   mesclar(3, 8, 3, NCOL, ETAPAS[stage] ?? stage, { size: 13, cor: C.pessego, fundo: BASE, wrap: false });
-  mesclar(4, 8, 4, NCOL, `${r.origem.tipo === "planilha" ? `Dados da planilha ${r.origem.arquivo ?? "enviada"} enviada em ${dataBrasilia(r.updatedAt.ranking)}` : `Dados do site de ${dataBrasilia(r.updatedAt.ranking)}`} (Brasília) · Identificador ${idCurto}${r.acordos.aplicados > 0 ? ` · ${ACORDO.faixa(r.acordos.aplicados)}` : ""}`, { size: 10, cor: C.branco, fundo: BASE, wrap: false });
+  mesclar(4, 8, 4, NCOL, `${r.origem.tipo === "planilha" ? `Dados da planilha ${r.origem.arquivo ?? "enviada"} enviada em ${dataBrasilia(r.updatedAt.ranking)}` : `Dados do site de ${dataBrasilia(r.updatedAt.ranking)}`} (Brasília) · Identificador ${idCurto}${r.acordos.aplicados > 0 ? ` · ${ACORDO.faixa(r.acordos.aplicados)}` : ""}${r.cancelados.aplicados > 0 ? ` · ${CANCELADO.faixa(r.cancelados.aplicados)}` : ""}`, { size: 10, cor: C.branco, fundo: BASE, wrap: false });
   mesclar(5, 8, 5, NCOL, "✓ Conta conferida por dois cálculos independentes", { size: 10, bold: true, cor: C.laranja, fundo: BASE, wrap: false });
   try {
     const logo = wb.addImage({ buffer: readFileSync(join(process.cwd(), "public", "logo-spt.png")) as unknown as ExcelJS.Buffer, extension: "png" });
@@ -243,9 +269,9 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
     /* sem a logo, o cabeçalho segue com o título */
   }
 
-  if (r.origem.tipo === "planilha" && r.origem.premiadosInferidos) {
+  if (r.origem.tipo === "planilha" && r.origem.premiadosPorLista) {
     ws.getRow(6).height = 22;
-    mesclar(6, 1, 6, NCOL, "Premiados inferidos pelos pontos da planilha", { size: 10, cor: C.tinta });
+    mesclar(6, 1, 6, NCOL, "Premiados da lista informada pelo responsável", { size: 10, cor: C.tinta });
   } else ws.getRow(6).height = 8;
   ws.getRow(7).height = 26;
   ws.getRow(8).height = 26;
@@ -356,7 +382,7 @@ async function resumo(wb: ExcelJS.Workbook, r: Resp, rodape: string, stage: stri
         rules: [{ type: "colorScale", cfvo: [{ type: "min" }, { type: "max" }], color: [{ argb: C.branco }, { argb: cor }], priority: 1 } as ExcelJS.ColorScaleRuleType],
       });
   }
-  mesclar(rt + 1, 1, rt + 1, NCOL, "Satélites não pontuam", { size: 10, wrap: false });
+  mesclar(rt + 1, 1, rt + 1, NCOL, "Satélites, Ladies e All in or Fold não pontuam", { size: 10, wrap: false });
   impressao(ws, rodape, true);
   ws.pageSetup.printArea = `A1:X${rt + 1}`;
 }
@@ -420,7 +446,7 @@ function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     { h: "Torneio", t: "texto" }, { h: "Situação", t: "situacao" }, { h: "Inscritos na API", t: "int" }, { h: "Inscritos usados na conta", t: "int" },
     { h: "Premiados", t: "int" }, { h: "Resultados", t: "int" }, { h: PARTICIPACAO.comPosicao, t: "int" }, { h: PARTICIPACAO.rotulo, t: "int" }, { h: "Corretos", t: "int" }, { h: "Corretos com inscritos do site", t: "int" },
     { h: "Erros", t: "int" }, { h: "Revisar", t: "int" }, { h: "Aguardando regra", t: "int" }, { h: "Pontos em discordância", t: "ponto" },
-    { h: ACOES.buyIns, t: "int" }, { h: ACOES.reentries, t: "int" }, { h: ACOES.acoes, t: "int" }, { h: "Observação", t: "longo" }, { h: ACORDO.rotulo, t: "texto" },
+    { h: ACOES.buyIns, t: "int" }, { h: ACOES.reentries, t: "int" }, { h: ACOES.acoes, t: "int" }, { h: "Observação", t: "longo" }, { h: ACORDO.rotulo, t: "texto" }, { h: CANCELADO.rotulo, t: "texto" },
   ];
   const porT = new Map<string, { ok: number; site: number; erro: number; revisar: number; ag: number; pts: number }>();
   for (const l of r.linhas) {
@@ -438,7 +464,7 @@ function torneios(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     const v = porT.get(t.id) ?? { ok: 0, site: 0, erro: 0, revisar: 0, ag: 0, pts: 0 };
     return {
       classe: CLASSE[t.estado],
-      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo), t.acordo != null ? ACORDO.marca(t.acordo) : ""],
+      v: [t.nome, ESTADO[t.estado], t.inscritosApi, t.achado ? t.achado.fieldSite : t.inscritosUsados, t.premiados, t.resultados, t.participacao > 0 ? t.comPosicao : null, t.participacao > 0 ? t.participacao : null, v.ok, v.site, v.erro, v.revisar, v.ag, v.pts / 100, t.buyIns ?? "—", t.reentries ?? "—", t.acoes ?? "—", observacaoAcoes(t, r.origem.tipo), t.acordoTexto ?? "", t.cancelado ? CANCELADO.causa : ""],
     };
   });
   tabela(ws, cols, linhas, rodape, { semCor: false, barraDif: 13 });
@@ -536,16 +562,142 @@ function regras(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
     c.alignment = { wrapText: true, vertical: "top" };
     ws.getRow(fimRegras + 1 + i).height = 32;
   });
+  const fimCen = fimRegras + 5;
+  titulo(fimCen, "Cenários A a D");
+  [...CENARIOS_LEGENDA.map(([k, v]) => `${k}: ${v}`), `Versão das regras: ${VERSAO_REGRAS}`].forEach((texto, i) => {
+    ws.mergeCells(fimCen + 1 + i, 1, fimCen + 1 + i, 5);
+    const c = ws.getCell(fimCen + 1 + i, 1);
+    c.value = texto;
+    c.font = { name: FONTE, size: 10, color: { argb: C.tinta } };
+    c.alignment = { wrapText: true, vertical: "top" };
+    ws.getRow(fimCen + 1 + i).height = 32;
+  });
   impressao(ws, rodape);
 }
 
 function todos(wb: ExcelJS.Workbook, r: Resp, rodape: string) {
   const ws = wb.addWorksheet("Todos os cálculos");
-  tabela(ws, COLS_CALCULOS, linhasCalculos(r.linhas), rodape, { barraDif: 13 });
+  tabela(ws, COLS_CALCULOS, linhasCalculos(r.linhas, r.painel.numeroEtapa), rodape, { barraDif: 13 });
 }
 
-/** Relatório: painel de auditoria em 8 abas. */
-export async function relatorioXlsx(stage: string, dados: DadosSpt, aud: Aud, regrasUsadas: Regras, id: Id) {
+// ---------- Consolidado ----------
+/** Uma etapa anterior à escolhida, já auditada (o resultado de executar()). */
+export type EtapaAnterior = { stage: string; dados: DadosSpt; aud: Aud; id: Id; regras: Regras };
+
+/** Aba "Consolidado": ranking acumulado da Etapa 1 até a escolhida, uma linha por jogador, com os 3 grupos de rankings e os 4 cenários (A a D). */
+function consolidadoAba(wb: ExcelJS.Workbook, rodape: string, etapas: { numero: number; stage: string; r: Resp }[]) {
+  const ws = wb.addWorksheet("Consolidado");
+  ws.views = [{ showGridLines: false }];
+  const c: Consolidado = consolidar(etapas.map((e) => etapaParaConsolidar(e.numero, e.r)));
+  const ate = etapas[etapas.length - 1].numero;
+  const NCOLS = 27;
+  const mescla = (linha: number, c1: number, c2: number, valor: string, estilo: { size?: number; bold?: boolean; cor?: string; fundo?: string }) => {
+    ws.mergeCells(linha, c1, linha, c2);
+    const cell = ws.getCell(linha, c1);
+    cell.value = valor;
+    cell.font = { name: FONTE, size: estilo.size ?? 10, bold: estilo.bold, color: { argb: estilo.cor ?? C.tinta } };
+    cell.alignment = { vertical: "middle", horizontal: "left", wrapText: true };
+    if (estilo.fundo) cell.fill = fill(estilo.fundo);
+  };
+
+  // cabeçalho: etapas incluídas, com o identificador e a origem de cada uma
+  mescla(1, 1, 12, `Consolidado — Etapa 1 até Etapa ${ate}: ranking acumulado, sem descarte`, { size: 14, bold: true });
+  etapas.forEach((e, i) => {
+    const origem = e.r.origem.tipo === "planilha" ? `planilha ${e.r.origem.arquivo ?? "enviada"}, enviada em ${dataBrasilia(e.r.updatedAt.ranking)} (Brasília)` : `site, dados de ${dataBrasilia(e.r.updatedAt.ranking)} (Brasília)`;
+    mescla(2 + i, 1, 12, `${ETAPAS[e.stage] ?? e.stage} · Identificador ${e.r.identificador.sha256.slice(0, 8)} · Origem: ${origem}`, { cor: C.apoio });
+  });
+  const nota = 2 + etapas.length;
+  mescla(nota, 1, 12, `Os cenários A a D estão definidos na aba Regras. "${INSUFICIENTE}" é texto, sem valor parcial, e a última coluna traz o motivo. Desempate: mais primeiros lugares; quem continua empatado divide a posição (=).`, { size: 9, cor: C.apoio });
+  ws.getRow(nota).height = 28;
+  const gr = nota + 2; // linha dos títulos dos grupos
+  const lr = gr + 1; // linha dos rótulos (com o filtro)
+
+  // grupos: título mesclado em cima, rótulos embaixo
+  const grupos: { titulo: string; col: ColunaId; fator: Fator }[] = [
+    { titulo: CONSOLIDADO.titulos[0], col: "estava", fator: "1,0" },
+    { titulo: `${CONSOLIDADO.titulos[1]}, fator 1,0 (A)`, col: "entradas", fator: "1,0" },
+    { titulo: `${CONSOLIDADO.titulos[1]}, fator 0,9 (B)`, col: "entradas", fator: "0,9" },
+    { titulo: `${CONSOLIDADO.titulos[2]}, fator 1,0 (C)`, col: "acoes", fator: "1,0" },
+    { titulo: `${CONSOLIDADO.titulos[2]}, fator 0,9 (D)`, col: "acoes", fator: "0,9" },
+  ];
+  const rotulos = [CONSOLIDADO.colunas[0], CONSOLIDADO.colunas[2], "SPT1", "SPT2", "SPT3"];
+  const cab = (cell: ExcelJS.Cell, v: string) => {
+    cell.value = v;
+    cell.font = { name: FONTE, size: 10, bold: true, color: { argb: C.branco } };
+    cell.fill = fill(C.cabecalho);
+    cell.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    cell.border = fino;
+  };
+  ws.getRow(gr).height = 34;
+  ws.getRow(lr).height = 24;
+  cab(ws.getCell(lr, 1), CONSOLIDADO.colunas[1]);
+  grupos.forEach((g, i) => {
+    const c1 = 2 + i * 5;
+    ws.mergeCells(gr, c1, gr, c1 + 4);
+    const t = ws.getCell(gr, c1);
+    t.value = g.titulo;
+    t.font = { name: FONTE, size: 10, bold: true, color: { argb: C.tinta } };
+    t.fill = fill(i === 0 ? C.zebra : i < 3 ? C.creme : C.pessego);
+    t.alignment = { vertical: "middle", horizontal: "center", wrapText: true };
+    for (let k = 0; k < 5; k++) { ws.getCell(gr, c1 + k).border = fino; cab(ws.getCell(lr, c1 + k), rotulos[k]); }
+  });
+  cab(ws.getCell(lr, NCOLS), "Motivo (dados insuficientes)");
+
+  // linhas: uma por jogador, na ordem da posição de A
+  const visao = { tipo: "acumulado" } as const;
+  const colunas = grupos.map((g) => new Map<string, Item>(montarColuna(c.jogadores, g.col, g.fator, visao).map((i) => [i.chave, i])));
+  const ordem = montarColuna(c.jogadores, "entradas", "1,0", visao);
+  const porChave = new Map(c.jogadores.map((j) => [`${j.id ?? j.nome}`, j]));
+  const cenarioDe = (g: (typeof grupos)[number]) => (g.col === "entradas" ? (g.fator === "1,0" ? "A" : "B") : g.fator === "1,0" ? "C" : "D") as "A" | "B" | "C" | "D";
+  const celula = (cell: ExcelJS.Cell, v: number | string | null, fmt?: string) => {
+    cell.value = v;
+    cell.font = { name: FONTE, size: 10, color: { argb: C.tinta } };
+    cell.border = fino;
+    cell.alignment = { vertical: "top", horizontal: typeof v === "string" ? "left" : "right", wrapText: false };
+    if (fmt) cell.numFmt = fmt;
+    if (v === INSUFICIENTE) cell.fill = fill(C.pendenteSuave);
+  };
+  for (const it of ordem) {
+    const j = porChave.get(it.chave)!;
+    const row = ws.addRow([]);
+    const nomeCell = row.getCell(1);
+    celula(nomeCell, j.nome);
+    nomeCell.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+    grupos.forEach((g, i) => {
+      const x = colunas[i].get(it.chave)!;
+      const c1 = 2 + i * 5;
+      // posição numérica; com empate, o formato mostra o "="; sem posição (dados insuficientes), vazia
+      celula(row.getCell(c1), x.pos, x.empate ? FMT.posEmpate : FMT.pos);
+      row.getCell(c1).alignment = { vertical: "top", horizontal: "center" };
+      celula(row.getCell(c1 + 1), x.cent == null ? INSUFICIENTE : x.cent / 100, FMT.ponto);
+      for (let k = 0; k < 3; k++) {
+        const e = g.col === "estava" ? (j.publicadoPorEtapa[k] ?? null) : j.cenarios[cenarioDe(g)].porEtapa[k] == null ? null : (j.cenarios[cenarioDe(g)].porEtapa[k]!.cent ?? INSUFICIENTE);
+        const cent = typeof e === "number" ? e / 100 : e; // etapa que o jogador não jogou (ou fora do alcance): vazia
+        celula(row.getCell(c1 + 2 + k), cent, FMT.ponto);
+      }
+    });
+    // motivo: o de C (D tem o mesmo conjunto), uma etapa por linha
+    const motivos = (colunas[3].get(it.chave)!.motivos.length ? colunas[3] : colunas[4]).get(it.chave)!.motivos;
+    const texto = motivos.map((m) => CONSOLIDADO.motivoEtapa(m.etapa, m.motivo, m.linhas));
+    const mc = row.getCell(NCOLS);
+    celula(mc, texto.join("\n") || null);
+    mc.alignment = { vertical: "top", horizontal: "left", wrapText: true };
+    if (texto.length > 1) row.height = 14 * texto.length + 2;
+  }
+  ws.getColumn(1).width = 34;
+  for (let g = 0; g < 5; g++) {
+    ws.getColumn(2 + g * 5).width = 9;
+    ws.getColumn(3 + g * 5).width = 17;
+    for (let k = 0; k < 3; k++) ws.getColumn(4 + g * 5 + k).width = 17;
+  }
+  ws.getColumn(NCOLS).width = 62;
+  ws.views = [{ state: "frozen", xSplit: 1, ySplit: lr, showGridLines: false }];
+  ws.autoFilter = { from: { row: lr, column: 1 }, to: { row: ws.rowCount, column: NCOLS } };
+  impressao(ws, rodape, false, `${gr}:${lr}`);
+}
+
+/** Relatório: painel de auditoria em 9 abas. `anteriores`: as etapas antes da escolhida, já auditadas (a aba Consolidado soma da Etapa 1 até a escolhida); texto = por que não foi possível montá-las (a aba mostra o aviso, como a tela). */
+export async function relatorioXlsx(stage: string, dados: DadosSpt, aud: Aud, regrasUsadas: Regras, id: Id, anteriores: EtapaAnterior[] | string = []) {
   const r = montarResposta(stage, dados, regrasUsadas, aud, id);
   const wb = new ExcelJS.Workbook();
   propriedades(wb);
@@ -557,6 +709,19 @@ export async function relatorioXlsx(stage: string, dados: DadosSpt, aud: Aud, re
   torneios(wb, r, rodape);
   aguardando(wb, r, rodape);
   regras(wb, r, rodape);
+  if (typeof anteriores === "string") {
+    const ws = wb.addWorksheet("Consolidado");
+    ws.getColumn(1).width = 110;
+    ws.getCell(1, 1).value = `Não foi possível montar o consolidado. ${anteriores}`;
+    ws.getCell(1, 1).font = { name: FONTE, size: 11, bold: true };
+  } else {
+    const numeros = Object.keys(ETAPAS);
+    const lista = [
+      ...anteriores.map((a) => ({ stage: a.stage, r: montarResposta(a.stage, a.dados, a.regras, a.aud, a.id) })),
+      { stage, r },
+    ].map((e) => ({ ...e, numero: numeros.indexOf(e.stage) + 1 }));
+    consolidadoAba(wb, rodape, lista);
+  }
   todos(wb, r, rodape);
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
@@ -568,8 +733,13 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
   propriedades(wb);
   const ws = wb.addWorksheet("Dados");
   ws.addRow(COLS_CALCULOS.map((c) => c.h));
-  const linhas = linhasCalculos(r.linhas);
-  linhas.forEach((l) => ws.addRow(l.v));
+  const linhas = linhasCalculos(r.linhas, r.painel.numeroEtapa);
+  linhas.forEach((l) => {
+    const row = ws.addRow(l.v);
+    row.eachCell((cell) => {
+      if (cell.value === INSUFICIENTE) cell.fill = fill(C.pendenteSuave);
+    });
+  });
   const w = larguras(COLS_CALCULOS, linhas);
   COLS_CALCULOS.forEach((c, j) => {
     const col = ws.getColumn(j + 1);
@@ -593,13 +763,19 @@ export async function exportacaoXlsx(dados: DadosSpt, aud: Aud, id: Id, regrasUs
       ? ([
           ["Origem dos dados", `Planilha ${r.origem.arquivo ?? "enviada"}, enviada em ${dataBrasilia(r.updatedAt.ranking)} (Brasília)`],
           ["Inscritos do Dia Final", r.origem.inscritosDiaFinal?.texto ?? "valor da planilha"],
-          ["Premiados", "Inferidos pelos pontos da planilha"],
+          ["Premiados", "Da lista informada pelo responsável"],
         ] as [string, string][])
       : ([["Data dos dados do site", `${dataBrasilia(r.updatedAt.ranking)} (Brasília)`]] as [string, string][])),
     ["Identificador", id.sha256.slice(0, 8)],
     ["Identificador completo", id.sha256],
-    ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordo != null).map((t) => `${t.nome} (${ACORDO.marca(t.acordo!).toLowerCase()})`).join("; ")}`]] as [string, string][]) : []),
+    ...(r.acordos.aplicados > 0 ? ([["Acordos aplicados", `${r.acordos.aplicados} torneio(s): ${r.painel.torneios.filter((t) => t.acordoTexto != null).map((t) => `${t.nome} (${t.acordoTexto!.replace(/^Acordo: /, "")})`).join("; ")}`]] as [string, string][]) : []),
+    ...(r.cancelados.aplicados > 0 ? ([["Torneios cancelados", `${r.cancelados.aplicados}: ${r.painel.torneios.filter((t) => t.cancelado).map((t) => t.nome).join("; ")} (${CANCELADO.causa.toLowerCase()})`]] as [string, string][]) : []),
     ["Resultados", String(r.linhas.length)],
+    ...CENARIOS_LEGENDA,
+    ["Fatores incluídos", "1,0 e 0,9 (todos os cenários aparecem sempre)"],
+    ["Versão das regras", VERSAO_REGRAS],
+    ["Linhas com dados insuficientes no cenário C", String(insuficientesEm(r.linhas, "C"))],
+    ["Linhas com dados insuficientes no cenário D", String(insuficientesEm(r.linhas, "D"))],
     ["Arquivo gerado em", `${dataBrasilia(new Date())} (Brasília)`],
   ];
   info.forEach(([k, v]) => {

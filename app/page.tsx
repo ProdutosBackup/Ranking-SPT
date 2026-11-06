@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
-import { ABAS, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
+import { ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_PLANILHA } from "./components/estrutura";
 import { consolidar, type EtapaConsolidado } from "../lib/consolidado";
+import { etapaParaConsolidar } from "../lib/consolidado-etapas";
 import { Barra, ETAPAS } from "./components/Barra";
 import { Consolidado, type EtapaOpcao } from "./components/Consolidado";
 import { lerAuditoria } from "./components/lerAuditoria";
@@ -34,10 +35,7 @@ const MSG_SEM_RANKING = "Esta etapa ainda não tem ranking publicado.";
 export default function Home() {
   const { q, pronto, navegar } = useUrl();
   const [stage, setStage] = useState(ETAPAS[1].v);
-  const [foraPremiacao, setForaPremiacao] = useState("base10xFatores");
-  const [apos18, setApos18] = useState("base100TodosItm");
   const [tolerancia, setTolerancia] = useState("0,01");
-  const [campo, setCampo] = useState("inscritos");
   // Versão dos acordos: muda quando alguém marca ou desfaz um acordo, e invalida as leituras guardadas de outras etapas.
   const versaoAcordos = useRef(0);
   const [, setVAc] = useState(0);
@@ -69,7 +67,7 @@ export default function Home() {
   const ver = d ? q.get(ENDERECO.item) : null;
 
   const parametros = (etapa: string) =>
-    new URLSearchParams({ stage: etapa, foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia, campo, av: String(versaoAcordos.current) }).toString();
+    new URLSearchParams({ stage: etapa, tolerancia, av: String(versaoAcordos.current) }).toString();
 
   async function auditar(etapa = stage) {
     const p = parametros(etapa);
@@ -123,6 +121,23 @@ export default function Home() {
       const j = await r.json().catch(() => null);
       if (!r.ok) return j?.erro ?? "Não foi possível salvar o acordo. Tente novamente.";
       versaoAcordos.current += 1;
+      setVAc(versaoAcordos.current);
+      await auditar(stage);
+      return null;
+    } catch {
+      return "Não foi possível falar com o servidor. Verifique a conexão e tente novamente.";
+    }
+  }
+
+  // Torneio cancelado (salvo para todos): grava ou desfaz e audita de novo a etapa que está na tela. Devolve a mensagem de erro, ou null.
+  async function mudarCancelado(chave: string, cancelar: boolean): Promise<string | null> {
+    try {
+      const r = cancelar
+        ? await fetch("/api/cancelados", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ etapa: stage, chave }) })
+        : await fetch(`/api/cancelados?etapa=${encodeURIComponent(stage)}&chave=${encodeURIComponent(chave)}`, { method: "DELETE" });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) return j?.erro ?? CANCELADO.erroGravar;
+      versaoAcordos.current += 1; // a mesma versão dos acordos: invalida as leituras guardadas das outras etapas
       setVAc(versaoAcordos.current);
       await auditar(stage);
       return null;
@@ -201,23 +216,18 @@ export default function Home() {
       cancelado = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, foraPremiacao, apos18, tolerancia, campo, versaoAcordos.current]);
+  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, tolerancia, versaoAcordos.current]);
 
   const consolidado = useMemo(() => {
     if (!visaoCons) return null;
     const etapas: EtapaConsolidado[] = [];
     for (let k = 1; k <= ate; k++) {
       if (!fresca(guardadas, k)) return null;
-      const d3 = guardadas[ETAPAS[k - 1].v].dados;
-      etapas.push({
-        numero: k,
-        jogadores: d3.painel.jogadores.map((j) => ({ nome: j.nome, id: j.id })),
-        linhas: d3.linhas.map((l) => ({ jogador: l.jogador, posicao: l.posicao, esperadoCent: Math.round(l.esperado * 100), aguarda: l.classe === "aguarda", participacao: l.participacao })),
-      });
+      etapas.push(etapaParaConsolidar(k, guardadas[ETAPAS[k - 1].v].dados));
     }
     return consolidar(etapas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, ate, guardadas, planilha, foraPremiacao, apos18, tolerancia, campo, versaoAcordos.current]);
+  }, [visaoCons, ate, guardadas, planilha, tolerancia, versaoAcordos.current]);
   const regraCons = guardadas[ETAPAS[ate - 1].v]?.dados.painel.regrasTexto.find((r) => r.titulo === "Quem fica fora da premiação")?.valor ?? null;
   const opcoesEtapa: EtapaOpcao[] = ETAPAS.map((_, i) => ({
     numero: i + 1,
@@ -399,6 +409,8 @@ export default function Home() {
               carregando={carregandoCons}
               erro={erroCons}
               regra={regraCons}
+              q={q}
+              navegar={navegar}
               onSair={sairConsolidado}
             />
           ) : (
@@ -477,9 +489,9 @@ export default function Home() {
                 {aba === "erros" && <Erros d={d} q={q} navegar={navegar} revisados={revisados} />}
                 {aba === "divergencias" && <Divergencias d={d} navegar={navegar} />}
                 {aba === "jogadores" && <Jogadores d={d} q={q} navegar={navegar} />}
-                {aba === "torneios" && <Torneios d={d} navegar={navegar} />}
+                {aba === "torneios" && <Torneios d={d} navegar={navegar} onCancelado={mudarCancelado} />}
                 {aba === "aguardando" && <Aguardando d={d} />}
-                {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia, campo, setCampo }} />}
+                {aba === "regras" && <Regras d={d} opcoes={{ tolerancia, setTolerancia }} />}
               </div>
             </>
           )}

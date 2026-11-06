@@ -36,7 +36,7 @@ export const PLANILHA = {
   sim: "Sim",
   nao: "Não",
   lido: "O que foi lido",
-  premiadosInferidos: "Premiados inferidos pelos pontos da planilha",
+  premiadosPorLista: "Premiados da lista informada pelo responsável",
 } as const;
 export const PLANILHA_ITENS = Object.values(PLANILHA);
 /** Textos que mudam quando a origem dos dados é uma planilha. */
@@ -46,12 +46,18 @@ export const TEXTOS_PLANILHA = {
 } as const;
 
 import { ACORDO } from "../../lib/acordo";
-import { ACOES, CAMPO, PARTICIPACAO } from "../../lib/participacao";
+import { CANCELADO } from "../../lib/cancelado";
+import { ACOES, PARTICIPACAO } from "../../lib/participacao";
 /**
  * Participação de flight e ações por torneio (itens acrescentados com autorização do usuário em 21/10/2026): nome e explicação da
  * categoria, bloco da aba Regras, campos separados do Dia Final, colunas da aba Torneios e texto da aba "Aguardando regra" vazia.
  */
-export { ACOES, ACORDO, CAMPO, PARTICIPACAO };
+export { ACOES, ACORDO, PARTICIPACAO };
+/**
+ * Torneio cancelado (item acrescentado com autorização do usuário em 05/11/2026): o controle "Cancelado" de cada torneio na aba Torneios,
+ * a confirmação ("Deseja cancelar o torneio (NOME)?" / "Deseja reativar o torneio (NOME)?", Sim / Não), o motivo na linha e a faixa de confiança.
+ */
+export { CANCELADO };
 
 /** Seções da aba Resumo, na ordem. */
 export const SECOES_RESUMO = [
@@ -91,7 +97,7 @@ export const ENDERECO = {
   item: "ver",
 } as const;
 /** Parâmetro que já existia além dos acima (filtro "só com erro"). O antigo `sat` (satélites) foi removido em 21/10/2026 e é ignorado. */
-export const ENDERECO_EXTRA = { soErro: "soerro", visao: "visao" } as const;
+export const ENDERECO_EXTRA = { soErro: "soerro", visao: "visao", fator: "fator", modo: "modo", spt: "spt" } as const;
 
 /**
  * Consolidado (itens acrescentados com autorização do usuário em 21/10/2026): o botão "Consolidado" fica em BARRA, separado das abas;
@@ -103,9 +109,26 @@ export const CONSOLIDADO = {
   busca: "Buscar jogador",
   sair: "Voltar à auditoria",
   semDados: "Sem dados nesta etapa",
-  colunas: ["Posição", "Jogador", "Pontos acumulados"],
+  colunas: ["Posição", "Jogador", "Pontos"],
+  /** Três rankings lado a lado (autorizado em 06/11/2026), com seletor de fator, Acumulado / Por etapa e faixa fixa do que está na tela. */
+  titulos: ["Ranking como estava", "Novas regras · Só entradas", "Novas regras · Total de ações"],
+  fator: "Fator",
+  fatores: ["1,0", "0,9"],
+  modo: "Visão",
+  modos: ["Acumulado", "Por etapa"],
+  etapaVisao: "Etapa mostrada",
+  etapasVisao: ["SPT1", "SPT2", "SPT3"],
+  insuficiente: "Dados insuficientes",
+  /** Cabeçalho da coluna 3: quantos jogadores do cenário exibido têm dados insuficientes (todos, não só as linhas já desenhadas). */
+  contador: (n: number) => `${n.toLocaleString("pt-BR")} com dados insuficientes`,
+  /** Motivo ao passar o mouse sobre a marca; o texto do motivo vem do consolidado. */
+  motivoEtapa: (etapa: number, motivo: string, linhas: number) => `Etapa ${etapa}: ${motivo} (${linhas} ${linhas === 1 ? "linha" : "linhas"})`,
+  faixa: (fator: string, modo: string) => `Fator ${fator} · ${modo}`,
 } as const;
-export const CONSOLIDADO_ITENS = [CONSOLIDADO.etapa, CONSOLIDADO.busca, CONSOLIDADO.sair, CONSOLIDADO.semDados, ...CONSOLIDADO.colunas];
+export const CONSOLIDADO_ITENS = [
+  CONSOLIDADO.etapa, CONSOLIDADO.busca, CONSOLIDADO.sair, CONSOLIDADO.semDados, ...CONSOLIDADO.colunas,
+  ...CONSOLIDADO.titulos, CONSOLIDADO.fator, ...CONSOLIDADO.fatores, CONSOLIDADO.modo, ...CONSOLIDADO.modos, CONSOLIDADO.etapaVisao, ...CONSOLIDADO.etapasVisao, CONSOLIDADO.insuficiente,
+];
 
 /** Atalhos de teclado do painel lateral. */
 export const ATALHOS = {

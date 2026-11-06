@@ -4,13 +4,18 @@ export type Linha = {
   torneioId: string;
   torneio: string;
   posicao: number | null;
+  /** Posição que deu a pontuação (no primeiro flight de quem chegou ao Dia Final, a do Dia Final). O Consolidado conta o 1º lugar por ela. */
+  posicaoPontua: number | null;
   prize: number | null;
   /** Planilha: o prêmio não existe, foi deduzido dos pontos; a tela mostra "—". */
-  premioInferido: boolean;
-  /** Participação de flight: vale 10 pontos fixos (flights e Dia Final sem posição). */
+  semPremio: boolean;
+  /** Participação de flight: vale 10 × fatores (flights e Dia Final sem posição). */
   participacao: boolean;
   /** K do acordo, nas posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
   acordo: number | null;
+  /** Primeira posição do acordo (a linha pontua como a posição `acordo`) e como foi achado. */
+  acordoDe: number | null;
+  acordoOrigem: "informado" | "automatico" | null;
   /** K do acordo do torneio, em todas as linhas dele (também fora das posições 1 a K). */
   acordoK: number | null;
   buyIn: number;
@@ -24,6 +29,10 @@ export type Linha = {
   conta: string;
   esperado: number;
   registrado: number;
+  /** Pontos publicados em centésimos e o esperado nos 4 cenários A a D (null = dados insuficientes), vindos do motor. */
+  registradoCent: number;
+  cenarios: Partial<Record<"A" | "B" | "C" | "D", number | null>>;
+  cenariosMotivo: string | null;
   diferenca: number;
   rotulo: string;
   classe: string;
@@ -32,6 +41,8 @@ export type Linha = {
   inverso: { fatorTotal: number; fieldImplicito: number | null; candidatos: { base: number; field: number }[] } | null;
   hipotese: { texto: string; conta: string | null } | null;
   faixaBuyIn: string;
+  /** Só nas linhas de torneios com bounty (K.O ou Mystery) em que o bounty foi somado ao buy-in para escolher o fator. */
+  buyInParaFator: string | null;
 };
 
 export type Achado = { fieldApi: number; fieldSite: number; diferenca: number; linhasExplicadas: number };
@@ -47,6 +58,11 @@ export type TorneioPainel = {
   /** Resultados com posição e participações de flight (o Dia Final mostra os dois separados). */
   /** K do acordo do torneio, ou null. */
   acordo: number | null;
+  /** Chave do torneio nos cancelamentos e se o usuário o marcou como cancelado (esperado 0 em todas as linhas). */
+  chaveCancelamento: string;
+  cancelado: boolean;
+  /** Texto do acordo do torneio (informado, detectado automaticamente, ou os dois quando discordam); null se não há. */
+  acordoTexto: string | null;
   comPosicao: number;
   participacao: number;
   /** Da planilha; null quando a fonte não informa (o site não informa). Ações = buy-ins + re-entries. */
@@ -60,7 +76,7 @@ export type Grupo = { codigo: string; titulo: string; explicacao: string; pontos
 export type JogadorPainel = { nome: string; id?: string | null; resultados: number; pontosSite: number; pontosCorretos: number; diferenca: number; erros: number };
 
 /** De onde vieram os dados. */
-export type Origem = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosInferidos?: boolean; inscritosDiaFinal?: { texto: string } };
+export type Origem = { tipo: "site" } | { tipo: "planilha"; arquivo: string | null; enviadoEm?: string; premiadosPorLista?: boolean; inscritosDiaFinal?: { texto: string } };
 
 /** Estado da planilha guardada (GET /api/planilha). */
 export type PlanilhaGuardada = {
@@ -77,6 +93,8 @@ export type Resposta = {
   stage: string;
   /** Quantos torneios da etapa têm acordo. */
   acordos: { aplicados: number };
+  /** Quantos torneios da etapa o usuário marcou como cancelados. */
+  cancelados: { aplicados: number };
   origem: Origem;
   updatedAt: { ranking: string; tournaments: string };
   identificador: { sha256: string };
@@ -111,14 +129,8 @@ export type Guardada = { dados: Resposta; params: string };
 export type Bloqueio = { erro: string; detalhes: unknown[] };
 
 export type Opcoes = {
-  foraPremiacao: string;
-  setForaPremiacao: (v: string) => void;
-  apos18: string;
-  setApos18: (v: string) => void;
   tolerancia: string;
   setTolerancia: (v: string) => void;
-  campo: string;
-  setCampo: (v: string) => void;
 };
 
 export type Navegar = (alteracoes: Record<string, string | null>, modo?: "push" | "replace") => void;
