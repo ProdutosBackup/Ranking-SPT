@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CAMPO, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
+  ABAS, ACOES, ACORDO, ATALHOS, BARRA_ITENS, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -64,10 +64,6 @@ describe("estrutura da tela travada", () => {
       "Jogou mais de um flight: vale só o primeiro",
       "campo: soma dos flights 331 = 96+50+64+67+54",
     ]);
-  });
-
-  it("opção de regra: campo do torneio (inscritos por padrão, ou ações)", () => {
-    expect([CAMPO.rotulo, CAMPO.inscritos, CAMPO.acoes], TRAVADA).toEqual(["Campo do torneio", "Inscritos (só buy-ins)", "Ações (buy-ins + re-entries)"]);
   });
 
   it("aba Torneios: colunas de buy-ins, re-entries e ações", () => {

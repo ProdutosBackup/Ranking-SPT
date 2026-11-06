@@ -38,7 +38,6 @@ export default function Home() {
   const [foraPremiacao, setForaPremiacao] = useState("base10xFatores");
   const [apos18, setApos18] = useState("base100TodosItm");
   const [tolerancia, setTolerancia] = useState("0,01");
-  const [campo, setCampo] = useState("inscritos");
   // Versão dos acordos: muda quando alguém marca ou desfaz um acordo, e invalida as leituras guardadas de outras etapas.
   const versaoAcordos = useRef(0);
   const [, setVAc] = useState(0);
@@ -70,7 +69,7 @@ export default function Home() {
   const ver = d ? q.get(ENDERECO.item) : null;
 
   const parametros = (etapa: string) =>
-    new URLSearchParams({ stage: etapa, foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia, campo, av: String(versaoAcordos.current) }).toString();
+    new URLSearchParams({ stage: etapa, foraDoItm: foraPremiacao, aposDecimoOitavo: apos18, tolerancia, av: String(versaoAcordos.current) }).toString();
 
   async function auditar(etapa = stage) {
     const p = parametros(etapa);
@@ -219,7 +218,7 @@ export default function Home() {
       cancelado = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, foraPremiacao, apos18, tolerancia, campo, versaoAcordos.current]);
+  }, [visaoCons, pronto, ate, planilha?.sha256, semRanking3, foraPremiacao, apos18, tolerancia, versaoAcordos.current]);
 
   const consolidado = useMemo(() => {
     if (!visaoCons) return null;
@@ -230,7 +229,7 @@ export default function Home() {
     }
     return consolidar(etapas);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visaoCons, ate, guardadas, planilha, foraPremiacao, apos18, tolerancia, campo, versaoAcordos.current]);
+  }, [visaoCons, ate, guardadas, planilha, foraPremiacao, apos18, tolerancia, versaoAcordos.current]);
   const regraCons = guardadas[ETAPAS[ate - 1].v]?.dados.painel.regrasTexto.find((r) => r.titulo === "Quem fica fora da premiação")?.valor ?? null;
   const opcoesEtapa: EtapaOpcao[] = ETAPAS.map((_, i) => ({
     numero: i + 1,
@@ -494,7 +493,7 @@ export default function Home() {
                 {aba === "jogadores" && <Jogadores d={d} q={q} navegar={navegar} />}
                 {aba === "torneios" && <Torneios d={d} navegar={navegar} onCancelado={mudarCancelado} />}
                 {aba === "aguardando" && <Aguardando d={d} />}
-                {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia, campo, setCampo }} />}
+                {aba === "regras" && <Regras d={d} opcoes={{ foraPremiacao, setForaPremiacao, apos18, setApos18, tolerancia, setTolerancia }} />}
               </div>
             </>
           )}

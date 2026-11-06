@@ -134,13 +134,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     return { buyIn, buyInFator, somaBounty: somou ? (t.bountyAmount as number) : null, tipoBounty: somou ? (t.bountyType as string) : null };
   };
   const contexto = (t: Torneio) => ({
-    // Main Event (flights e Dia Final): a soma dos flights, em qualquer opção. Demais: inscritos ou, na opção "ações", as ações quando conhecidas.
-    field:
-      (ehFlight(t) || ehDiaFinal(t)) && somaFlights > 0
-        ? somaFlights
-        : regras.field === "acoes" && !ehFlight(t) && !ehDiaFinal(t) && acoesDe(t) != null
-          ? acoesDe(t)!
-          : t.players,
+    // Main Event (flights e Dia Final): a soma dos flights. Demais: os inscritos (só entradas); os números em ações são os cenários C e D.
+    field: (ehFlight(t) || ehDiaFinal(t)) && somaFlights > 0 ? somaFlights : t.players,
     ...buyInDe(t),
     premiados: premiados.get(t.id) ?? 0,
   });

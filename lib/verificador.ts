@@ -124,8 +124,8 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const final = ehFinalV(t);
       const flight = ehFlightV(t);
       const acoes = t.buyIns != null && t.reentries != null ? t.buyIns + t.reentries : null; // buy-ins + re-entries, se a planilha informa
-      // Campo: Main Event (flights e Dia Final) = soma dos flights; opção "ações" = as ações quando conhecidas; senão os inscritos.
-      const field = (final || flight) && somaFlights > 0 ? somaFlights : acoes != null && regras.field === "acoes" && !final && !flight ? acoes : t.players;
+      // Campo: Main Event (flights e Dia Final) = soma dos flights; senão os inscritos.
+      const field = (final || flight) && somaFlights > 0 ? somaFlights : t.players;
       const buyIn = t.buyIn;
       // Fator de buy-in: em torneio com bounty (K.O ou Mystery) informado vale buy-in + bounty; sem bounty ou com bounty sem valor (provisório), só o buy-in.
       const buyInFator = buyInTotalVerificador({ buyIn, bountyType: t.bountyType, bountyAmount: t.bountyAmount });

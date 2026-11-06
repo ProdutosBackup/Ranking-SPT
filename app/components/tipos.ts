@@ -135,8 +135,6 @@ export type Opcoes = {
   setApos18: (v: string) => void;
   tolerancia: string;
   setTolerancia: (v: string) => void;
-  campo: string;
-  setCampo: (v: string) => void;
 };
 
 export type Navegar = (alteracoes: Record<string, string | null>, modo?: "push" | "replace") => void;

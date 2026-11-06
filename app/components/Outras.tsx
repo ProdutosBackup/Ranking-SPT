@@ -2,7 +2,7 @@
 
 import { Detalhe, Comparativo } from "./Detalhe";
 import { ControleCancelado } from "./Cancelado";
-import { ACOES, ACORDO, CANCELADO, CAMPO, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
+import { ACOES, ACORDO, CANCELADO, ENDERECO, ENDERECO_EXTRA, PARTICIPACAO } from "./estrutura";
 import { chaveLinha, classeDif, n, nSinal, semAcento } from "./formato";
 import { Paginada } from "./Paginada";
 import type { Navegar, Opcoes, Resposta } from "./tipos";
@@ -290,13 +290,6 @@ export function Regras({ d, opcoes }: { d: Resposta; opcoes: Opcoes }) {
             <select id="apos18" value={opcoes.apos18} onChange={(e) => opcoes.setApos18(e.target.value)}>
               <option value="base100TodosItm">100 pontos de base para todos</option>
               <option value="base10">10 pontos de base</option>
-            </select>
-          </div>
-          <div className="campo">
-            <label htmlFor="campo">{CAMPO.rotulo}</label>
-            <select id="campo" value={opcoes.campo} onChange={(e) => opcoes.setCampo(e.target.value)}>
-              <option value="inscritos">{CAMPO.inscritos}</option>
-              <option value="acoes">{CAMPO.acoes}</option>
             </select>
           </div>
           <div className="campo">

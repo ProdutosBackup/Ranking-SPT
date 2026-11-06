@@ -23,14 +23,6 @@ export const PARTICIPACAO = {
   campo: (soma: number, partes: number[]) => `campo: soma dos flights ${soma} = ${partes.join("+")}`,
 } as const;
 
-/** Opção de regra "campo do torneio" (padrão: inscritos, que são só os buy-ins). */
-export const CAMPO = {
-  rotulo: "Campo do torneio",
-  inscritos: "Inscritos (só buy-ins)",
-  acoes: "Ações (buy-ins + re-entries)",
-  semAcoes: "sem ações informadas: usa os inscritos",
-} as const;
-
 /** Colunas de ações por torneio. `—` quando a fonte não informa. */
 export const ACOES = {
   buyIns: "Buy-ins",

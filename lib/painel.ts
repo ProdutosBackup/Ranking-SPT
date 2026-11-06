@@ -4,10 +4,9 @@ import type { DadosSpt } from "./api-spt";
 import { descreverBase, type auditar } from "./auditoria";
 import { baseDaPosicao, fb100 } from "./calculo";
 import type { identificador } from "./integridade";
-import { acoesDe } from "./auditoria";
 import { ACORDO, textoAcordoTorneio } from "./acordo";
 import { CANCELADO } from "./cancelados";
-import { CAMPO, PARTICIPACAO } from "./participacao";
+import { PARTICIPACAO } from "./participacao";
 import type { Regras } from "./regras";
 
 type Aud = ReturnType<typeof auditar>;
@@ -284,16 +283,10 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
   if (linhas.some((l) => l.pendencia === "SEM_BUYIN")) avisos.push("Há torneios sem buy-in informado.");
   if (linhas.some((l) => l.pendencia === "SEM_PREMIADOS")) avisos.push("Há torneios sem nº de premiados informado.");
   if (linhas.some((l) => l.pendencia === "SEM_BOUNTY")) avisos.push("Há torneios K.O ou Mystery sem o bounty da API.");
-  // Opção "campo = ações": os torneios com resultados que não têm as ações informadas usam os inscritos (listados aqui).
-  if (regras.field === "acoes") {
-    const sem = dados.torneios.filter((t) => t.role !== "FINAL" && t.role !== "PARENT" && acoesDe(t) == null && linhas.some((l) => l.torneioId === t.id)).map((t) => t.name);
-    if (sem.length) avisos.push(`Campo do torneio = ações: ${sem.length} ${sem.length === 1 ? "torneio não tem" : "torneios não têm"} as ações informadas e ${sem.length === 1 ? "usou" : "usaram"} os inscritos: ${sem.join(", ")}.`);
-  }
 
   const sn = (b: boolean) => (b ? "Sim" : "Não");
   const regrasTexto = [
     { titulo: "Torneios que não pontuam", valor: "Satélites, Ladies e All in or Fold não pontuam" },
-    { titulo: CAMPO.rotulo, valor: regras.field === "acoes" ? `${CAMPO.acoes}; ${CAMPO.semAcoes}` : CAMPO.inscritos },
     {
       titulo: "Quem fica fora da premiação",
       valor: regras.foraDoItm === "10fixos" ? "10 pontos fixos (como na calculadora do site)" : "10 pontos × os fatores (como no regulamento)",
