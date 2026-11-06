@@ -75,35 +75,35 @@ describe("Main Event avaliado por linha", () => {
     const comFlight = new Set(aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio)).map((l) => l.jogador));
     expect(final).toHaveLength(135);
     expect(final.filter((l) => comFlight.has(l.jogador))).toHaveLength(51); // 51 finalistas jogaram flight: pontuam nas duas linhas
-    expect(final.every((l) => l.esperado > 0 && l.situacao === "CORRETO_SITE" && l.field === 334)).toBe(true);
+    expect(final.every((l) => l.esperado > 0 && l.situacao === "CORRETO" && l.field === 334)).toBe(true);
     for (const f of final.filter((l) => comFlight.has(l.jogador))) {
       const [primeiro, ...outros] = flightsDe(aud, f.jogador);
-      expect([primeiro.esperado, primeiro.participacao, primeiro.causaCodigo], f.jogador).toEqual([25.2, true, "PARTICIPACAO"]);
+      expect([primeiro.esperado, primeiro.participacao], f.jogador).toEqual([38.4, true]);
       for (const o of outros) expect([o.esperado, o.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
     }
     // as causas da regra antiga não existem mais
     expect(aud.linhas.filter((l) => /a pontuação do Main Event vale no flight|a pontuação do jogador vale no flight dele/.test(`${l.causaProvavel} ${l.conta}`))).toEqual([]);
   });
 
-  it("Anderson De Carvalho Costa: Dia 1D = participação (25,2) e Dia Final 76º = 38,4; o total é a soma das duas linhas", async () => {
+  it("Anderson De Carvalho Costa: Dia 1D = participação (38,4) e Dia Final 76º = 38,4; o total é a soma das duas linhas", async () => {
     const { aud, c } = await depois(E1);
     const f = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio.endsWith("Dia 1D"))!;
     const fin = aud.linhas.find((l) => l.jogador.startsWith("Anderson De Carvalho") && l.torneio === "Final Main Event")!;
-    expect([f.esperado, f.field, f.registrado, f.situacao, f.causaCodigo]).toEqual([25.2, 202, 12.1, "ERRO", "PARTICIPACAO"]);
-    expect([fin.esperado, fin.field, fin.registrado, fin.situacao, fin.conta]).toEqual([38.4, 334, 38.4, "CORRETO_SITE", "10 × 3,84 × 1"]);
+    expect([f.esperado, f.field, f.registrado, f.situacao, f.causaCodigo]).toEqual([38.4, 334, 12.1, "ERRO", "PARTICIPACAO"]);
+    expect([fin.esperado, fin.field, fin.registrado, fin.situacao, fin.conta]).toEqual([38.4, 334, 38.4, "CORRETO", "10 × 3,84 × 1"]);
     const j = c.jogadores.find((x) => x.nome.startsWith("Anderson De Carvalho"))!;
     expect(j.totalCent).toBe(aud.linhas.filter((l) => l.jogador === j.nome).reduce((s, l) => s + l.esperadoCent, 0));
-    expect(j.totalCent - ANTES[E1].jogadores[j.nome].esperado).toBe(2520); // a participação do flight soma ao total de antes
+    expect(j.totalCent - ANTES[E1].jogadores[j.nome].esperado).toBe(3840); // a participação do flight (38,4) soma ao total de antes
   });
 
-  it("jogador só de flights, sem Dia Final, não muda: primeira linha 10 × fatores (25,2) e as outras 0", async () => {
+  it("jogador só de flights, sem Dia Final: primeira linha 10 × fatores (38,4) e as outras 0", async () => {
     const { aud } = await depois(E1);
     const comFinal = new Set(aud.linhas.filter((l) => l.torneio === "Final Main Event").map((l) => l.jogador));
     const jogadores = new Set(aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio) && !comFinal.has(l.jogador)).map((l) => l.jogador));
     expect(jogadores.size).toBe(107);
     for (const j of jogadores) {
       const [primeiro, ...outros] = flightsDe(aud, j);
-      expect([primeiro.esperado, primeiro.causaCodigo === "FLIGHT_ZERO"]).toEqual([25.2, false]);
+      expect([primeiro.esperado, primeiro.causaCodigo === "FLIGHT_ZERO"]).toEqual([38.4, false]);
       for (const o of outros) expect([o.esperado, o.causaCodigo]).toEqual([0, "FLIGHT_ZERO"]);
     }
   });
@@ -118,7 +118,7 @@ describe("Main Event avaliado por linha", () => {
     for (const l of finais) {
       expect([l.acordo, l.esperadoCent > 0]).toEqual([3, true]);
       const fl = flightsDe(aud, l.jogador);
-      if (fl.length) expect([fl[0].acordo, fl[0].esperado]).toEqual([null, 25.2]);
+      if (fl.length) expect([fl[0].acordo, fl[0].esperado]).toEqual([null, 38.4]);
     }
   });
 });

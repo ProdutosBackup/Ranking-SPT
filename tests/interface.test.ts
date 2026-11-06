@@ -71,9 +71,9 @@ describe("estrutura da tela travada", () => {
       TRAVADA,
     ).toEqual([
       "Participação de flight",
-      "Vale 10 × fatores, com o campo igual à soma das entradas dos flights. Flight não tem premiação; só o primeiro flight do jogador pontua.",
+      "Vale 10 × fatores, com o campo do Main Event (na Etapa 1, 334 buy-ins; nas outras, a soma das entradas dos flights). Flight não tem premiação; só o primeiro flight do jogador pontua.",
       "Participação nos flights",
-      "Cada linha do Main Event é avaliada por si. Flight não tem premiação: o primeiro flight que o jogador jogou (1A, 1C, 1D, 1E) vale 10 × fatores e os outros flights valem 0. A linha do Dia Final vale pela própria posição: com posição que premia, a base da posição × fatores; sem posição, 10 × fatores. Quem jogou flight e chegou ao Dia Final pontua nas duas linhas. O campo, igual para todas as linhas do Main Event, é a soma das entradas dos flights; o buy-in do flight é R$ 1.000 e o do Dia Final é R$ 0 (fator 1,0 nos dois).",
+      "Cada linha do Main Event é avaliada por si. Flight não tem premiação: o primeiro flight que o jogador jogou (1A, 1C, 1D, 1E) vale 10 × fatores e os outros flights valem 0. A linha do Dia Final vale pela própria posição: com posição que premia, a base da posição × fatores; sem posição, 10 × fatores. Quem jogou flight e chegou ao Dia Final pontua nas duas linhas. O campo, igual para todas as linhas do Main Event, é 334 buy-ins na Etapa 1 (informado pelo usuário em 06/11/2026) e a soma das entradas dos flights nas outras etapas; o buy-in do flight é R$ 1.000 e o do Dia Final é R$ 0 (fator 1,0 nos dois).",
       "Fonte: decisão do usuário em 06/11/2026, que substitui a de 05/11/2026 (pontuação do Dia Final no flight).",
       "Com posição",
       "Nenhum resultado aguardando regra.",

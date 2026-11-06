@@ -5,7 +5,7 @@ import { CANCELADO, chaveCancelamento } from "./cancelados";
 import { PARTICIPACAO } from "./participacao";
 import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
 import { chaveTorneio, premiadosDaLista } from "./premiados-etapa3";
-import { CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_SEM_ACOES, type Cenario, type Regras } from "./regras";
+import { CAMPO_MAIN_EVENT, CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_SEM_ACOES, type Cenario, type Regras } from "./regras";
 
 export type Situacao = "CORRETO" | "CORRETO_SITE" | "ARREDONDAMENTO" | "ERRO" | "SUSPEITO" | "PENDENTE_REGRA";
 const SITUACOES: Situacao[] = ["CORRETO", "CORRETO_SITE", "ARREDONDAMENTO", "ERRO", "SUSPEITO", "PENDENTE_REGRA"];
@@ -93,8 +93,10 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
   const canceladoPeloUsuario = (t: Torneio) => canceladas.has(chaveDe(t));
   // Participantes do Main Event: soma das entradas (players) dos flights da etapa [CONFIRMADO 05/11/2026].
   const flights = d.torneios.filter(ehFlight).sort((a, b) => (ordemFlight(a) < ordemFlight(b) ? -1 : ordemFlight(a) > ordemFlight(b) ? 1 : 0));
-  const somaFlights = flights.reduce((a, t) => a + t.players, 0);
-  const campoTexto = somaFlights > 0 ? PARTICIPACAO.campo(somaFlights, flights.map((t) => t.players)) : null;
+  // Etapa com o número informado pelo usuário (CAMPO_MAIN_EVENT, Etapa 1 = 334): ele vale para flights e Dia Final; senão, a soma dos flights.
+  const informado = CAMPO_MAIN_EVENT[d.stage] ?? null;
+  const campoME = informado ?? flights.reduce((a, t) => a + t.players, 0);
+  const campoTexto = informado != null ? PARTICIPACAO.campoInformado(informado) : campoME > 0 ? PARTICIPACAO.campo(campoME, flights.map((t) => t.players)) : null;
   // Main Event avaliado por linha [usuário, 06/11/2026: "Dias classificatórios não tem premiação."; substitui a regra de 05/11 em que a pontuação
   // do Dia Final ia para o flight]: o primeiro flight que o jogador jogou vale a participação (10 × fatores), os outros flights valem 0, e a linha
   // do Dia Final é avaliada pela própria posição. Nenhuma pontuação passa de uma linha para outra.
@@ -133,7 +135,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
   };
   const contexto = (t: Torneio) => ({
     // Main Event (flights e Dia Final): a soma dos flights. Demais: os inscritos (só entradas); os números em ações são os cenários C e D.
-    field: (ehFlight(t) || ehDiaFinal(t)) && somaFlights > 0 ? somaFlights : t.players,
+    field: (ehFlight(t) || ehDiaFinal(t)) && campoME > 0 ? campoME : t.players,
     ...buyInDe(t),
     premiados: premiados.get(t.id) ?? 0,
   });
@@ -265,7 +267,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     // Os 4 cenários (A a D): só mudam o número de participantes (entradas ou ações) e o fator da faixa até R$ 1.000. Tudo o mais (bounty, fora da
     // premiação, acordo, cancelamento, premiados, o que não pontua, uma pontuação por jogador) é o da linha. Em centésimos; C e D são null onde
     // as reentradas não existem (só o Excel da Etapa 3 as traz, nos torneios comuns), exceto na linha que vale 0 sem depender do campo.
-    const entradasLinha = explicada ? field : (ehFlight(t) || ehDiaFinal(t)) && somaFlights > 0 ? somaFlights : t.players;
+    const entradasLinha = explicada ? field : (ehFlight(t) || ehDiaFinal(t)) && campoME > 0 ? campoME : t.players;
     const acoesLinha = ehFlight(t) || ehDiaFinal(t) ? null : acoesDe(t);
     const regime = { zero: sat, semPosicao: !!(motivoPendente || part), acordo };
     const cenarios = Object.fromEntries(

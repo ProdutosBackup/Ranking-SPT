@@ -256,17 +256,17 @@ describe("painel: indicadores e grupos das duas etapas", () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
     expect(r.painel.indicadores).toMatchObject({
-      auditados: 642, corretos: 440, divergenciasInscritos: { torneios: 5, resultadosExplicados: 386 }, erros: 202,
-      pontosEmDiscordancia: 2107.4, jogadoresAfetados: 158, aguardando: 0, arredondamento: 0,
+      auditados: 642, corretos: 440, divergenciasInscritos: { torneios: 4, resultadosExplicados: 251 }, erros: 202,
+      pontosEmDiscordancia: 4193, jogadoresAfetados: 158, aguardando: 0, arredondamento: 0,
     });
-    // Main Event avaliado por linha (2.7): o primeiro flight de cada jogador vale 10 × fatores (campo 202), chegando ou não ao Dia Final (158);
-    // 44 flights valem 0 (já pontuou em outro flight); as 135 linhas do Dia Final valem pela própria posição e batem com os 334 inscritos do site.
+    // Main Event avaliado por linha (2.9): o primeiro flight de cada jogador vale 10 × 3,84 × 1,0 = 38,4 (campo de 334 buy-ins, informado pelo usuário),
+    // chegando ou não ao Dia Final (158); 44 flights valem 0 (já pontuou em outro flight); as 135 linhas do Dia Final valem pela própria posição.
     expect(r.painel.grupos.map((g) => [g.indices.length, g.titulo])).toEqual([
       [158, "Participação de flight com pontos diferentes de 10 × fatores"],
       [44, "Jogou mais de um flight: vale só o primeiro"],
     ]);
     expect(r.painel.impacto).toHaveLength(158);
-    expect(r.painel.divergencias).toHaveLength(5);
+    expect(r.painel.divergencias).toHaveLength(4);
     expect(r.painel.divergencias[0].texto).toContain("não prova que o site esteja certo");
     expect(r.painel.aguardando).toEqual([]);
     expect(r.painel.aguardandoGrupos).toEqual([]);
@@ -338,9 +338,9 @@ describe("painel: dados entregues à tela", () => {
   it("Etapa 1: veredito com os 253 resultados em erro e as 5 divergências", async () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
-    expect(r.painel.veredito).toBe("Etapa 1: 202 resultados com pontuação diferente da regra, afetando 158 jogadores (2.107,4 pontos em discordância). 5 torneios têm inscritos diferentes da API (386 resultados explicados).");
+    expect(r.painel.veredito).toBe("Etapa 1: 202 resultados com pontuação diferente da regra, afetando 158 jogadores (4.193 pontos em discordância). 4 torneios têm inscritos diferentes da API (251 resultados explicados).");
     expect(r.painel.indicadores.percentualCorretos).toBe(68.5);
-    expect(r.painel.torneios.filter((t) => t.estado === "divergencia")).toHaveLength(5); // 2.7: o Final Main Event volta a "inscritos diferentes da API" (sem erro)
+    expect(r.painel.torneios.filter((t) => t.estado === "divergencia")).toHaveLength(4); // o Final Main Event usa os 334 informados: sem divergência de inscritos
     expect(r.painel.divergencias.every((x) => x.torneioId)).toBe(true);
   });
 });

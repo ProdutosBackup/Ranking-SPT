@@ -9,7 +9,15 @@ export type Regras = {
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "2.7";
+export const VERSAO_REGRAS = "2.9";
+
+/**
+ * Participantes do Main Event informados pelo usuário, por etapa; valem para todas as linhas do Main Event (flights e Dia Final).
+ * Etapa 1 [usuário, 06/11/2026]: "A soma de todos os flights para o main event dá o número de entrada no FINAL MAIN EVENT. São 334 buy ins.
+ * [...] O Fator de Participantes era 334 / 100 + 0,5 que daria 3,84." (A API soma 202 nos flights; as planilhas, 358.)
+ * Nas etapas sem valor aqui, o campo é a soma das entradas (players) dos flights.
+ */
+export const CAMPO_MAIN_EVENT: Record<string, number> = { "taua-2026": 334 };
 
 export const REGRAS_PADRAO: Regras = {
   fatorFaixaAte1000: 1.0,
