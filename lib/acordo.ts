@@ -17,28 +17,13 @@ export const ACORDO = {
   aviso: (k: number) => `Este torneio tem acordo: os ${k} primeiros pontuam como ${k}º colocado`,
   conta: (k: number) => `Acordo: pontua como ${k}º colocado`,
   marca: (k: number) => `Os ${k} primeiros, como ${k}º colocado (informado)`,
-  marcaAuto: (de: number, ate: number) => `Posições ${de} a ${ate}, como ${ate}º colocado (detectado automaticamente)`,
   torneio: (k: number) => `Acordo: os ${k} primeiros, como ${k}º colocado (informado)`,
-  torneioAuto: (de: number, ate: number) => `Acordo: posições ${de} a ${ate}, como ${ate}º colocado (detectado automaticamente)`,
-  /** O acordo informado vale; o automático achou outra coisa (ou nada). */
-  discorda: (k: number, auto: string) => `O acordo informado (os ${k} primeiros) é diferente do detectado automaticamente: ${auto}`,
-  semAuto: "nenhum acordo detectado",
   faixa: (qtd: number) => `Acordos aplicados: ${qtd} torneio(s)`,
-  causaAuto: (de: number, ate: number) => `acordo entre as posições ${de} a ${ate}; deveria pontuar como a posição ${ate}`,
   causa: (k: number, valor: string) => `Acordo: os ${k} primeiros pontuam como ${k}º colocado, ${valor} cada`,
 } as const;
 
-/** Marcação de um resultado em acordo: informado (K salvo) ou detectado automaticamente. */
-export const marcaLinha = (acordo: number, de: number | null, origem: string | null) => (origem === "automatico" && de != null ? ACORDO.marcaAuto(de, acordo) : ACORDO.marca(acordo));
-
-/** Texto do acordo de um torneio (informado, detectado, ou os dois quando discordam). Null se não há acordo. */
-export function textoAcordoTorneio(informado: number | null, auto: { de: number; ate: number }[], discorda: boolean): string | null {
-  if (informado != null) {
-    const base = ACORDO.torneio(informado);
-    return discorda ? `${base}. ${ACORDO.discorda(informado, auto.length ? auto.map((g) => `posições ${g.de} a ${g.ate}`).join("; ") : ACORDO.semAuto)}` : base;
-  }
-  return auto.length ? auto.map((g) => ACORDO.torneioAuto(g.de, g.ate)).join(" · ") : null;
-}
+/** Texto do acordo de um torneio, o marcado na mão (K salvo). Null se o torneio não tem acordo. */
+export const textoAcordoTorneio = (k: number | null): string | null => (k != null ? ACORDO.torneio(k) : null);
 
 /** Assinatura estável dos acordos de uma etapa (`torneioId → K`); vazia se não houver. Entra no identificador e na chave do cache. */
 export const assinaturaAcordos = (m: Record<string, number>) =>

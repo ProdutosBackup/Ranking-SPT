@@ -63,8 +63,8 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     const rs = wb.getWorksheet("Resumo")!;
     const achar = (t: string) => { let c: ExcelJS.Cell | undefined; rs.eachRow((row) => row.eachCell((x) => { if (!c && txt(x.value) === t) c = x; })); return c; };
     const abaixo = (t: string) => rs.getCell(achar(t)!.row + 1, achar(t)!.col).value;
-    expect([abaixo("Erros"), abaixo("Pontos em discordância"), abaixo("Jogadores afetados"), abaixo("Divergências de inscritos"), abaixo("Aguardando regra"), abaixo("Resultados corretos (entre os conferidos)")]).toEqual([149, 9139.75, 140, 0, 0, 44.8]);
-    expect(achar("Etapa 2: 149 resultados com pontuação diferente da regra, afetando 140 jogadores (9.139,75 pontos em discordância).")).toBeDefined();
+    expect([abaixo("Erros"), abaixo("Pontos em discordância"), abaixo("Jogadores afetados"), abaixo("Divergências de inscritos"), abaixo("Aguardando regra"), abaixo("Resultados corretos (entre os conferidos)")]).toEqual([153, 12363.55, 143, 0, 0, 43.3]); // sem acordo marcado: 117 de 270 = 43,3% (antes 121 de 270 = 44,8%); pontos e jogadores: ver planilha-guardada.test.ts
+    expect(achar("Etapa 2: 153 resultados com pontuação diferente da regra, afetando 143 jogadores (12.363,55 pontos em discordância).")).toBeDefined();
     expect(txt(rs.getCell(4, 8).value)).toContain(`Identificador ${id.sha256.slice(0, 8)}`);
     expect(rs.pageSetup).toMatchObject({ fitToPage: true, fitToWidth: 1, fitToHeight: 1, orientation: "landscape", paperSize: 9 });
     expect(rs.getImages()).toHaveLength(4); // logo + 3 gráficos
@@ -73,7 +73,7 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(tc.rowCount - 1).toBe(270);
     const cont: Record<string, number> = {};
     for (let i = 2; i <= tc.rowCount; i++) { const s = txt(tc.getCell(i, 15).value); cont[s] = (cont[s] ?? 0) + 1; }
-    expect(cont).toEqual({ Correto: 121, Erro: 149 });
+    expect(cont).toEqual({ Correto: 117, Erro: 153 });
     const categorias = new Set<string>();
     for (let i = 2; i <= tc.rowCount; i++) if (txt(tc.getCell(i, 16).value)) categorias.add(txt(tc.getCell(i, 16).value));
     expect([...categorias]).toEqual(["Participação de flight"]);
@@ -81,16 +81,16 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     const erros = wb.getWorksheet("Erros")!;
     const nomes: string[] = [];
     erros.eachRow((row, i) => { if (i > 1 && typeof row.getCell(4).value === "number") nomes.push(txt(row.getCell(2).value)); });
-    expect(nomes).toHaveLength(23); // a aba Erros lista só as linhas com posição; as 126 sem posição do Dia Final aparecem em Todos os cálculos
-    expect(nomes).not.toContain("Emerson Rocha Sheik"); // o 1º do Dia Final está em acordo detectado e correto
+    expect(nomes).toHaveLength(27); // a aba Erros lista só as linhas com posição (23 + 4 que eram acordo detectado); as 126 sem posição do Dia Final aparecem em Todos os cálculos
+    expect(nomes).toContain("Emerson Rocha Sheik"); // o 1º do Dia Final, sem acordo marcado, é Erro (2.286 contra 3.810)
 
     expect(await termosProibidos(buf, wb)).toEqual([]);
 
     // gráficos: a soma dos dados é a soma da tabela correspondente
     const g = dadosDosGraficos(r);
     const soma = (xs: { valor: number }[]) => Math.round(xs.reduce((a, x) => a + x.valor, 0) * 100) / 100;
-    expect(soma(g.torneios)).toBe(9139.75);
-    expect(soma(g.causas)).toBe(9139.75);
+    expect(soma(g.torneios)).toBe(12363.55);
+    expect(soma(g.causas)).toBe(12363.55);
     const tt = wb.getWorksheet("Torneios")!;
     let porTorneio = 0;
     for (let i = 2; i <= tt.rowCount; i++) porTorneio += Number(tt.getCell(i, 14).value) || 0;

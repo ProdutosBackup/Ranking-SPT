@@ -94,7 +94,7 @@ describe("estrutura da tela travada", () => {
     expect([ACORDO.rotulo, ACORDO.caixa, ACORDO.pergunta, ACORDO.aplicar, ACORDO.remover, ACORDO.confirmar, ACORDO.confirmarSim, ACORDO.confirmarNao], TRAVADA).toEqual([
       "Acordo", "Houve acordo neste torneio", "Pontuam como qual colocação?", "Aplicar", "Remover acordo", "Remover o acordo deste torneio para todos?", "Remover", "Cancelar",
     ]);
-    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286"), ACORDO.marcaAuto(1, 4), ACORDO.torneioAuto(1, 4), ACORDO.causaAuto(1, 4), ACORDO.discorda(4, ACORDO.semAuto)], TRAVADA).toEqual([
+    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286")], TRAVADA).toEqual([
       "De 2 a 63 (premiados do torneio)",
       "Acordo: os 4 primeiros pontuam como 4º colocado",
       "Este torneio tem acordo: os 4 primeiros pontuam como 4º colocado",
@@ -103,10 +103,6 @@ describe("estrutura da tela travada", () => {
       "Acordo: os 4 primeiros, como 4º colocado (informado)",
       "Acordos aplicados: 2 torneio(s)",
       "Acordo: os 4 primeiros pontuam como 4º colocado, 2.286 cada",
-      "Posições 1 a 4, como 4º colocado (detectado automaticamente)",
-      "Acordo: posições 1 a 4, como 4º colocado (detectado automaticamente)",
-      "acordo entre as posições 1 a 4; deveria pontuar como a posição 4",
-      "O acordo informado (os 4 primeiros) é diferente do detectado automaticamente: nenhum acordo detectado",
     ]);
   });
 

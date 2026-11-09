@@ -88,9 +88,15 @@ describe("consistência: o cenário A é o esperado que a auditoria já calcula"
 });
 
 describe("cenário B: fator 0,9 só na faixa de buy-in total até R$ 1.000", () => {
-  it("Main Event (Dia Final, buy-in R$ 0) da Etapa 2: 600 × 3,81 × 1,0 = 2.286 e 600 × 3,81 × 0,9 = 2.057,40", () => {
+  it("Main Event (Dia Final, buy-in R$ 0) da Etapa 2, sem acordo: 1º = 1000 × 3,81 × 1,0 = 3.810 e 1000 × 3,81 × 0,9 = 3.429", () => {
     const l = linha(E2, "Main Event SPT — Dia Final", 1);
-    expect([l.buyIn, l.field, l.base, l.cenarios.A, l.cenarios.B]).toEqual([0, 331, 600, 228600, 205740]);
+    expect([l.buyIn, l.field, l.base, l.cenarios.A, l.cenarios.B]).toEqual([0, 331, 1000, 381000, 342900]);
+  });
+  it("Main Event da Etapa 2 com o acordo K=4 marcado: 600 × 3,81 × 1,0 = 2.286 e 600 × 3,81 × 0,9 = 2.057,40", () => {
+    const { d } = auditados[E2];
+    const final = d.torneios.find((t) => t.role === "FINAL")!;
+    const l = auditar(d, REGRAS_PADRAO, { [final.id]: 4 }).linhas.find((x) => x.torneioId === final.id && x.posicao === 1)!;
+    expect([l.base, l.acordo, l.cenarios.A, l.cenarios.B]).toEqual([600, 4, 228600, 205740]);
   });
   it("EV #3 30K SUPER K.O da Etapa 2 (buy-in 500 + bounty 500 = R$ 1.000): 1000 × 0,94 × 1,0 = 940 e × 0,9 = 846", () => {
     const l = linha(E2, "EV #3 30K SUPER K.O", 1);
@@ -100,12 +106,13 @@ describe("cenário B: fator 0,9 só na faixa de buy-in total até R$ 1.000", () 
     const l = linha(E3, "HORSE", 1);
     expect([l.buyIn, l.field, l.cenarios.A, l.cenarios.B]).toEqual([800, 19, 69000, 62100]);
   });
-  it("torneio de R$ 2.000 não muda (200K OMAHA 5 K.O da Etapa 2: total 3.000, fator 2,5): 800 × 0,84 × 2,5 = 1.680 nos dois", () => {
+  it("torneio de R$ 2.000 não muda (200K OMAHA 5 K.O da Etapa 2: total 3.000, fator 2,5): 1º = 1000 × 0,84 × 2,5 = 2.100 nos dois", () => {
     const l = linha(E2, "EV #2 200K PLO 5 K.O", 1);
-    expect([l.buyInFator, l.cenarios.A, l.cenarios.B]).toEqual([3000, 168000, 168000]);
+    expect([l.buyInFator, l.cenarios.A, l.cenarios.B]).toEqual([3000, 210000, 210000]);
   });
   it("o resto da regra é o mesmo em todos os cenários: acordo (4º colocado), fora da premiação (10 × fatores) e torneio que não pontua", () => {
-    const acordo = linha(E2, "Main Event SPT — Dia Final", 3);
+    const final = auditados[E2].d.torneios.find((t) => t.role === "FINAL")!;
+    const acordo = auditar(auditados[E2].d, REGRAS_PADRAO, { [final.id]: 4 }).linhas.find((x) => x.torneioId === final.id && x.posicao === 3)!; // acordo marcado na mão: K=4
     expect(acordo.acordo).toBe(4);
     expect(acordo.cenarios.B).toBe(Math.round(600 * 3.81 * 0.9 * 100)); // base do 4º × fatores, com 0,9
     const fora = linha(E2, "Main Event SPT — Dia Final", 64);

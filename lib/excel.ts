@@ -9,7 +9,7 @@ import type { auditar } from "./auditoria";
 import { gerarGraficos } from "./graficos-excel";
 import type { identificador } from "./integridade";
 import { montarResposta } from "./painel";
-import { ACORDO, marcaLinha } from "./acordo";
+import { ACORDO } from "./acordo";
 import { CANCELADO } from "./cancelados";
 import { ACOES, PARTICIPACAO } from "./participacao";
 import { REGRAS_PADRAO, VERSAO_REGRAS, type Regras } from "./regras";
@@ -196,7 +196,7 @@ function linhasCalculos(linhas: LinhaAud[], etapa: number | null): Linha[] {
     v: [
       l.jogador, l.torneio, l.posicao, l.semPremio ? "—" : l.prize, l.buyIn, l.field, l.premiados,
       aguarda(l) ? null : l.base, aguarda(l) ? null : l.fatorParticipantes, aguarda(l) ? null : l.fatorBuyIn,
-      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? marcaLinha(l.acordo, l.acordoDe, l.acordoOrigem) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
+      aguarda(l) ? null : conta(l), aguarda(l) ? null : l.esperado, l.registrado, aguarda(l) ? null : l.diferenca, l.rotulo, l.participacao ? PARTICIPACAO.rotulo : "", l.acordo != null ? ACORDO.marca(l.acordo) : l.acordoK != null ? `Torneio com acordo (${ACORDO.marca(l.acordoK).toLowerCase()})` : "", l.hipotese?.texto ?? "",
       ...CEN.map((k) => (aguarda(l) ? null : l.cenarios[k] == null ? INSUFICIENTE : l.cenarios[k]! / 100)), motivoCenarios(l, etapa),
     ],
   }));

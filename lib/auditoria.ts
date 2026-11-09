@@ -1,5 +1,5 @@
 import type { DadosSpt, Torneio } from "./api-spt";
-import { BASES_TABELA, baseDaPosicao, buyInParaFator, calcular, calcularCenario, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
+import { BASES_TABELA, buyInParaFator, calcular, calcularCenario, centDe, fatorBuyIn, fatorParticipantes, fb100, fieldQueReproduz } from "./calculo";
 import { ACORDO } from "./acordo";
 import { CANCELADO, chaveCancelamento } from "./cancelados";
 import { PARTICIPACAO } from "./participacao";
@@ -48,37 +48,6 @@ export const motivoNaoPontua = (nome: string): "Satélite" | "Ladies" | "All in 
   const n = nome.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/\s+/g, " ");
   return /satelite/.test(n) ? "Satélite" : /\bladies\b/.test(n) ? "Ladies" : /\ball in or fold\b/.test(n) ? "All in or Fold" : null;
 };
-
-/** Grupo de posições consecutivas e diferentes (de..ate) que pontuaram igual: acordo detectado. `cent`: a pontuação registrada de todas (centésimos). */
-export type GrupoAcordo = { de: number; ate: number; cent: number };
-
-/**
- * Detecta acordos num torneio. `linhas`: posição e pontos registrados (centésimos) de cada resultado que pontua e está dentro dos premiados.
- * Acordo = posições CONSECUTIVAS e DIFERENTES (de..ate, ate > de), todas com a mesma pontuação (tolerância de 0,01) e com bases da tabela NÃO todas iguais.
- * Não é acordo: a mesma posição repetida (eliminação simultânea) nem posições que compartilham a base (10º a 12º, 13º a 18º, depois do 18º).
- */
-export function detectarAcordos(linhas: { posicao: number; cent: number }[], regras: Regras): GrupoAcordo[] {
-  const porPosicao = new Map<number, number[]>();
-  for (const l of linhas) (porPosicao.get(l.posicao) ?? porPosicao.set(l.posicao, []).get(l.posicao)!).push(l.cent);
-  const posicoes = [...porPosicao.keys()].sort((a, b) => a - b);
-  const grupos: GrupoAcordo[] = [];
-  let atual: GrupoAcordo | null = null;
-  const fecha = () => {
-    if (atual && atual.ate > atual.de && new Set(Array.from({ length: atual.ate - atual.de + 1 }, (_, i) => baseDaPosicao(atual!.de + i))).size > 1) grupos.push(atual);
-    atual = null;
-  };
-  for (const p of posicoes) {
-    const v = porPosicao.get(p)!;
-    const uniforme = v.every((x) => Math.abs(x - v[0]) <= 1); // os resultados de uma mesma posição têm de pontuar igual
-    if (atual && uniforme && p === atual.ate + 1 && Math.abs(v[0] - atual.cent) <= 1) atual.ate = p;
-    else {
-      fecha();
-      if (uniforme) atual = { de: p, ate: p, cent: v[0] };
-    }
-  }
-  fecha();
-  return grupos;
-}
 
 /**
  * `acordos`: `torneioId → K`. Num torneio com acordo, os jogadores das posições 1 a K pontuam todos como o Kº colocado:
@@ -149,8 +118,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
   const acordoDe = (t: Torneio): number | null => (acordos[t.id] >= 2 ? acordos[t.id] : null);
 
   // Passo 1: cada linha calculada com os inscritos da API (ou a soma dos flights, no Dia Final).
-  // `auto`: acordos detectados por torneio. A primeira rodada (sem eles) só serve para saber quais linhas pontuam; a segunda aplica os acordos.
-  const calcPre = (auto: Map<string, GrupoAcordo[]>) => d.jogadores.flatMap((j) =>
+  const pre = d.jogadores.flatMap((j) =>
     j.resultados.map((r) => {
       const t = torneios.get(r.tournamentId)!;
       const ctx = contexto(t);
@@ -196,19 +164,9 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       const c0 = motivoPendente || part
         ? calcular({ ...entrada, posicao: null, prize: null }, regras)
         : calcular(entrada, regras);
-      // Acordo (não vale para satélite, flight nem pendente). Informado (K salvo): as posições 1 a K pontuam como o Kº colocado, e vale no lugar do
-      // automático. Sem K salvo: o grupo de posições que pontuaram igual (detectarAcordos) pontua como a última posição do grupo.
+      // Acordo marcado na mão (não vale para satélite, flight nem pendente): as posições 1 a K pontuam como o Kº colocado.
       const tAcordo = acordoDe(t);
-      let grupo: { de: number; ate: number; origem: "informado" | "automatico" } | null = null;
-      if (!sat && !part && !motivoPendente && r.position != null) {
-        const pos = r.position;
-        if (tAcordo != null) grupo = pos <= tAcordo ? { de: 1, ate: tAcordo, origem: "informado" } : null;
-        else {
-          const g = (auto.get(t.id) ?? []).find((x) => pos >= x.de && pos <= x.ate);
-          if (g) grupo = { de: g.de, ate: g.ate, origem: "automatico" };
-        }
-      }
-      const acordo = grupo?.ate ?? null;
+      const acordo = tAcordo != null && !sat && !part && !motivoPendente && r.position != null && r.position <= tAcordo ? tAcordo : null;
       const c = sat
         ? { ...c0, itm: false, base: 0, conta: zero!.conta, esperado: 0, esperadoCent: 0 }
         : acordo != null
@@ -223,18 +181,9 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         (r.position == null && r.prize != null && r.prize > 0) ||
         // prêmio em posição além do número de premiados: a posição ou o prêmio estão errados
         (r.position != null && r.position > ctx.premiados && r.prize != null && r.prize > 0));
-      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, zero, motivoNP, part, acordo, grupo, tAcordo };
+      return { j, r, t, ctx, entrada, motivoPendente, pendencia, c, fixo, suspeito, sat, zero, motivoNP, part, acordo, tAcordo };
     }),
   );
-  const pre0 = calcPre(new Map());
-  // Acordos detectados: só entre as linhas que pontuam (sem pendência, satélite nem participação) e dentro dos premiados.
-  const acordosAuto = new Map<string, GrupoAcordo[]>();
-  for (const t of d.torneios) {
-    const ls = pre0.filter((p) => p.t.id === t.id && !p.motivoPendente && !p.sat && !p.part && p.r.position != null && p.r.position <= p.ctx.premiados);
-    const g = detectarAcordos(ls.map((p) => ({ posicao: p.r.position as number, cent: centDe(p.r.points) })), regras);
-    if (g.length) acordosAuto.set(t.id, g);
-  }
-  const pre = acordosAuto.size ? calcPre(acordosAuto) : pre0;
 
   // Passo 2: por torneio, o inteiro de inscritos que reproduz mais linhas não pendentes (em centésimos exatos).
   const deducao = new Map<string, { melhor: Candidato | null; achado: Achado | null }>();
@@ -258,7 +207,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
 
   // Passo 3: classificação final. Linhas explicadas por um achado são recalculadas com os inscritos do site.
   const linhas = pre.map((p) => {
-    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, zero, motivoNP, part, acordo, grupo, tAcordo } = p;
+    const { j, r, t, ctx, motivoPendente, pendencia, fixo, suspeito, sat, zero, motivoNP, part, acordo, tAcordo } = p;
     const achado = deducao.get(t.id)!.achado;
     const explicada = achado != null && !motivoPendente && !fixo;
     const field = explicada ? achado.fieldSite : ctx.field;
@@ -314,7 +263,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         causa = "Posição e prêmio não concordam";
       } else if (acordo != null) {
         causaCodigo = "ACORDO";
-        causa = grupo!.origem === "automatico" ? ACORDO.causaAuto(grupo!.de, grupo!.ate) : ACORDO.causa(acordo, String(c.esperado).replace(".", ","));
+        causa = ACORDO.causa(acordo, String(c.esperado).replace(".", ","));
       } else if (part) {
         causaCodigo = "PARTICIPACAO";
         causa = PARTICIPACAO.causa;
@@ -393,10 +342,6 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       canceladoUsuario: sat && zero!.codigo === "CANCELADO_USUARIO",
       /** K do acordo, nas linhas das posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
       acordo,
-      /** Primeira posição do acordo (a linha pontua como a última, `acordo`): 1 no informado; no automático, o começo do grupo. */
-      acordoDe: grupo?.de ?? null,
-      /** Como o acordo foi achado: informado (K salvo) ou detectado automaticamente. */
-      acordoOrigem: grupo?.origem ?? null,
       /** K do acordo do torneio (em todas as linhas dele, também fora das posições 1 a K). */
       acordoK: tAcordo,
       inverso,
@@ -424,10 +369,6 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
       /** Chave do torneio nos cancelamentos (o ID do site, ou o nome normalizado na planilha) e se o usuário o marcou como cancelado. */
       chaveCancelamento: chaveDe(t),
       cancelado: canceladoPeloUsuario(t),
-      /** Acordos detectados automaticamente neste torneio (mesmo quando há um informado, que vale no lugar). */
-      acordosAuto: (acordosAuto.get(t.id) ?? []).map((g) => ({ de: g.de, ate: g.ate, pontos: g.cent / 100 })),
-      /** Há K informado e o automático discorda (não achou o mesmo grupo 1 a K). */
-      acordoDiscorda: acordoDe(t) != null && !((acordosAuto.get(t.id) ?? []).length === 1 && acordosAuto.get(t.id)![0].de === 1 && acordosAuto.get(t.id)![0].ate === acordoDe(t)),
       fatorTotalEsperado: arred(fatorParticipantes(ctx.field) * fatorBuyIn(ctx.buyInFator, regras)),
       fieldDeduzido: melhor?.field ?? null,
       fieldBateu: melhor ? melhor.field === ctx.field : null,
@@ -457,7 +398,5 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     };
   });
 
-  // Lista dos acordos detectados (e dos informados que o automático não confirma), para o relatório.
-  const detectados = resumoTorneios.flatMap((t) => t.acordosAuto.map((g) => ({ torneioId: t.torneioId, torneio: t.torneio, de: g.de, ate: g.ate, pontos: g.pontos, informado: t.acordo, discorda: t.acordoDiscorda })));
-  return { resumo, torneios: resumoTorneios, linhas, somas, acordosDetectados: detectados, acordos: Object.fromEntries(d.torneios.map((t) => [t.id, acordoDe(t)]).filter(([, k]) => k != null)) as Record<string, number> };
+  return { resumo, torneios: resumoTorneios, linhas, somas, acordos: Object.fromEntries(d.torneios.map((t) => [t.id, acordoDe(t)]).filter(([, k]) => k != null)) as Record<string, number> };
 }

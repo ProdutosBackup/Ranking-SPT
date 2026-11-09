@@ -228,12 +228,12 @@ describe("Etapas 1 e 2 não mudam", () => {
   // As Etapas 1 e 2 só consultam se há planilha de ações (não há); nada é gravado nem removido.
   const semArmazenamento: Armazenamento = { salvar: proibido, ler: async () => null, estado: async () => null, remover: proibido };
 
-  it("Etapa 2: 149 erros, sem planilha de ações e sem gravar nada", async () => {
+  it("Etapa 2: 153 erros, sem planilha de ações e sem gravar nada", async () => {
     trocarArmazenamento(semArmazenamento);
     const { stage, dados, aud, regras, id } = await auditoria("vale-suico-2026");
     const r = montarResposta(stage, dados, regras, aud, id);
     const ind = r.painel.indicadores;
-    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([149, 9139.75, 140, 0]);
+    expect([ind.erros, ind.pontosEmDiscordancia, ind.jogadoresAfetados, (aud.resumo as unknown as Record<string, number>).PENDENTE_REGRA]).toEqual([153, 12363.55, 143, 0]); // jogadores: 140 + 4 (Dia Final 1º a 3º e EV #6 1º) − 1 (o 2º do Dia Final já errava no EV #2) = 143; pontos: 9.139,75 + 2.667 (Dia Final 1º a 3º: 1.524 + 762 + 381) + 136,80 (EV #6 1º) + 420 (EV #2 1º: 2.100 em vez de 1.680) = 12.363,55
     expect(r.origem).toEqual({ tipo: "site" });
   });
 
