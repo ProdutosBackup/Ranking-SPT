@@ -143,18 +143,25 @@ describe("Relatório: aba Consolidado", () => {
     const rb = por("Rafael Bryan")!;
     expect([rb.getCell(3).value, rb.getCell(8).value, rb.getCell(13).value]).toEqual([9732.55, 10061.25, 9608.38]); // publicado, A e B
     expect(txt(rb.getCell(27).value).split("\n")).toEqual([
-      "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (6 linhas)",
-      "Etapa 2: reentradas não disponíveis: falta o Excel da etapa (4 linhas)",
-      "Etapa 3: reentradas não disponíveis: falta o Excel da etapa (1 linha)",
+      // Etapa 1: 6 linhas, 1 do Main Event (Final Main Event) e 5 comuns; Etapa 2: 4 linhas, 1 do Main Event (Dia Final) e 3 comuns; Etapa 3: só o Dia Final.
+      // A ordem é a da primeira linha de cada motivo (a primeira linha dele nas Etapas 1 e 2 é um torneio comum).
+      "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (5 linhas)",
+      "Etapa 1: dado ausente: a Etapa 1 foi operada fora do Stack Plus e não traz as reentradas do Main Event (1 linha)",
+      "Etapa 2: reentradas não disponíveis: falta o Excel da etapa (3 linhas)",
+      "Etapa 2: reentradas não disponíveis: falta a planilha de participantes do Main Event (1 linha)",
+      "Etapa 3: reentradas não disponíveis: falta a planilha de participantes do Main Event (1 linha)",
     ]);
     const ab = por("Abilio Moço Vieira Neto")!;
     expect(txt(ab.getCell(27).value).split("\n")).toEqual([
-      "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (6 linhas)", // 2.7: a linha do Dia Final dele passou a contar (sem ações)
-      "Etapa 2: reentradas não disponíveis: falta o Excel da etapa (2 linhas)",
+      // Etapa 1: 6 linhas, 2 do Main Event (Dia 1A, que vem primeiro, e Final Main Event) e 4 comuns; Etapa 2: 2 linhas, 1 do Main Event (Dia Final, sem posição) e 1 comum.
+      "Etapa 1: dado ausente: a Etapa 1 foi operada fora do Stack Plus e não traz as reentradas do Main Event (2 linhas)",
+      "Etapa 1: reentradas não disponíveis: falta o Excel da etapa (4 linhas)",
+      "Etapa 2: reentradas não disponíveis: falta o Excel da etapa (1 linha)",
+      "Etapa 2: reentradas não disponíveis: falta a planilha de participantes do Main Event (1 linha)",
     ]);
     expect([ab.getCell(18).value, ab.getCell(21).value, ab.getCell(26).value]).toEqual(["Dados insuficientes", 584.4, 535.67]); // C acumulado sem dados; sem Dia Final na Etapa 3, C e D por etapa têm valor
     const ad = por("Adrian Moro Moz")!;
-    expect(txt(ad.getCell(27).value)).toBe("Etapa 3: reentradas não disponíveis: falta o Excel da etapa (1 linha)");
+    expect(txt(ad.getCell(27).value)).toBe("Etapa 3: reentradas não disponíveis: falta a planilha de participantes do Main Event (1 linha)"); // só jogou o Dia Final da Etapa 3
     expect([ad.getCell(4).value, ad.getCell(5).value, ad.getCell(6).value]).toEqual([null, null, 758]); // só jogou a Etapa 3
     expect(c.jogadores.find((j) => j.nome === "Adrian Moro Moz")!.cenarios.A.porEtapa.map((x) => x?.cent ?? null)).toEqual([null, null, 99655]);
   });

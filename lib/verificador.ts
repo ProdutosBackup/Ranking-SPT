@@ -44,8 +44,6 @@ type Linha = {
   pendencia: string | null;
   participacao: boolean;
   acordo: unknown | null;
-  acordoDe?: unknown | null;
-  acordoOrigem?: unknown | null;
   canceladoUsuario?: unknown;
   cenarios?: Record<string, number | null>;
   cenariosMotivo?: string | null;
@@ -56,7 +54,6 @@ type TorneioMotor = {
   fieldDeduzido: number | null;
   melhorCandidato: { field: number; linhas: number; de: number } | null;
   achado: { fieldApi: number; fieldSite: number; diferenca: number; linhasExplicadas: number } | null;
-  acordosAuto?: { de: number; ate: number; pontos: number }[];
 };
 /** Buy-in que escolhe o fator: o total (buy-in + bounty) em todo torneio com bounty; sem bounty, só o buy-in. Escrito aqui, sem importar o motor; exportado só para o teste. */
 export const buyInTotalVerificador = (t: { buyIn: number; bountyType?: string | null; bountyAmount?: number | null }): number =>
@@ -85,13 +82,14 @@ export type Divergencia = { jogador: string; torneio: string; posicao: number | 
 
 type Bruta = {
   ji: number; flight: boolean; final: boolean; npNome: boolean; jogador: string; torneioId: string; pos: number | null; np: number; field: number; buyIn: number; f100: number;
-  base: number; bif: number; entradas: number; acoes: number | null; canc: boolean; satelite: boolean; particip: boolean; acordo: boolean; acDe: number | null; acAte: number | null; acOrigem: string | null; acCent: number; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
+  base: number; bif: number; entradas: number; acoes: number | null; canc: boolean; satelite: boolean; particip: boolean; acordo: boolean; acAte: number | null; acCent: number; pendente: boolean; motivo: string | null; fixo: boolean; itm: boolean; suspeito: boolean; reg: number; prize: number | null;
 };
 
 export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneiosMotor: TorneioMotor[], acordos: Record<string, number> = {}, cancelados: string[] = []): Divergencia[] {
   // Participantes do Main Event: soma das entradas (players) dos flights. Cada linha do Main Event vale por si: o primeiro flight do jogador é participação
   // (10 × fatores), os outros flights valem 0, e o Dia Final é avaliado pela própria posição [usuário, 06/11/2026].
   const campoMain = CAMPO_MAIN_EVENT[d.stage] ?? d.torneios.filter(ehFlightV).reduce((a, t) => a + t.players, 0); // Etapa 1: 334 informado pelo usuário
+  const acoesMain = CAMPO_MAIN_EVENT[d.stage] == null && typeof d.acoesMainEvent === "number" && d.acoesMainEvent > 0 ? d.acoesMainEvent : null; // C e D do Main Event: total da planilha (Etapas 2 e 3)
   const primeiro = new Map<unknown, string>();
   for (const j of d.jogadores) {
     let melhor: (typeof d.torneios)[number] | null = null;
@@ -153,54 +151,17 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const baseDe = (p: number) => (p <= 18 ? TABELA[p] : 100);
       // Acordo: as posições 1 a K pontuam como o Kº colocado (a base da colocação K com os fatores normais), reescrito aqui.
       const acK = acordos[t.id] ?? 0;
-      const acordo = acK >= 2 && !satelite && !particip && !pendente && pos != null && pos <= acK; // o automático entra depois do laço
+      const acordo = acK >= 2 && !satelite && !particip && !pendente && pos != null && pos <= acK;
       const base = satelite ? 0 : acordo ? baseDe(acK) : itm ? baseDe(pos!) : 10;
       const f100 = fatorBuyIn100(buyInFator, regras.fatorFaixaAte1000);
       const acCent = acordo ? centavos(base, field, f100) : 0;
       const comPremio = r.prize != null && r.prize > 0;
       const suspeito = !daPlanilha && !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
-        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && campoMain > 0 ? campoMain : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acDe: acordo ? 1 : null, acAte: acordo ? acK : null, acOrigem: acordo ? "informado" : null, acCent, pendente, motivo, itm, suspeito,
+        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && campoMain > 0 ? campoMain : t.players, acoes: final || flight ? acoesMain : acoes, canc, satelite, particip, acordo, acAte: acordo ? acK : null, acCent, pendente, motivo, itm, suspeito,
         fixo: satelite || acordo || (particip && !pendente), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }
-
-  // Acordo detectado automaticamente, reescrito aqui: posições consecutivas e diferentes, dentro dos premiados, que pontuaram igual (±0,01) e cujas
-  // bases da tabela não são todas iguais. Mesma posição repetida e posições de mesma base não são acordo. Onde há K informado, o informado vale.
-  const baseV = (p: number) => (p <= 18 ? TABELA[p] : 100);
-  const detectados = new Map<string, { de: number; ate: number; cent: number }[]>();
-  for (const t of d.torneios) {
-    const alvo = brutas.filter((b) => b.torneioId === t.id && !b.pendente && !b.satelite && !b.particip && b.pos != null && b.pos <= b.np);
-    const posicoes = [...new Set(alvo.map((b) => b.pos as number))].sort((a, b) => a - b);
-    const achados: { de: number; ate: number; cent: number }[] = [];
-    let corrente: { de: number; ate: number; cent: number } | null = null;
-    const encerra = () => {
-      if (corrente && corrente.ate > corrente.de) {
-        const bases = new Set<number>();
-        for (let p = corrente.de; p <= corrente.ate; p++) bases.add(baseV(p));
-        if (bases.size > 1) achados.push(corrente);
-      }
-      corrente = null;
-    };
-    for (const p of posicoes) {
-      const pts = alvo.filter((b) => b.pos === p).map((b) => b.reg);
-      const igual = Math.max(...pts) - Math.min(...pts) <= 1;
-      if (corrente && igual && p === corrente.ate + 1 && Math.abs(pts[0] - corrente.cent) <= 1) corrente.ate = p;
-      else {
-        encerra();
-        if (igual) corrente = { de: p, ate: p, cent: pts[0] };
-      }
-    }
-    encerra();
-    if (achados.length) detectados.set(t.id, achados);
-    if (!((acordos[t.id] ?? 0) >= 2))
-      for (const b of alvo)
-        for (const g of achados)
-          if (b.pos! >= g.de && b.pos! <= g.ate) {
-            b.acordo = true; b.acDe = g.de; b.acAte = g.ate; b.acOrigem = "automatico";
-            b.base = baseV(g.ate); b.fixo = true; b.acCent = centavos(b.base, b.field, b.f100);
-          }
-  }
 
   // Dedução por torneio: testa cada inteiro de inscritos de 1 a MAX e conta as linhas que ele reproduz.
   const div: Divergencia[] = [];
@@ -228,7 +189,6 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     cmp("linhas que reproduzem", m.melhorCandidato?.linhas ?? null, melhorN > 0 ? melhorN : null);
     cmp("linhas não pendentes", m.melhorCandidato?.de ?? null, melhorN > 0 ? ls.length : null);
     cmp("divergência de inscritos", m.achado != null, achado);
-    cmp("acordos detectados", JSON.stringify(m.acordosAuto ?? []), JSON.stringify((detectados.get(t.id) ?? []).map((g) => ({ de: g.de, ate: g.ate, pontos: g.cent / 100 }))));
     if (achado && m.achado) {
       cmp("inscritos do site", m.achado.fieldSite, melhorF);
       cmp("inscritos da API", m.achado.fieldApi, usado);
@@ -269,13 +229,13 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     const esperado: Record<string, unknown> = {
       jogador: b.jogador, torneioId: b.torneioId, field, buyIn: b.buyIn, premiados: b.np, base: b.base,
       fatorParticipantes: field * 100 + 5000, fatorBuyIn: b.f100, esperadoCent: cent, registradoCent: b.reg,
-      diferenca: dif, situacao, pendencia: b.motivo, participacao: b.particip, canceladoUsuario: b.canc, acordo: b.acAte, acordoDe: b.acDe, acordoOrigem: b.acOrigem,
-      cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C == null ? (b.acoes == null && d.torneios.find((x) => x.id === b.torneioId)?.acoesMotivo) || "reentradas não disponíveis: falta o Excel da etapa" : null, acoesCampo: b.acoes,
+      diferenca: dif, situacao, pendencia: b.motivo, participacao: b.particip, canceladoUsuario: b.canc, acordo: b.acAte,
+      cenarioA: cenV4.A, cenarioB: cenV4.B, cenarioC: cenV4.C, cenarioD: cenV4.D, cenariosMotivo: cenV4.C != null ? null : b.final || b.flight ? (CAMPO_MAIN_EVENT[d.stage] != null ? "dado ausente: a Etapa 1 foi operada fora do Stack Plus e não traz as reentradas do Main Event" : "reentradas não disponíveis: falta a planilha de participantes do Main Event") : (b.acoes == null && d.torneios.find((x) => x.id === b.torneioId)?.acoesMotivo) || "reentradas não disponíveis: falta o Excel da etapa", acoesCampo: b.acoes,
     };
     const motor: Record<string, unknown> = {
       jogador: l.jogador, torneioId: l.torneioId, field: l.field, buyIn: l.buyIn, premiados: l.premiados, base: l.base,
       fatorParticipantes: Math.round(l.fatorParticipantes * 10000), fatorBuyIn: Math.round(l.fatorBuyIn * 100),
-      esperadoCent: l.esperadoCent, registradoCent: l.registradoCent, diferenca: Math.round(l.diferenca * 100), situacao: l.situacao, pendencia: l.pendencia, participacao: l.participacao, canceladoUsuario: l.canceladoUsuario ?? false, acordo: l.acordo ?? null, acordoDe: l.acordoDe ?? null, acordoOrigem: l.acordoOrigem ?? null,
+      esperadoCent: l.esperadoCent, registradoCent: l.registradoCent, diferenca: Math.round(l.diferenca * 100), situacao: l.situacao, pendencia: l.pendencia, participacao: l.participacao, canceladoUsuario: l.canceladoUsuario ?? false, acordo: l.acordo ?? null,
       cenarioA: l.cenarios?.A ?? null, cenarioB: l.cenarios?.B ?? null, cenarioC: l.cenarios?.C ?? null, cenarioD: l.cenarios?.D ?? null, cenariosMotivo: l.cenariosMotivo ?? null, acoesCampo: l.acoesCampo ?? null,
     };
     for (const campo of Object.keys(esperado))

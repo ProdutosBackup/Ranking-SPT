@@ -63,6 +63,7 @@ export const BARRA = {
   auditar: "Auditar etapa",
   mais: "Mais",
   enviar: "Enviar planilha",
+  enviarParticipantes: "Enviar participantes do Main Event",
   baixar: "Baixar relatório",
   exportar: "Exportar dados",
   confianca: "Faixa de confiança",
@@ -87,6 +88,16 @@ export const PLANILHA_ITENS = Object.values(PLANILHA);
 export const TEXTOS_ACOES = {
   guardada: (etapa: number, abas: number, casadas: number) => `Planilha da ${etapa}ª Etapa guardada: ${abas} abas lidas, ${casadas} casadas`,
   semCasamento: (nomes: string[]) => `Sem casamento: ${nomes.slice(0, 5).join("; ")}${nomes.length > 5 ? ` e mais ${nomes.length - 5}` : ""}`,
+} as const;
+/**
+ * Envio da planilha de participantes do Main Event (item acrescentado com autorização do usuário em 09/11/2026): o item "Enviar participantes do Main Event"
+ * fica em BARRA, no menu "Mais"; o arquivo vai para /api/participantes-main-event, que guarda só os totais por etapa. Mensagens do envio, nos parágrafos de
+ * status que o envio de planilha já usa.
+ */
+export const PARTICIPANTES = {
+  guardados: (entradas2: number, entradas3: number) =>
+    `Participantes do Main Event guardados: Etapa 2 com ${entradas2.toLocaleString("pt-BR")} entradas e Etapa 3 com ${entradas3.toLocaleString("pt-BR")} entradas. A Etapa 1 continua com o campo informado.`,
+  falhou: "Não foi possível enviar a planilha de participantes. Tente novamente.",
 } as const;
 /** Textos que mudam quando a origem dos dados é uma planilha. */
 export const TEXTOS_PLANILHA = {

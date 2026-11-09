@@ -244,13 +244,26 @@ describe("integração com o motor", () => {
 
   it("regra padrão (10 × fatores), Dia Final com 328: 276 erros (3 campeões + 273 linhas de 10 fixos)", () => {
     const aud = rodar(CAMPO_FINAL(base, 328));
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 127, ERRO: 292 + 135, PENDENTE_REGRA: 0 });
+    // Sem acordo marcado (VERSAO_REGRAS 2.10): 124 corretos e 430 erros. Antes (acordo detectado): 127 e 427. Os 3 que mudam são 1º lugares com 2 posições empatadas em pontos.
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 124, ERRO: 295 + 135, PENDENTE_REGRA: 0 });
     expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273 + 135);
+  });
+
+  it("sem acordo marcado, o 1º lugar com pontuação de acordo é Erro e o 2º continua Correto (SUPER K.O, HIGH ROLLER 50K, CHAMPIONSHIP HIGH ROLLER 200K)", () => {
+    const aud = rodar(CAMPO_FINAL(base, 328));
+    // esperado do 1º: base 1000 × fatores; o site pagou a base do 2º colocado (800 × fatores) aos dois
+    for (const [torneio, esperado1, registrado] of [["SUPER K.O", 840, 672], ["HIGH ROLLER 50K", 1215, 972], ["CHAMPIONSHIP HIGH ROLLER 200K", 2875, 2300]] as const) {
+      const um = aud.linhas.find((l) => l.torneio === torneio && l.posicao === 1)!;
+      const dois = aud.linhas.find((l) => l.torneio === torneio && l.posicao === 2)!;
+      expect([um.registrado, um.esperado, um.situacao, um.acordo]).toEqual([registrado, esperado1, "ERRO", null]);
+      expect([dois.registrado, dois.esperado, dois.situacao, dois.acordo]).toEqual([registrado, registrado, "CORRETO", null]);
+      expect(esperado1 / 1000).toBeCloseTo(registrado / 800, 10); // mesmo fator de participantes × buy-in: 1º = 1000 × f, 2º = 800 × f
+    }
   });
 
   it("regra padrão com os inscritos da planilha (79): as 64 linhas premiadas do Dia Final também erram", () => {
     const aud = rodar(base);
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 63, CORRETO_SITE: 0, ERRO: 356 + 135, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 60, CORRETO_SITE: 0, ERRO: 359 + 135, PENDENTE_REGRA: 0 }); // os mesmos 3 primeiros lugares a mais em Erro
     const final = aud.linhas.filter((l) => l.torneio.includes("Dia Final") && l.situacao === "ERRO" && l.registrado !== 10);
     expect(final).toHaveLength(64);
     expect(final.every((l) => /328 inscritos/.test(l.causaProvavel ?? ""))).toBe(true);

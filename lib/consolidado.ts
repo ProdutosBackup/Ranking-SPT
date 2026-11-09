@@ -15,7 +15,7 @@ const MOTIVO_SEM_CENARIO = "cenário não calculado para esta linha";
  * Uma linha de resultado já auditada. `esperadoCent`: pontos corretos (do motor) em centésimos.
  * `registradoCent`: os pontos publicados (no site, ou na planilha da Etapa 3). `cenarios`: o esperado nos 4 cenários A a D em centésimos, ou null onde não existe (`cenariosMotivo` diz por quê).
  */
-export type LinhaConsolidado = { jogador: string; posicao: number | null; esperadoCent: number; aguarda: boolean; participacao?: boolean; registradoCent?: number; cenarios?: Partial<Record<Cenario, number | null>>; cenariosMotivo?: string | null; /** Em acordo (detectado ou informado): não conta como 1º lugar no desempate. */ acordo?: boolean };
+export type LinhaConsolidado = { jogador: string; posicao: number | null; esperadoCent: number; aguarda: boolean; participacao?: boolean; registradoCent?: number; cenarios?: Partial<Record<Cenario, number | null>>; cenariosMotivo?: string | null; /** Em acordo (marcado na mão): não conta como 1º lugar no desempate. */ acordo?: boolean };
 export type EtapaConsolidado = {
   numero: number;
   jogadores: { nome: string; id?: string | null }[];

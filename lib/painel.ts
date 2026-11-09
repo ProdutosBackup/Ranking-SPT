@@ -116,7 +116,7 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
       case "SATELITE":
         return { texto: `${l.naoPontua ?? "Satélite"} com pontos registrados`, conta: null };
       case "ACORDO":
-        return { texto: l.acordoOrigem === "automatico" ? l.causaProvavel : ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
+        return { texto: ACORDO.causa(l.acordo ?? 0, n(l.esperado)), conta: null };
       case "PARTICIPACAO":
         return { texto: l.causaProvavel, conta: null };
       case "FLIGHT_ZERO":
@@ -241,8 +241,8 @@ export function montarResposta(stage: string, dados: DadosSpt, regras: Regras, a
     /** Cancelamento: a chave do torneio (para a rota) e se o usuário o marcou como cancelado. */
     chaveCancelamento: x.chaveCancelamento as string,
     cancelado: (x as unknown as { cancelado: boolean }).cancelado,
-    /** Texto do acordo do torneio: informado, detectado automaticamente, ou o informado com o aviso de que o automático discorda. */
-    acordoTexto: textoAcordoTorneio((x.acordo as number | null) ?? null, (x.acordosAuto as unknown as { de: number; ate: number }[]) ?? [], (x as unknown as { acordoDiscorda: boolean }).acordoDiscorda),
+    /** Texto do acordo do torneio (o K marcado na mão); null se não há. */
+    acordoTexto: textoAcordoTorneio((x.acordo as number | null) ?? null),
     comPosicao: x.comPosicao as number,
     participacao: x.participacao as number,
     corretos: (x.CORRETO as number) + (x.CORRETO_SITE as number),
