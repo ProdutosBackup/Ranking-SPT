@@ -9,7 +9,7 @@ export type Regras = {
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "2.10";
+export const VERSAO_REGRAS = "2.11";
 
 /**
  * Participantes do Main Event informados pelo usuário, por etapa; valem para todas as linhas do Main Event (flights e Dia Final).

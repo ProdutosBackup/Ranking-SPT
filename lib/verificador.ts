@@ -89,6 +89,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
   // Participantes do Main Event: soma das entradas (players) dos flights. Cada linha do Main Event vale por si: o primeiro flight do jogador é participação
   // (10 × fatores), os outros flights valem 0, e o Dia Final é avaliado pela própria posição [usuário, 06/11/2026].
   const campoMain = CAMPO_MAIN_EVENT[d.stage] ?? d.torneios.filter(ehFlightV).reduce((a, t) => a + t.players, 0); // Etapa 1: 334 informado pelo usuário
+  const acoesMain = CAMPO_MAIN_EVENT[d.stage] == null && typeof d.acoesMainEvent === "number" && d.acoesMainEvent > 0 ? d.acoesMainEvent : null; // C e D do Main Event: total da planilha (Etapas 2 e 3)
   const primeiro = new Map<unknown, string>();
   for (const j of d.jogadores) {
     let melhor: (typeof d.torneios)[number] | null = null;
@@ -157,7 +158,7 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
       const comPremio = r.prize != null && r.prize > 0;
       const suspeito = !daPlanilha && !satelite && !particip && ((pos != null && pos <= np && !comPremio) || (pos == null && comPremio) || (pos != null && pos > np && comPremio));
       brutas.push({
-        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && campoMain > 0 ? campoMain : t.players, acoes: final || flight ? null : acoes, canc, satelite, particip, acordo, acAte: acordo ? acK : null, acCent, pendente, motivo, itm, suspeito,
+        ji: indiceJ.get(j)!, flight, final, npNome: naoPontuaVerificador(t.name), jogador: j.name, torneioId: t.id, pos, np, field, buyIn, f100, base, bif: buyInFator, entradas: (final || flight) && campoMain > 0 ? campoMain : t.players, acoes: final || flight ? acoesMain : acoes, canc, satelite, particip, acordo, acAte: acordo ? acK : null, acCent, pendente, motivo, itm, suspeito,
         fixo: satelite || acordo || (particip && !pendente), reg: Math.round(r.points * 100), prize: r.prize,
       });
     }

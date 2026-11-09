@@ -6,6 +6,7 @@ import { assinaturaCancelados, canceladosDaEtapa, lerCancelados } from "./cancel
 import { buscar, guardar, lerCompartilhado } from "./cache";
 import { auditar } from "./auditoria";
 import { conferir, ErroAuditoria, identificador } from "./integridade";
+import { lerParticipantes } from "./participantes-armazenamento";
 import { lerAcoes, mesclarAcoes } from "./planilha-acoes";
 import { dadosDaPlanilha, lerRegistro } from "./planilha-guardada";
 import { lerRegras } from "./regras";
@@ -35,7 +36,10 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
   const registro = stage === ETAPA_PLANILHA ? await lerRegistro() : null;
   // Etapas 1 e 2: a planilha (se houver) só traz os buy-ins e re-entries; o hash dela entra na chave do cache.
   const registroAcoes = stage !== ETAPA_PLANILHA ? await lerRegistro(stage) : null;
-  const sufixoAcoes = registroAcoes ? `|acoes:${registroAcoes.sha256}` : "";
+  // Etapas 2 e 3: os totais da planilha de participantes do Main Event (entradas + reentradas) são o campo de C e D nas linhas do Main Event. Sem totais, nada muda.
+  const numEtapa = stage === "vale-suico-2026" ? 2 : stage === ETAPA_PLANILHA ? 3 : null;
+  const participantes = numEtapa ? await lerParticipantes() : null;
+  const sufixoAcoes = (registroAcoes ? `|acoes:${registroAcoes.sha256}` : "") + (participantes ? `|participantes:${participantes.chave}` : "");
   const guardado = idPedido ? buscar(stage, idPedido, regras, (registro ? `planilha:${registro.sha256}` : "site") + sufixoAcoes + sufixo) : null;
   if (guardado) return { ...guardado, mudou: false };
   let dados;
@@ -52,6 +56,7 @@ export async function executar(request: Request, onProgresso?: (feito: number, t
     if (acoes && !acoes.ok) throw new ErroExtracao(`A planilha guardada da etapa não pôde ser lida: ${acoes.erros.join(" ")}`);
     if (acoes) dados = mesclarAcoes(dados, acoes).dados;
   }
+  if (numEtapa && participantes) dados = { ...dados, acoesMainEvent: participantes.totais[numEtapa].entradas };
   const aud = auditar(dados, regras, acordos, cancelados);
   conferir(dados, regras, aud, acordos, cancelados);
   const id = identificador(dados, acordos, cancelados);

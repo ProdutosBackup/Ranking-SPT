@@ -65,6 +65,8 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
   // Etapa com o número informado pelo usuário (CAMPO_MAIN_EVENT, Etapa 1 = 334): ele vale para flights e Dia Final; senão, a soma dos flights.
   const informado = CAMPO_MAIN_EVENT[d.stage] ?? null;
   const campoME = informado ?? flights.reduce((a, t) => a + t.players, 0);
+  // Cenários C e D do Main Event: entradas + reentradas da planilha de participantes (só Etapas 2 e 3; a Etapa 1, com campo informado, fica sempre sem).
+  const acoesMain = informado == null && typeof d.acoesMainEvent === "number" && d.acoesMainEvent > 0 ? d.acoesMainEvent : null;
   const campoTexto = informado != null ? PARTICIPACAO.campoInformado(informado) : campoME > 0 ? PARTICIPACAO.campo(campoME, flights.map((t) => t.players)) : null;
   // Main Event avaliado por linha [usuário, 06/11/2026: "Dias classificatórios não tem premiação."; substitui a regra de 05/11 em que a pontuação
   // do Dia Final ia para o flight]: o primeiro flight que o jogador jogou vale a participação (10 × fatores), os outros flights valem 0, e a linha
@@ -217,7 +219,7 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
     // premiação, acordo, cancelamento, premiados, o que não pontua, uma pontuação por jogador) é o da linha. Em centésimos; C e D são null onde
     // as reentradas não existem (só o Excel da Etapa 3 as traz, nos torneios comuns), exceto na linha que vale 0 sem depender do campo.
     const entradasLinha = explicada ? field : (ehFlight(t) || ehDiaFinal(t)) && campoME > 0 ? campoME : t.players;
-    const acoesLinha = ehFlight(t) || ehDiaFinal(t) ? null : acoesDe(t);
+    const acoesLinha = ehFlight(t) || ehDiaFinal(t) ? acoesMain : acoesDe(t);
     const regime = { zero: sat, semPosicao: !!(motivoPendente || part), acordo };
     const cenarios = Object.fromEntries(
       CENARIOS.map((k) => {
