@@ -5,7 +5,7 @@ import { CANCELADO, chaveCancelamento } from "./cancelados";
 import { PARTICIPACAO } from "./participacao";
 import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
 import { chaveTorneio, premiadosDaLista } from "./premiados-etapa3";
-import { CAMPO_MAIN_EVENT, CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_SEM_ACOES, type Cenario, type Regras } from "./regras";
+import { CAMPO_MAIN_EVENT, CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_MAIN_EVENT_ETAPA1, MOTIVO_SEM_ACOES, MOTIVO_SEM_PARTICIPANTES, type Cenario, type Regras } from "./regras";
 
 export type Situacao = "CORRETO" | "CORRETO_SITE" | "ARREDONDAMENTO" | "ERRO" | "SUSPEITO" | "PENDENTE_REGRA";
 const SITUACOES: Situacao[] = ["CORRETO", "CORRETO_SITE", "ARREDONDAMENTO", "ERRO", "SUSPEITO", "PENDENTE_REGRA"];
@@ -227,7 +227,12 @@ export function auditar(d: DadosSpt, regras: Regras, acordos: Record<string, num
         return [k, campo == null && !sat ? null : calcularCenario(p.entrada, regras, regime, campo ?? 0, FATOR_FAIXA_CENARIO[k])];
       }),
     ) as Record<Cenario, number | null>;
-    const cenariosMotivo = cenarios.C == null ? (acoesLinha == null && t.acoesMotivo ? t.acoesMotivo : MOTIVO_SEM_ACOES) : null;
+    const cenariosMotivo =
+      cenarios.C != null
+        ? null
+        : ehFlight(t) || ehDiaFinal(t)
+          ? informado != null ? MOTIVO_MAIN_EVENT_ETAPA1 : MOTIVO_SEM_PARTICIPANTES // Main Event: o que falta depende da etapa
+          : acoesLinha == null && t.acoesMotivo ? t.acoesMotivo : MOTIVO_SEM_ACOES;
 
     const registradoCent = centDe(r.points);
     const difCent = registradoCent - c.esperadoCent;

@@ -7,9 +7,13 @@ import { consolidar, type EtapaConsolidado, type LinhaConsolidado } from "../lib
 import { conferir, identificador } from "../lib/integridade";
 import { montarResposta } from "../lib/painel";
 import { dadosDaPlanilha } from "../lib/planilha-guardada";
-import { CAMPO_CENARIO, CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_SEM_ACOES, REGRAS_PADRAO } from "../lib/regras";
+import { CAMPO_CENARIO, CENARIOS, FATOR_FAIXA_CENARIO, MOTIVO_MAIN_EVENT_ETAPA1, MOTIVO_SEM_ACOES, MOTIVO_SEM_PARTICIPANTES, REGRAS_PADRAO } from "../lib/regras";
 import { verificar } from "../lib/verificador";
 import { BOUNTY_API } from "./bounty-mock";
+
+
+/** Linha do Main Event (flight ou Dia Final), pelo papel ou, na Etapa 1, pelo nome. */
+const ehMainEvent = (l: { role: string; torneio: string }) => l.role === "FLIGHT" || l.role === "FINAL" || (l.role === "STANDALONE" && /dia 1|^final main event/i.test(l.torneio));
 
 const E1 = "taua-2026";
 const E2 = "vale-suico-2026";
@@ -133,14 +137,19 @@ describe("cenários C e D: total de ações (entradas + reentradas)", () => {
     const l = linha(E3, "HORSE", 1);
     expect([l.acoesCampo, l.cenarios.C, l.cenarios.D, l.cenariosMotivo]).toEqual([23, 73000, 65700, null]);
   });
-  it("Dia Final e flights da Etapa 3 e todas as linhas das Etapas 1 e 2: C e D são null, com o motivo escrito", () => {
+  it("Dia Final e flights da Etapa 3 e todas as linhas das Etapas 1 e 2: C e D são null, com o motivo escrito (o do Main Event é outro)", () => {
     const final = auditados[E3].aud.linhas.filter((l) => l.torneio.includes("Dia Final"));
     expect(final.length).toBe(214);
-    expect(final.every((l) => l.cenarios.C == null && l.cenarios.D == null && l.cenariosMotivo === MOTIVO_SEM_ACOES && l.acoesCampo == null)).toBe(true);
+    // Etapa 3 sem a planilha de participantes: o que falta nas linhas do Main Event é essa planilha, não o Excel da etapa.
+    expect(final.every((l) => l.cenarios.C == null && l.cenarios.D == null && l.cenariosMotivo === MOTIVO_SEM_PARTICIPANTES && l.acoesCampo == null)).toBe(true);
     expect(MOTIVO_SEM_ACOES).toBe("reentradas não disponíveis: falta o Excel da etapa");
-    for (const s of [E1, E2]) {
+    expect(MOTIVO_SEM_PARTICIPANTES).toBe("reentradas não disponíveis: falta a planilha de participantes do Main Event");
+    expect(MOTIVO_MAIN_EVENT_ETAPA1).toBe("dado ausente: a Etapa 1 foi operada fora do Stack Plus e não traz as reentradas do Main Event");
+    // Etapas 1 e 2: linhas do Main Event com o motivo do Main Event da etapa; as demais, o texto antigo.
+    for (const [s, textoMain] of [[E1, MOTIVO_MAIN_EVENT_ETAPA1], [E2, MOTIVO_SEM_PARTICIPANTES]] as const) {
       const ls = auditados[s].aud.linhas.filter((l) => l.naoPontua == null && !l.causaCodigo?.startsWith("FLIGHT_ZERO"));
-      expect(ls.every((l) => l.cenarios.C == null && l.cenarios.D == null && l.cenariosMotivo === MOTIVO_SEM_ACOES)).toBe(true);
+      expect(ls.every((l) => l.cenarios.C == null && l.cenarios.D == null && l.cenariosMotivo === (ehMainEvent(l) ? textoMain : MOTIVO_SEM_ACOES))).toBe(true);
+      expect(ls.some(ehMainEvent) && ls.some((l) => !ehMainEvent(l))).toBe(true);
     }
   });
   it("contagem das linhas null em C e D por etapa", () => {
@@ -174,7 +183,7 @@ describe("a resposta da auditoria traz os campos novos, uma vez por linha", () =
     expect([l.cenariosMotivo, l.acoesCampo]).toEqual([null, 68]);
     const f = r.linhas.find((x) => x.torneio.includes("Dia Final"))!;
     expect(f.cenarios.C).toBeNull();
-    expect(f.cenariosMotivo).toBe(MOTIVO_SEM_ACOES);
+    expect(f.cenariosMotivo).toBe(MOTIVO_SEM_PARTICIPANTES); // linha do Main Event na Etapa 3 sem a planilha de participantes
   });
 });
 
@@ -199,7 +208,8 @@ describe("consolidado: totais por cenário, por etapa e acumulado", () => {
     for (const j of comE1) {
       const d = j.cenarios.D;
       expect([d.totalCent, d.insuficiente]).toEqual([null, true]);
-      expect(d.motivos.every((m) => m.motivo === MOTIVO_SEM_ACOES)).toBe(true);
+      // Etapa 1: linhas comuns com o texto antigo e linhas do Main Event com o texto da Etapa 1; Etapa 2: o texto antigo e o da planilha de participantes.
+      expect(d.motivos.every((m) => (m.etapa === 1 ? [MOTIVO_SEM_ACOES, MOTIVO_MAIN_EVENT_ETAPA1] : [MOTIVO_SEM_ACOES, MOTIVO_SEM_PARTICIPANTES]).includes(m.motivo))).toBe(true);
       expect(d.motivos.map((m) => m.etapa)).toContain(1);
       expect(d.porEtapa[0]).toMatchObject({ cent: null, insuficiente: true });
       expect(d.posicao).toBeNull();
@@ -215,7 +225,8 @@ describe("consolidado: totais por cenário, por etapa e acumulado", () => {
     expect(comTotal.length).toBeGreaterThan(0);
     for (const j of semTotal) {
       expect(finalistas.has(j.nome)).toBe(true);
-      expect(j.cenarios.C.motivos).toEqual([{ etapa: 1, motivo: MOTIVO_SEM_ACOES, linhas: expect.any(Number) }]);
+      // quem tem dados insuficientes aqui só tem linhas do Dia Final nulas: o motivo é o da planilha de participantes
+      expect(j.cenarios.C.motivos).toEqual([{ etapa: 1, motivo: MOTIVO_SEM_PARTICIPANTES, linhas: expect.any(Number) }]);
       expect(j.cenarios.C.parcialCent).toBeGreaterThanOrEqual(0);
     }
     for (const j of comTotal) expect(finalistas.has(j.nome)).toBe(false);

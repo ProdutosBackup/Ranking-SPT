@@ -51,3 +51,7 @@ export const FATOR_FAIXA_CENARIO: Record<Cenario, number> = { A: 1, B: 0.9, C: 1
 export const CAMPO_CENARIO: Record<Cenario, "entradas" | "acoes"> = { A: "entradas", B: "entradas", C: "acoes", D: "acoes" };
 /** Motivo escrito quando o cenário C ou D não pode ser calculado (as reentradas só vêm do Excel da Etapa 3). Nunca se estima. */
 export const MOTIVO_SEM_ACOES = "reentradas não disponíveis: falta o Excel da etapa";
+/** Linhas do Main Event (flights e Dia Final) em C e D: Etapa 1, que não traz as reentradas do Main Event (o campo é o informado). */
+export const MOTIVO_MAIN_EVENT_ETAPA1 = "dado ausente: a Etapa 1 foi operada fora do Stack Plus e não traz as reentradas do Main Event";
+/** Linhas do Main Event em C e D nas Etapas 2 e 3 sem os totais da planilha de participantes. */
+export const MOTIVO_SEM_PARTICIPANTES = "reentradas não disponíveis: falta a planilha de participantes do Main Event";

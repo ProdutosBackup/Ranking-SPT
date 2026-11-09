@@ -132,4 +132,12 @@ export type Opcoes = {
   setTolerancia: (v: string) => void;
 };
 
+/** Resposta de POST /api/participantes-main-event: só os totais por etapa (nunca nomes). */
+export type ParticipantesGuardados = {
+  carregada: true;
+  etapas: Record<"1" | "2" | "3", { entradas: number; jogadores: number }>;
+  enviadoEm: string;
+  chave: string;
+};
+
 export type Navegar = (alteracoes: Record<string, string | null>, modo?: "push" | "replace") => void;

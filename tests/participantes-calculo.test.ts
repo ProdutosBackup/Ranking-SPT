@@ -152,7 +152,7 @@ describe("campo de C e D do Main Event = total de entradas da planilha de partic
 
   it("sem totais guardados: C e D do Main Event nulos com o motivo de hoje", async () => {
     const r2 = await auditoria(E2);
-    for (const l of r2.aud.linhas.filter(ehFinal)) expect([l.cenarios.C, l.cenarios.D, l.cenariosMotivo]).toEqual([null, null, "reentradas não disponíveis: falta o Excel da etapa"]);
+    for (const l of r2.aud.linhas.filter(ehFinal)) expect([l.cenarios.C, l.cenarios.D, l.cenariosMotivo]).toEqual([null, null, "reentradas não disponíveis: falta a planilha de participantes do Main Event"]);
     const r3 = await auditoria(E3);
     for (const l of r3.aud.linhas.filter(ehFinal)) expect([l.cenarios.C, l.cenarios.D]).toEqual([null, null]);
   });
@@ -200,4 +200,60 @@ describe("campo de C e D do Main Event = total de entradas da planilha de partic
     expect(depois2a.C).toBeGreaterThan(antes2a.C);
     console.log("consolidado E2 com planilha de ações: antes", antes2a, "depois", depois2a);
   });
+});
+
+describe("motivos de 'dados insuficientes' nas linhas do Main Event", () => {
+  const OLD = "reentradas não disponíveis: falta o Excel da etapa";
+  const ETAPA1 = "dado ausente: a Etapa 1 foi operada fora do Stack Plus e não traz as reentradas do Main Event";
+  const SEM_PLANILHA = "reentradas não disponíveis: falta a planilha de participantes do Main Event";
+
+  it("caso 1, Etapa 1: toda linha do Main Event com C e D nulos mostra o texto da Etapa 1, com ou sem totais guardados; as outras, o texto antigo", async () => {
+    for (const guardar of [false, true]) {
+      if (guardar) await salvarParticipantes(TOTAIS);
+      const ls = (await auditoria(E1)).aud.linhas;
+      const main = ls.filter((l) => doMain(l) && l.cenarios.C == null);
+      expect(main.length).toBeGreaterThan(0);
+      expect(main.every((l) => l.cenariosMotivo === ETAPA1)).toBe(true);
+      const outras = ls.filter((l) => !doMain(l) && l.cenarios.C == null);
+      expect(outras.length).toBeGreaterThan(0);
+      expect(outras.every((l) => l.cenariosMotivo === OLD)).toBe(true);
+    }
+  });
+
+  it("caso 2, Etapas 2 e 3 sem totais: o texto da planilha de participantes; as linhas comuns, o texto antigo", async () => {
+    for (const stage of [E2, E3]) {
+      const ls = (await auditoria(stage)).aud.linhas;
+      const main = ls.filter(ehFinal);
+      expect(main.length).toBeGreaterThan(0);
+      expect(main.every((l) => l.cenarios.C == null && l.cenariosMotivo === SEM_PLANILHA)).toBe(true);
+      expect(ls.filter((l) => !doMain(l) && l.cenarios.C == null).every((l) => l.cenariosMotivo === OLD)).toBe(true);
+    }
+  });
+
+  it("com totais guardados, as linhas do Main Event das Etapas 2 e 3 têm C e D e não têm motivo", async () => {
+    await salvarParticipantes(TOTAIS);
+    for (const stage of [E2, E3]) {
+      const main = (await auditoria(stage)).aud.linhas.filter(ehFinal);
+      expect(main.every((l) => l.cenarios.C != null && l.cenarios.D != null && l.cenariosMotivo === null)).toBe(true);
+    }
+  });
+
+  it("caso 3, outros torneios: o motivo da planilha de ações (MOTIVO_SEM_BLOCO) continua o mesmo, com planilha de ações da Etapa 2 enviada", async () => {
+    await enviarPlanilha("ranking-spt-2a-etapa.xlsx", "ranking-spt-2a-etapa.xlsx");
+    const ls = (await auditoria(E2)).aud.linhas;
+    const comuns = ls.filter((l) => !doMain(l) && l.cenarios.C == null);
+    // torneio sem aba/bloco: o motivo é o da planilha de ações; nunca o do Main Event
+    expect(comuns.every((l) => l.cenariosMotivo !== ETAPA1 && l.cenariosMotivo !== SEM_PLANILHA)).toBe(true);
+    expect(comuns.every((l) => l.cenariosMotivo === "planilha da etapa sem Buy In/Reentry para este torneio" || l.cenariosMotivo === OLD)).toBe(true);
+    expect(ls.filter(ehFinal).every((l) => l.cenariosMotivo === SEM_PLANILHA)).toBe(true);
+  });
+
+  it("os resultados numéricos não mudam: o motivo não entra em nenhum identificador", async () => {
+    const d = await buscarDados(E2);
+    expect(identificador(d).sha256).toBe(identificador(structuredClone(d)).sha256);
+    await salvarParticipantes(TOTAIS);
+    const r = await auditoria(E2);
+    expect([resumo(r).ERRO, resumo(r).CORRETO]).toEqual([153, 117]);
+  });
+
 });

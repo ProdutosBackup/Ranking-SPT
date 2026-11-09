@@ -44,3 +44,6 @@ next-env.d.ts
 /.planilha-local/
 /.acordos-local/
 /.cancelados-local/
+
+# pasta de capturas e anotações do Playwright
+/.playwright-mcp/
