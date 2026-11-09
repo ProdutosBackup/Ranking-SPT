@@ -1,7 +1,19 @@
 import { createHash } from "node:crypto";
 import { centDe } from "./calculo";
 
-const BASE = "https://supremapokertour.com/api/spt";
+/** Endereço base da API de onde os dados são lidos. Único lugar do código que o escreve. */
+export const enderecoBase = () => "https://supremapokertour.com/api/spt";
+
+/**
+ * URL de uma chamada à API. Se SPT_PREVIEW (só do servidor, lida a cada chamada) estiver preenchida, acrescenta `preview=<valor>` codificado.
+ * Nenhuma mensagem de erro ou log pode conter o resultado: a URL só é passada ao fetch.
+ */
+export function urlApi(caminho: string, params: Record<string, string>) {
+  const q = Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
+  const preview = process.env.SPT_PREVIEW;
+  if (preview) q.push(`preview=${encodeURIComponent(preview)}`);
+  return `${enderecoBase()}${caminho}?${q.join("&")}`;
+}
 const SIMULTANEAS = 5;
 
 /** Ajustes da leitura. Mutável só para os testes encurtarem as esperas. */
@@ -103,8 +115,7 @@ const hashBase = (rk: Rk, tn: Tn) =>
     .digest("hex");
 
 async function lerBase(stage: string, parar: AbortSignal) {
-  const q = encodeURIComponent(stage);
-  const [rk, tn] = await Promise.all([getJson<Rk>(`${BASE}/ranking?stage=${q}`, parar), getJson<Tn>(`${BASE}/tournaments?stage=${q}`, parar)]);
+  const [rk, tn] = await Promise.all([getJson<Rk>(urlApi("/ranking", { stage }), parar), getJson<Tn>(urlApi("/tournaments", { stage }), parar)]);
   if (!Array.isArray(rk?.ranking) || !Array.isArray(tn?.tournaments)) throw new ErroExtracao(MSG_INVALIDA);
   if (!rk.ranking.length) throw new ErroExtracao(MSG_SEM_RANKING);
   if (!tn.tournaments.length) throw new ErroExtracao(MSG_SEM_TORNEIOS);
@@ -112,7 +123,6 @@ async function lerBase(stage: string, parar: AbortSignal) {
 }
 
 async function lerUmaVez(stage: string, onProgresso?: (feito: number, total: number) => void) {
-  const q = encodeURIComponent(stage);
   const { rk, tn } = await lerBase(stage, new AbortController().signal);
 
   const vistos = new Set<string>();
@@ -131,7 +141,7 @@ async function lerUmaVez(stage: string, onProgresso?: (feito: number, total: num
       while (prox < rk.ranking.length && !parar.signal.aborted) {
         const i = prox++;
         const p = rk.ranking[i];
-        const s = await getJson<{ results: Resultado[] }>(`${BASE}/player-summary?stage=${q}&name=${encodeURIComponent(p.name)}`, parar.signal);
+        const s = await getJson<{ results: Resultado[] }>(urlApi("/player-summary", { stage, name: p.name }), parar.signal);
         if (!Array.isArray(s?.results) || !s.results.length || s.results.some((r) => typeof r?.points !== "number"))
           throw new ErroExtracao(`Não foi possível ler os resultados de ${p.name}.`);
         const soma = s.results.reduce((a, r) => a + centDe(r.points), 0);
