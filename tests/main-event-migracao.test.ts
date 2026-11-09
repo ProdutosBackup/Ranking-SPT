@@ -51,17 +51,42 @@ async function depois(stage: string) {
 const flightsDe = (aud: Awaited<ReturnType<typeof depois>>["aud"], jogador: string) =>
   aud.linhas.filter((l) => l.jogador === jogador && /Dia 1[A-E]$/i.test(l.torneio)).sort((a, b) => (a.torneio.slice(-1) < b.torneio.slice(-1) ? -1 : 1));
 
+// A base ANTES foi tirada com o acordo detectado automaticamente (removido em 08/11/2026, VERSAO_REGRAS 2.10). Sem acordo marcado, mudam só as linhas que o
+// automático tratava como acordo. A diferença de cada uma, em centésimos de ponto, vem da conta (base cheia da posição menos a base do acordo, × fatores):
+//  Etapa 2, Dia Final (fator 3,81): 1º (1000 − 600) × 3,81 = 1.524; 2º (800 − 600) × 3,81 = 762; 3º (700 − 600) × 3,81 = 381.
+//  Etapa 2, EV #6 8-GAME (fator 0,684): 1º 1000 × 0,684 − 547,20 = 136,80. EV #2 200K PLO 5 K.O (0,84 × 2,5): 1º 2.100 − 1.680 = 420.
+//  Etapa 3: SUPER K.O 840 − 672 = 168; HIGH ROLLER 50K 1.215 − 972 = 243; CHAMPIONSHIP HIGH ROLLER 200K 2.875 − 2.300 = 575.
+const MUDAM: Record<string, [string, number, number][]> = {
+  [E2]: [["EV #2 200K PLO 5 K.O", 1, 42000], ["EV #6 8-GAME", 1, 13680], ["Main Event SPT — Dia Final", 1, 152400], ["Main Event SPT — Dia Final", 2, 76200], ["Main Event SPT — Dia Final", 3, 38100]],
+  [E3]: [["SUPER K.O", 1, 16800], ["HIGH ROLLER 50K", 1, 24300], ["CHAMPIONSHIP HIGH ROLLER 200K", 1, 57500]],
+};
+const deltasDe = (s: string, aud: Awaited<ReturnType<typeof depois>>["aud"]) => {
+  const m = new Map<string, number>();
+  for (const [t, p, cent] of MUDAM[s] ?? []) {
+    const l = aud.linhas.find((x) => x.torneio === t && x.posicao === p);
+    if (!l) throw new Error(`linha não achada: ${t} ${p}`);
+    m.set(l.jogador, (m.get(l.jogador) ?? 0) + cent);
+  }
+  return m;
+};
+
 describe("Main Event avaliado por linha", () => {
-  it("Etapas 2 e 3 não mudam: total por jogador nos 4 cenários, correto e erro iguais aos de antes", async () => {
+  it("Etapas 2 e 3: iguais aos de antes, exceto os jogadores das linhas que eram acordo detectado (total = antes + diferença da conta)", async () => {
     for (const s of [E2, E3]) {
-      const { c, r } = await depois(s);
+      const { c, r, aud } = await depois(s);
       const antes = ANTES[s].jogadores;
+      const delta = deltasDe(s, aud);
       expect(c.jogadores).toHaveLength(Object.keys(antes).length);
       for (const j of c.jogadores) {
         const a = antes[j.nome];
-        expect({ esperado: j.totalCent, A: j.cenarios.A.totalCent, B: j.cenarios.B.totalCent, C: j.cenarios.C.totalCent, D: j.cenarios.D.totalCent }, `${s} ${j.nome}`).toEqual({ esperado: a.esperado, A: a.A, B: a.B, C: a.C, D: a.D });
+        const dd = delta.get(j.nome) ?? 0;
+        const obtido = { esperado: j.totalCent, A: j.cenarios.A.totalCent, B: j.cenarios.B.totalCent, C: j.cenarios.C.totalCent, D: j.cenarios.D.totalCent };
+        if (dd === 0) expect(obtido, `${s} ${j.nome}`).toEqual({ esperado: a.esperado, A: a.A, B: a.B, C: a.C, D: a.D });
+        else expect([obtido.esperado, obtido.A], `${s} ${j.nome}`).toEqual([a.esperado + dd, a.A + dd]); // B, C e D também mudam (fator da faixa e campo), sem conta própria aqui
       }
-      expect([r.painel.indicadores.corretos, r.painel.indicadores.erros], s).toEqual([ANTES[s].corretos, ANTES[s].erros]);
+      // Corretos e erros: cada linha que passa de Correto a Erro tira 1 dos corretos. Etapa 2: Dia Final 1º, 2º e 3º e EV #6 1º = 4 (o 1º do EV #2 já era Erro). Etapa 3: 3 primeiros lugares.
+      const n = s === E2 ? 4 : 3;
+      expect([r.painel.indicadores.corretos, r.painel.indicadores.erros], s).toEqual([ANTES[s].corretos - n, ANTES[s].erros + n]);
     }
     expect([ANTES[E2].corretos, ANTES[E2].erros, ANTES[E3].corretos, ANTES[E3].erros]).toEqual([121, 149, 127, 427]);
     const { aud } = await depois(E2);
@@ -124,11 +149,21 @@ describe("Main Event avaliado por linha", () => {
 });
 
 describe("desempate do Consolidado (primeiros lugares e posição)", () => {
-  it("nº de primeiros lugares igual ao de antes nas 3 etapas (o 1º lugar de um flight não conta); posição igual nas Etapas 2 e 3", async () => {
+  it("nº de primeiros lugares igual ao de antes, mais 1 para quem ganhou um torneio que era acordo detectado (sem acordo marcado, o 1º conta); posição coerente com o total nas Etapas 2 e 3", async () => {
     for (const s of [E1, E2, E3]) {
-      const { c } = await depois(s);
-      const dif = c.jogadores.filter((j) => j.primeiros !== ANTES[s].jogadores[j.nome].primeiros || (s !== E1 && j.posicao !== ANTES[s].jogadores[j.nome].posicao)).map((j) => j.nome);
+      const { c, aud } = await depois(s);
+      const novos = new Map<string, number>();
+      for (const [t, p] of MUDAM[s] ?? []) {
+        if (p !== 1) continue;
+        const nome = aud.linhas.find((x) => x.torneio === t && x.posicao === 1)!.jogador;
+        novos.set(nome, (novos.get(nome) ?? 0) + 1);
+      }
+      const dif = c.jogadores.filter((j) => j.primeiros !== ANTES[s].jogadores[j.nome].primeiros + (novos.get(j.nome) ?? 0)).map((j) => j.nome);
       expect(dif, s).toEqual([]);
+      if (s === E1) continue;
+      // as posições mudam com os totais novos: quem tem mais pontos fica numa posição melhor (número menor)
+      const ord = [...c.jogadores].sort((x, y) => y.totalCent - x.totalCent || y.primeiros - x.primeiros);
+      for (let i = 1; i < ord.length; i++) if (ord[i - 1].totalCent > ord[i].totalCent) expect(ord[i - 1].posicao, `${s} ${ord[i].nome}`).toBeLessThan(ord[i].posicao);
     }
   });
 });

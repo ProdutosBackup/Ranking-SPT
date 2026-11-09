@@ -43,7 +43,7 @@ export function identificador(d: DadosSpt, acordos: Record<string, number> = {},
       ])
       .sort(porTexto);
     return createHash("sha256")
-      .update(JSON.stringify({ stage: d.stage, versaoRegras: VERSAO_REGRAS, torneios, jogadores, ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) }))
+      .update(JSON.stringify({ stage: d.stage, versaoRegras: VERSAO_REGRAS, torneios, jogadores, ...(comAcoes && d.acoesMainEvent != null ? { acoesMainEvent: d.acoesMainEvent } : {}), ...(assinaturaAcordos(acordos) ? { acordos: assinaturaAcordos(acordos) } : {}), ...(cancelados.length ? { cancelados: assinaturaCancelados(cancelados) } : {}) }))
       .digest("hex");
   };
   return {

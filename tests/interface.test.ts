@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  ABA_AUDITORIA, ABAS, ACOES, AUDITORIA, ACORDO, ATALHOS, BARRA_ITENS, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_ACOES, TEXTOS_PLANILHA,
+  ABA_AUDITORIA, ABAS, ACOES, AUDITORIA, ACORDO, ATALHOS, BARRA, BARRA_ITENS, CANCELADO, CONSOLIDADO, PARTICIPACAO, CONSOLIDADO_ITENS, CONTA_BLOCOS_ORDEM, ENDERECO, ENDERECO_EXTRA, PAINEL_BLOCOS_ORDEM, PARTICIPANTES, PLANILHA_ITENS, SECOES_RESUMO, TEXTOS_ACOES, TEXTOS_PLANILHA,
 } from "../app/components/estrutura";
 
 // Estrutura aprovada pelo usuário em 19/10/2026 (docs/interface.md). Mudar qualquer item abaixo exige autorização explícita.
@@ -32,7 +32,7 @@ describe("estrutura da tela travada", () => {
   });
 
   it("barra superior: itens e ordem", () => {
-    expect(BARRA_ITENS, TRAVADA).toEqual(["Etapa", "Auditar etapa", "Mais", "Enviar planilha", "Baixar relatório", "Exportar dados", "Faixa de confiança"]);
+    expect(BARRA_ITENS, TRAVADA).toEqual(["Etapa", "Auditar etapa", "Mais", "Enviar planilha", "Enviar participantes do Main Event", "Baixar relatório", "Exportar dados", "Faixa de confiança"]);
   });
 
   // Itens acrescentados com autorização do usuário em 21/10/2026 (envio de planilha).
@@ -42,6 +42,13 @@ describe("estrutura da tela travada", () => {
     ]);
     expect(TEXTOS_PLANILHA.faixa("a.xlsx", "21/10/2026 14:00"), TRAVADA).toBe("Dados da planilha a.xlsx, enviada em 21/10/2026 14:00 (Brasília)");
     expect(TEXTOS_PLANILHA.mudou, TRAVADA).toBe("A planilha foi trocada ou removida depois desta auditoria. Audite de novo.");
+  });
+
+  // Item acrescentado com autorização do usuário em 09/11/2026 (envio da planilha de participantes do Main Event).
+  it("participantes do Main Event: item do menu Mais e mensagens do envio", () => {
+    expect(BARRA.enviarParticipantes, TRAVADA).toBe("Enviar participantes do Main Event");
+    expect(PARTICIPANTES.guardados(576, 557), TRAVADA).toBe("Participantes do Main Event guardados: Etapa 2 com 576 entradas e Etapa 3 com 557 entradas. A Etapa 1 continua com o campo informado.");
+    expect(PARTICIPANTES.falhou, TRAVADA).toBe("Não foi possível enviar a planilha de participantes. Tente novamente.");
   });
 
   // Planilha de ações das Etapas 1 e 2 (a marca e a remoção são as mesmas, por etapa; só a mensagem de envio é nova).
@@ -94,7 +101,7 @@ describe("estrutura da tela travada", () => {
     expect([ACORDO.rotulo, ACORDO.caixa, ACORDO.pergunta, ACORDO.aplicar, ACORDO.remover, ACORDO.confirmar, ACORDO.confirmarSim, ACORDO.confirmarNao], TRAVADA).toEqual([
       "Acordo", "Houve acordo neste torneio", "Pontuam como qual colocação?", "Aplicar", "Remover acordo", "Remover o acordo deste torneio para todos?", "Remover", "Cancelar",
     ]);
-    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286"), ACORDO.marcaAuto(1, 4), ACORDO.torneioAuto(1, 4), ACORDO.causaAuto(1, 4), ACORDO.discorda(4, ACORDO.semAuto)], TRAVADA).toEqual([
+    expect([ACORDO.dica(63), ACORDO.resumo(4), ACORDO.aviso(4), ACORDO.conta(4), ACORDO.marca(4), ACORDO.torneio(4), ACORDO.faixa(2), ACORDO.causa(4, "2.286")], TRAVADA).toEqual([
       "De 2 a 63 (premiados do torneio)",
       "Acordo: os 4 primeiros pontuam como 4º colocado",
       "Este torneio tem acordo: os 4 primeiros pontuam como 4º colocado",
@@ -103,10 +110,6 @@ describe("estrutura da tela travada", () => {
       "Acordo: os 4 primeiros, como 4º colocado (informado)",
       "Acordos aplicados: 2 torneio(s)",
       "Acordo: os 4 primeiros pontuam como 4º colocado, 2.286 cada",
-      "Posições 1 a 4, como 4º colocado (detectado automaticamente)",
-      "Acordo: posições 1 a 4, como 4º colocado (detectado automaticamente)",
-      "acordo entre as posições 1 a 4; deveria pontuar como a posição 4",
-      "O acordo informado (os 4 primeiros) é diferente do detectado automaticamente: nenhum acordo detectado",
     ]);
   });
 

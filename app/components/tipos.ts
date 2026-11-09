@@ -13,9 +13,6 @@ export type Linha = {
   participacao: boolean;
   /** K do acordo, nas posições 1 a K de um torneio com acordo (pontuam como o Kº colocado). */
   acordo: number | null;
-  /** Primeira posição do acordo (a linha pontua como a posição `acordo`) e como foi achado. */
-  acordoDe: number | null;
-  acordoOrigem: "informado" | "automatico" | null;
   /** K do acordo do torneio, em todas as linhas dele (também fora das posições 1 a K). */
   acordoK: number | null;
   buyIn: number;
@@ -61,7 +58,7 @@ export type TorneioPainel = {
   /** Chave do torneio nos cancelamentos e se o usuário o marcou como cancelado (esperado 0 em todas as linhas). */
   chaveCancelamento: string;
   cancelado: boolean;
-  /** Texto do acordo do torneio (informado, detectado automaticamente, ou os dois quando discordam); null se não há. */
+  /** Texto do acordo do torneio (o K marcado na mão); null se não há. */
   acordoTexto: string | null;
   comPosicao: number;
   participacao: number;
@@ -133,6 +130,14 @@ export type Bloqueio = { erro: string; detalhes: unknown[] };
 export type Opcoes = {
   tolerancia: string;
   setTolerancia: (v: string) => void;
+};
+
+/** Resposta de POST /api/participantes-main-event: só os totais por etapa (nunca nomes). */
+export type ParticipantesGuardados = {
+  carregada: true;
+  etapas: Record<"1" | "2" | "3", { entradas: number; jogadores: number }>;
+  enviadoEm: string;
+  chave: string;
 };
 
 export type Navegar = (alteracoes: Record<string, string | null>, modo?: "push" | "replace") => void;

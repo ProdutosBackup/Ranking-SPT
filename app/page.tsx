@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Abas, type Aba } from "./components/Abas";
 import { Auditoria } from "./components/Auditoria";
-import { ABA_AUDITORIA, ABA_CONSOLIDADO, ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, TEXTOS_ACOES, TEXTOS_PLANILHA } from "./components/estrutura";
+import { ABA_AUDITORIA, ABA_CONSOLIDADO, ABAS, CANCELADO, CONSOLIDADO, ENDERECO, ENDERECO_EXTRA, PARTICIPANTES, TEXTOS_ACOES, TEXTOS_PLANILHA } from "./components/estrutura";
 import { consolidar, type EtapaConsolidado } from "../lib/consolidado";
 import { etapaParaConsolidar } from "../lib/consolidado-etapas";
 import { Barra, ETAPAS } from "./components/Barra";
@@ -14,7 +14,7 @@ import { Aguardando, Divergencias, Jogadores, Regras, Torneios } from "./compone
 import { Painel } from "./components/Painel";
 import { BlocoLido } from "./components/Planilha";
 import { Resumo } from "./components/Resumo";
-import type { Bloqueio, Guardada, PlanilhaGuardada } from "./components/tipos";
+import type { Bloqueio, Guardada, ParticipantesGuardados, PlanilhaGuardada } from "./components/tipos";
 import { useUrl } from "./components/url";
 
 // Nomes amigáveis dos campos que o verificador pode apontar numa divergência.
@@ -305,6 +305,32 @@ export default function Home() {
     }
   }
 
+  // Planilha de participantes do Main Event: o arquivo inteiro vai ao servidor, que guarda só os totais por etapa (C e D do Main Event nas Etapas 2 e 3).
+  async function enviarParticipantes(arquivo: File) {
+    setEnviando(true);
+    setErroEnvio(null);
+    setInfoEnvio(null);
+    try {
+      const f = new FormData();
+      f.set("arquivo", arquivo);
+      const r = await fetch("/api/participantes-main-event", { method: "POST", body: f });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) {
+        const erros: string[] = Array.isArray(j?.erros) && j.erros.length ? j.erros : [];
+        setErroEnvio(erros.length ? erros.join(" ") : (j?.erro ?? PARTICIPANTES.falhou));
+        return;
+      }
+      const g = j as ParticipantesGuardados;
+      setInfoEnvio(PARTICIPANTES.guardados(g.etapas["2"].entradas, g.etapas["3"].entradas));
+      setGuardadas({}); // os totais mudam C e D do Main Event: as auditorias guardadas ficam velhas
+      await auditar(stage);
+    } catch {
+      setErroEnvio("Não foi possível falar com o servidor. Verifique a conexão e tente novamente.");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   async function removerPlanilha() {
     setRemovendo(true);
     setErroEnvio(null);
@@ -435,6 +461,7 @@ export default function Home() {
           removendo={removendo}
           erroEnvio={erroEnvio}
           onEnviar={enviarPlanilha}
+          onEnviarParticipantes={enviarParticipantes}
           onRemover={removerPlanilha}
           lidoFechado={!lidoAberto}
           onAbrirLido={() => setLidoAberto(true)}

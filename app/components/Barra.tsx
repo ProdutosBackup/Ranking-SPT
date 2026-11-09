@@ -29,6 +29,7 @@ type Props = {
   erroEnvio: string | null;
   infoEnvio: string | null;
   onEnviar: (arquivo: File) => void;
+  onEnviarParticipantes: (arquivo: File) => void;
   onRemover: () => void;
   lidoFechado: boolean;
   onAbrirLido: () => void;
@@ -57,6 +58,7 @@ function Confianca({ d, classe }: { d: Resposta; classe: string }) {
 
 export function Barra(p: Props) {
   const seletor = useRef<HTMLInputElement>(null);
+  const seletorParticipantes = useRef<HTMLInputElement>(null);
   const [aberto, setAberto] = useState(false);
   const envoltorio = useRef<HTMLDivElement>(null);
   const botao = useRef<HTMLButtonElement>(null);
@@ -175,6 +177,19 @@ export function Barra(p: Props) {
                     type="button"
                     role="menuitem"
                     className="menu-item"
+                    aria-disabled={p.enviando}
+                    onClick={() => {
+                      if (p.enviando) return;
+                      fechar(false);
+                      seletorParticipantes.current?.click();
+                    }}
+                  >
+                    {BARRA.enviarParticipantes}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="menu-item"
                     aria-disabled={semDados}
                     title={p.d ? undefined : DISPONIVEL_DEPOIS}
                     onClick={() => {
@@ -211,6 +226,17 @@ export function Barra(p: Props) {
                 const f = e.target.files?.[0];
                 e.target.value = ""; // permite escolher o mesmo arquivo de novo
                 if (f) p.onEnviar(f);
+              }}
+            />
+            <input
+              ref={seletorParticipantes}
+              type="file"
+              hidden
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = ""; // permite escolher o mesmo arquivo de novo
+                if (f) p.onEnviarParticipantes(f);
               }}
             />
           </form>

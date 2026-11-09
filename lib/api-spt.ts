@@ -38,6 +38,8 @@ export type DadosSpt = {
   updatedAt: { ranking: string; tournaments: string };
   torneios: Torneio[];
   jogadores: Jogador[];
+  /** Entradas + reentradas do Main Event da etapa (total da planilha de participantes): o campo dos cenários C e D nas linhas do Main Event. Ausente = sem totais. */
+  acoesMainEvent?: number | null;
 };
 
 /** Falha de leitura: a auditoria é bloqueada e a mensagem já vem em português simples. */

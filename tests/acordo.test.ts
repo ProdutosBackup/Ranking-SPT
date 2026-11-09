@@ -85,8 +85,8 @@ describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0
     expect(linhas.every((l) => l.esperado === valor && l.esperadoCent === valor * 100 && l.base === base && l.acordo === k && l.acordoK === k)).toBe(true);
     expect(linhas[0].fatorParticipantes).toBe(3.81);
     expect(linhas[0].conta).toBe(`${base} × 3,81 × 1`);
-    // posições acima de K (e do acordo detectado, 1 a 4) não mudam, e a posição e o prêmio publicados continuam como estão
-    const corte = Math.max(k, 4);
+    // posições acima de K não mudam, e a posição e o prêmio publicados continuam como estão
+    const corte = k;
     const acima = aud.linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao > corte && !l.participacao);
     expect(acima.every((l) => l.acordo == null && l.acordoK === k)).toBe(true);
     const antes = auditar(d, REGRAS_PADRAO);
@@ -94,14 +94,15 @@ describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0
     expect(aud.linhas.filter((l) => l.torneioId === final.id && l.posicao === 1)[0].prize).toBe(antes.linhas.filter((l) => l.torneioId === final.id && l.posicao === 1)[0].prize);
   });
 
-  it("K=4: os 2.286 registrados já eram acordo detectado; o informado dá o mesmo resultado, marcado como informado", async () => {
+  it("K=4: sem acordo marcado, os 2.286 do 1º ao 3º são Erro (3.810, 3.048 e 2.667) e o 4º é Correto; com o K=4 marcado, os quatro ficam Corretos", async () => {
     const d = await fixture(E2);
     const final = diaFinal(d);
-    const auto = auditar(d, REGRAS_PADRAO).linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao <= 4);
-    expect(auto.map((l) => l.registrado)).toEqual([2286, 2286, 2286, 2286]);
-    expect(auto.every((l) => l.situacao === "CORRETO" && l.acordo === 4 && l.acordoDe === 1 && l.acordoOrigem === "automatico")).toBe(true);
+    const sem = conferido(d).linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao <= 4).sort((a, b) => a.posicao! - b.posicao!);
+    expect(sem.map((l) => l.registrado)).toEqual([2286, 2286, 2286, 2286]);
+    // base da posição × 3,81 (fator de participantes) × 1 (buy-in R$ 0): 1000, 800, 700 e 600
+    expect(sem.map((l) => [l.esperado, l.situacao, l.acordo])).toEqual([[3810, "ERRO", null], [3048, "ERRO", null], [2667, "ERRO", null], [2286, "CORRETO", null]]);
     const manual = conferido(d, { [final.id]: 4 }).linhas.filter((l) => l.torneioId === final.id && l.posicao != null && l.posicao <= 4);
-    expect(manual.every((l) => l.situacao === "CORRETO" && l.diferenca === 0 && l.acordoOrigem === "informado")).toBe(true);
+    expect(manual.every((l) => l.situacao === "CORRETO" && l.diferenca === 0 && l.acordo === 4 && l.esperado === 2286)).toBe(true);
   });
 
   it("registrado diferente do valor do acordo é Erro, sem tolerância de arredondamento", async () => {
@@ -140,18 +141,25 @@ describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0
   it("K=4: totais e KPIs; o painel traz o torneio marcado e a hipótese", async () => {
     const d = await fixture(E2);
     const final = diaFinal(d);
-    const antes = montarResposta(E2, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d)).painel;
+    const antes = montarResposta(E2, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
     const aud = conferido(d, { [final.id]: 4 });
     const r = montarResposta(E2, d, REGRAS_PADRAO, aud, identificador(d, { [final.id]: 4 }));
-    // Com 3 torneios com acordo na Etapa 2 (EV #2 e EV #6 detectados; Dia Final informado), o informado dá os mesmos números do detectado.
-    expect(r.acordos).toEqual({ aplicados: 3 });
+    // Só o Dia Final tem acordo (marcado na mão): um torneio aplicado, e a Etapa 2 sem acordo não tem nenhum.
+    expect(antes.acordos).toEqual({ aplicados: 0 });
+    expect(r.acordos).toEqual({ aplicados: 1 });
     const t = r.painel.torneios.find((x) => x.id === final.id)!;
     expect([t.acordo, t.acordoTexto]).toEqual([4, "Acordo: os 4 primeiros, como 4º colocado (informado)"]);
-    expect(antes.torneios.find((x) => x.id === final.id)!.acordoTexto).toBe("Acordo: posições 1 a 4, como 4º colocado (detectado automaticamente)");
-    expect(r.painel.indicadores.erros).toBe(antes.indicadores.erros);
-    expect(r.painel.indicadores.pontosEmDiscordancia).toBe(antes.indicadores.pontosEmDiscordancia);
-    const antesJ = Object.fromEntries(antes.jogadores.map((j) => [j.nome, j.diferenca]));
-    expect(r.painel.jogadores.filter((j) => j.diferenca !== antesJ[j.nome])).toHaveLength(0);
+    expect(antes.painel.torneios.find((x) => x.id === final.id)!.acordoTexto).toBeNull();
+    // Sem acordo: 153 erros e 12.363,55 pontos em discordância. Com o K=4, as linhas 1 a 3 do Dia Final (3.810, 3.048 e 2.667 contra 2.286) deixam de errar:
+    // 153 − 3 = 150 erros e 12.363,55 − (1.524 + 762 + 381) = 9.696,55 pontos.
+    expect([antes.painel.indicadores.erros, antes.painel.indicadores.pontosEmDiscordancia]).toEqual([153, 12363.55]);
+    expect([r.painel.indicadores.corretos, r.painel.indicadores.erros, r.painel.indicadores.pontosEmDiscordancia]).toEqual([120, 150, 9696.55]);
+    // jogadores afetados: 143 sem acordo; com o K=4 saem o 1º e o 3º do Dia Final (só erravam ali); o 2º continua afetado por um erro no EV #2 K.O (4º colocado)
+    expect([antes.painel.indicadores.jogadoresAfetados, r.painel.indicadores.jogadoresAfetados]).toEqual([143, 141]);
+    const antesJ = Object.fromEntries(antes.painel.jogadores.map((j) => [j.nome, j.diferenca]));
+    expect(r.painel.jogadores.filter((j) => j.diferenca !== antesJ[j.nome]).map((j) => [j.nome, antesJ[j.nome] - j.diferenca]).sort()).toEqual([
+      ["Andrey Pérez do lago", 762], ["Carlos Felipe Verlangieri Difini", 381], ["Emerson Rocha Sheik", 1524],
+    ]);
     // Com K=3, o 1º pontua 2.667 contra 2.286 registrados; a hipótese diz a regra
     const r3 = montarResposta(E2, d, REGRAS_PADRAO, conferido(d, { [final.id]: 3 }), identificador(d, { [final.id]: 3 }));
     const l1 = r3.linhas.find((l) => l.torneioId === final.id && l.posicao === 1)!;
@@ -170,11 +178,11 @@ describe("conta no Dia Final da Etapa 2 (fator 3,81, buy-in 1, multiplicador 1,0
       return Object.fromEntries(c.jogadores.map((j) => [j.nome, j.totalCent]));
     };
     const sem = total({});
-    const com = total({ [final.id]: 2 });
+    const com = total({ [final.id]: 4 });
     const campeao = d.jogadores.find((j) => j.resultados.some((r) => r.tournamentId === final.id && r.position === 1))!.name;
-    // sem = acordo detectado (1 a 4 como 4º, 2.286); com = acordo informado de 2 (1º e 2º como 2º colocado, 3.048)
-    expect(com[campeao] - sem[campeao]).toBe(304800 - 228600);
-    expect(Object.keys(com).filter((k) => com[k] !== sem[k])).toHaveLength(3); // 1º e 2º (3.048) e 3º (2.667); o 4º continua com 2.286
+    // sem = sem acordo (1º 3.810, 2º 3.048, 3º 2.667, 4º 2.286); com = acordo K=4 marcado (1º a 4º como 4º colocado, 2.286)
+    expect(com[campeao] - sem[campeao]).toBe(228600 - 381000);
+    expect(Object.keys(com).filter((k) => com[k] !== sem[k])).toHaveLength(3); // 1º (−1.524), 2º (−762) e 3º (−381); o 4º continua com 2.286
   });
 });
 
@@ -220,11 +228,10 @@ describe("rota /api/acordos e cache", () => {
     expect(r.status).toBe(200);
     expect(await lista()).toMatchObject([{ etapa: E2, torneioId: final.id, k: 3 }]);
     const com = await auditoria();
-    // 3 do Dia Final (informado) + 4 dos acordos detectados na Etapa 2 (EV #2 e EV #6, 2 posições cada)
-    expect(com.aud.linhas.filter((l) => l.acordo)).toHaveLength(3 + 4);
+    expect(com.aud.linhas.filter((l) => l.acordo)).toHaveLength(3); // só as 3 do Dia Final (K=3); não há mais acordo automático
     expect(com.id.sha256).not.toBe(antes.id.sha256);
     await put({ etapa: E2, torneioId: final.id, k: 2 }); // trocar
-    expect((await auditoria()).aud.linhas.filter((l) => l.acordo)).toHaveLength(2 + 4);
+    expect((await auditoria()).aud.linhas.filter((l) => l.acordo)).toHaveLength(2);
     expect((await (await apagar(E2, final.id)).json())).toEqual({ removido: true });
     const depois = await auditoria();
     expect(depois.id.sha256).toBe(antes.id.sha256);
@@ -267,10 +274,10 @@ describe("rota /api/acordos e cache", () => {
     const b = await auditoria(a.id.sha256);
     expect(b.aud).not.toBe(a.aud);
     expect(b.mudou).toBe(true);
-    expect(b.aud.linhas.filter((l) => l.acordo)).toHaveLength(3 + 4);
+    expect(b.aud.linhas.filter((l) => l.acordo)).toHaveLength(3);
     await apagar(E2, final.id);
     const c = await auditoria(b.id.sha256);
-    expect(c.aud.linhas.filter((l) => l.acordo)).toHaveLength(8); // só os detectados: Dia Final (4), EV #2 (2) e EV #6 (2)
+    expect(c.aud.linhas.filter((l) => l.acordo)).toHaveLength(0); // sem acordo marcado, nenhuma linha em acordo
     expect(c.id.sha256).toBe(a.id.sha256);
   });
 });
@@ -322,18 +329,14 @@ describe("Excel: Relatório e Exportação trazem o acordo", () => {
     const colT = (torneios.getRow(1).values as unknown[]).map(texto).indexOf("Acordo");
     const linhasT: string[] = [];
     torneios.eachRow((row, i) => i > 1 && texto(row.getCell(colT).value) && linhasT.push(texto(row.getCell(1).value) + ":" + texto(row.getCell(colT).value)));
-    expect(linhasT).toEqual([
-      "EV #2 200K PLO 5 K.O:Acordo: posições 1 a 2, como 2º colocado (detectado automaticamente)",
-      "EV #6 8-GAME:Acordo: posições 1 a 2, como 2º colocado (detectado automaticamente)",
-      "Main Event SPT — Dia Final:Acordo: os 4 primeiros, como 4º colocado (informado)",
-    ]);
-    expect(texto(rel.getWorksheet("Resumo")!.getCell(4, 8).value)).toContain("Acordos aplicados: 3 torneio(s)");
+    expect(linhasT).toEqual(["Main Event SPT — Dia Final:Acordo: os 4 primeiros, como 4º colocado (informado)"]);
+    expect(texto(rel.getWorksheet("Resumo")!.getCell(4, 8).value)).toContain("Acordos aplicados: 1 torneio(s)");
     const exp = await abrir(await exportacaoXlsx(d, aud, id, REGRAS_PADRAO));
     const ident: string[] = [];
     exp.getWorksheet("Identificação")!.eachRow((row) => ident.push(texto(row.getCell(1).value) + "=" + texto(row.getCell(2).value)));
-    expect(ident.some((x) => x.startsWith("Acordos aplicados=3 torneio(s): EV #2 200K PLO 5 K.O (posições 1 a 2, como 2º colocado (detectado automaticamente)); EV #6 8-GAME (posições 1 a 2, como 2º colocado (detectado automaticamente)); Main Event SPT — Dia Final (os 4 primeiros, como 4º colocado (informado))"))).toBe(true);
-    // sem acordo informado, a Etapa 2 mostra só os detectados (3 torneios, todos "detectado automaticamente")
+    expect(ident.some((x) => x.startsWith("Acordos aplicados=1 torneio(s): Main Event SPT — Dia Final (os 4 primeiros, como 4º colocado (informado))"))).toBe(true);
+    // sem acordo marcado, a Etapa 2 não mostra acordo nenhum
     const limpo = await abrir(await relatorioXlsx(E2, d, auditar(d, REGRAS_PADRAO), REGRAS_PADRAO, identificador(d)));
-    expect(texto(limpo.getWorksheet("Resumo")!.getCell(4, 8).value)).toContain("Acordos aplicados: 3 torneio(s)");
+    expect(texto(limpo.getWorksheet("Resumo")!.getCell(4, 8).value)).not.toContain("Acordos aplicados");
   });
 });

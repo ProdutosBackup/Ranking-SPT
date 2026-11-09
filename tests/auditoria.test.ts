@@ -33,7 +33,8 @@ describe("etapa 2 (vale-suico-2026), regras padrão", () => {
     aud.linhas.find((l) => l.jogador === jogador && l.torneio.includes(torneio) && l.posicao === pos)!;
 
   it("contagens", () => {
-    expect(aud.resumo).toMatchObject({ total: 270, CORRETO: 121, ERRO: 23 + 126, ARREDONDAMENTO: 0, SUSPEITO: 0, PENDENTE_REGRA: 0 });
+    // Sem acordo marcado (VERSAO_REGRAS 2.10): 117 corretos e 153 erros = 27 listados + 126 do Dia Final sem posição (antes: 121 e 149, com 4 linhas de acordo detectado)
+    expect(aud.resumo).toMatchObject({ total: 270, CORRETO: 117, ERRO: 27 + 126, ARREDONDAMENTO: 0, SUSPEITO: 0, PENDENTE_REGRA: 0 });
   });
   it("Rafael Bryan", () => {
     const rb = aud.linhas.filter((l) => l.jogador.startsWith("Rafael Bryan"));
@@ -135,15 +136,17 @@ describe("etapa 2: sem divergência de inscritos", () => {
     const dados = await fixture("vale-suico-2026");
     const aud = auditar(dados, REGRAS_PADRAO);
     expect(torn(aud).filter((t) => t.achado)).toHaveLength(0);
-    expect(aud.resumo).toMatchObject({ ERRO: 23 + 126, CORRETO: 121, CORRETO_SITE: 0, PENDENTE_REGRA: 0 });
+    expect(aud.resumo).toMatchObject({ ERRO: 27 + 126, CORRETO: 117, CORRETO_SITE: 0, PENDENTE_REGRA: 0 });
     const erros = aud.linhas.filter((l) => l.situacao === "ERRO" && !(l.torneio.includes("Dia Final") && l.posicao == null)).map((l) => `${l.torneio.slice(0, 7)}|${l.posicao}|${l.registrado}|${l.esperado}`).sort();
     expect(erros).toEqual([
       "EV #11 |8|10|12.75",
-      "EV #2 2|1|1008|1680", "EV #2 2|2|1008|1680", "EV #2 2|3|882|1470", "EV #2 2|4|756|1260", "EV #2 2|5|630|1050", "EV #2 2|6|567|945",
+      "EV #2 2|1|1008|2100", "EV #2 2|2|1008|1680", "EV #2 2|3|882|1470", "EV #2 2|4|756|1260", "EV #2 2|5|630|1050", "EV #2 2|6|567|945",
       "EV #2 2|7|504|840", "EV #2 2|8|441|735", "EV #2 2|9|378|630", "EV #2 2|10|315|525", "EV #2 2|11|315|525", "EV #2 2|12|315|525",
+      "EV #6 8|1|547.2|684", // 1º do 8-GAME: 1.000 × 0,684 = 684 (o site pagou 547,20 = base do 2º)
       "EV #5 1|1|744|930", "EV #5 1|2|595.2|744", "EV #5 1|3|520.8|651", "EV #5 1|4|446.4|558", "EV #5 1|5|372|465", "EV #5 1|6|334.8|418.5",
       "EV #8 C|14|10|33", "EV #8 C|15|10|33", "EV #8 C|16|10|33",
-      "Main Ev|64|10|38.1", // EV #2 1º/2º, EV #6 1º/2º e Dia Final 1º a 4º: acordos detectados (o EV #2 erra: 1.008 contra 1.680)
+      "Main Ev|1|2286|3810", "Main Ev|2|2286|3048", "Main Ev|3|2286|2667", // Dia Final sem acordo marcado: 1.000, 800 e 700 × 3,81 (o 4º, 600 × 3,81 = 2.286, é Correto)
+      "Main Ev|64|10|38.1",
     ].sort());
   });
   it("Omaha Mystery (1500 + 1000) e K.O (2000 + 1000, 500 + 500): bounty somado ao buy-in, buy-in exibido não muda, verificador concorda", async () => {
