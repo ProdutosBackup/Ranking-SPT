@@ -83,6 +83,11 @@ describe("estrutura da tela travada", () => {
       "Jogou mais de um flight: vale só o primeiro",
       "campo: soma dos flights 331 = 96+50+64+67+54",
     ]);
+    // Flight que vale 0 porque o jogador já pontuou em outro (06/11/2026): todos os flights jogados e onde a pontuação contou, no bloco "Hipótese da causa".
+    expect([PARTICIPACAO.flightsJogados(["1A", "1D"], "1A", false, "1D"), PARTICIPACAO.flightsJogados(["1A", "1C", "1D"], "1A", true, "1C")], TRAVADA).toEqual([
+      "Jogou os flights 1A e 1D. A pontuação contou no 1A. Neste flight (1D) vale 0",
+      "Jogou os flights 1A, 1C e 1D. A pontuação contou no 1A e no Dia Final. Neste flight (1C) vale 0",
+    ]);
   });
 
   it("aba Torneios: colunas de buy-ins, re-entries e ações", () => {
