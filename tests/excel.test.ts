@@ -102,16 +102,19 @@ describe("Excel do Relatório (painel de auditoria)", () => {
     expect(aud.resumo.total).toBe(270);
   });
 
-  it("Etapa 1: 202 resultados em erro, 4 divergências e gráficos com dados", async () => {
+  it("Etapa 1: 224 resultados em erro, 4 divergências e gráficos com dados", async () => {
     const { wb, r, buf } = await gerar("taua-2026");
     expect(wb.worksheets.map((w) => w.name)).toEqual(ABAS);
-    expect(r.painel.veredito).toContain("202 resultados com pontuação diferente da regra");
+    // Piso de 10 (VERSAO_REGRAS 2.12): 202 + 22 linhas do 50K Cucurucho (7º ao 28º, conta 9,36, registrado 9,36 no fixture, esperado 10).
+    expect(r.painel.veredito).toContain("224 resultados com pontuação diferente da regra");
     const dv = wb.getWorksheet("Divergências de inscritos")!;
     expect(dv.rowCount - 1).toBe(4); // o Main Event usa os 334 informados: sem divergência
     expect(wb.getWorksheet("Todos os cálculos")!.rowCount - 1).toBe(642);
     expect(wb.getWorksheet("Resumo")!.getImages()).toHaveLength(4);
     const g1 = dadosDosGraficos(r);
-    expect(g1.causas.length).toBe(2); // participação de flight e mais de um flight (2.7: as duas causas da regra antiga não existem mais)
+    // participação de flight e mais de um flight (2.7: as duas causas da regra antiga não existem mais) e, com o piso de 10 (2.12), "sem causa identificada"
+    // nas 22 linhas do 50K Cucurucho (9,36 registrado, mínimo de 10)
+    expect(g1.causas.length).toBe(3);
     expect(g1.torneios.length).toBeGreaterThan(0);
     expect(await termosProibidos(buf, wb)).toEqual([]);
   });

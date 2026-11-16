@@ -77,11 +77,14 @@ describe("Etapa 3: nº de premiados vem da lista, não dos pontos", () => {
     for (const t of aud.torneios.filter((x) => x.total > 0)) expect(t.premiados, t.torneio).toBe(LISTA[t.torneio]);
   });
 
-  it("HORSE, 4º colocado que a planilha pagou: vale 10 × fatores, com a divergência apontada", () => {
+  it("HORSE, 4º colocado que a planilha pagou: vale o mínimo de 10 (10 × 0,69 × 1 = 6,9), com a divergência apontada", () => {
     const l = rodar(base).linhas.find((x) => x.torneio === "HORSE" && x.posicao === 4)!;
     expect(l.premiados).toBe(3);
     expect([l.itm, l.base, l.situacao]).toEqual([false, 10, "ERRO"]);
-    expect(l.esperadoCent).toBe(Math.round(10 * l.fatorParticipantes * l.fatorBuyIn * 100));
+    // Piso de 10 (VERSAO_REGRAS 2.12): 19 inscritos, buy-in R$ 800 → 10 × 0,69 × 1 = 6,9, abaixo de 10, vale 10.
+    expect([l.field, l.fatorBuyIn, Math.round(10 * l.fatorParticipantes * l.fatorBuyIn * 100)]).toEqual([19, 1, 690]);
+    expect(l.esperadoCent).toBe(1000);
+    expect(l.conta).toBe("10 × 0,69 × 1 = 6,9; vale o mínimo de 10");
     expect(l.registrado).toBeGreaterThan(l.esperado); // a planilha pagou como 4º colocado
     expect(l.causaCodigo).toBe("PREMIADOS_LISTA");
     expect(l.causaProvavel).toBe("premiados informados: 3; a planilha pagou 4");

@@ -237,10 +237,11 @@ describe("Etapas 1 e 2 não mudam", () => {
     expect(r.origem).toEqual({ tipo: "site" });
   });
 
-  it("Etapa 1: 202 erros, sem planilha de ações e sem gravar nada", async () => {
+  it("Etapa 1: 224 erros, sem planilha de ações e sem gravar nada", async () => {
     trocarArmazenamento(semArmazenamento);
     const { aud } = await auditoria("taua-2026");
-    expect(aud.resumo).toMatchObject({ ERRO: 202, SUSPEITO: 0, PENDENTE_REGRA: 0 });
+    // Piso de 10 (VERSAO_REGRAS 2.12): 202 + 22 linhas do 50K Cucurucho (conta e registrado 9,36 no fixture, esperado 10).
+    expect(aud.resumo).toMatchObject({ ERRO: 224, SUSPEITO: 0, PENDENTE_REGRA: 0 });
   });
 });
 

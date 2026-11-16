@@ -242,11 +242,12 @@ describe("integração com o motor", () => {
     return aud;
   };
 
-  it("regra padrão (10 × fatores), Dia Final com 328: 276 erros (3 campeões + 273 linhas de 10 fixos)", () => {
+  it("regra padrão (10 × fatores, mínimo de 10), Dia Final com 328: 345 erros e 209 corretos", () => {
     const aud = rodar(CAMPO_FINAL(base, 328));
     // Sem acordo marcado (VERSAO_REGRAS 2.10): 124 corretos e 430 erros. Antes (acordo detectado): 127 e 427. Os 3 que mudam são 1º lugares com 2 posições empatadas em pontos.
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 124, ERRO: 295 + 135, PENDENTE_REGRA: 0 });
-    expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273 + 135);
+    // Piso de 10 (VERSAO_REGRAS 2.12): as 85 linhas com conta abaixo de 10 e registrado 10 (HORSE, SUPER K.O, PIJAMA, OMAHA DEALER´S CHOICE, 8 GAME) passam a Correto.
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 124 + 85, ERRO: 295 + 135 - 85, PENDENTE_REGRA: 0 });
+    expect(aud.linhas.filter((l) => l.situacao === "ERRO" && l.registrado === 10)).toHaveLength(273 + 135 - 85);
   });
 
   it("sem acordo marcado, o 1º lugar com pontuação de acordo é Erro e o 2º continua Correto (SUPER K.O, HIGH ROLLER 50K, CHAMPIONSHIP HIGH ROLLER 200K)", () => {
@@ -263,7 +264,8 @@ describe("integração com o motor", () => {
 
   it("regra padrão com os inscritos da planilha (79): as 64 linhas premiadas do Dia Final também erram", () => {
     const aud = rodar(base);
-    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 60, CORRETO_SITE: 0, ERRO: 359 + 135, PENDENTE_REGRA: 0 }); // os mesmos 3 primeiros lugares a mais em Erro
+    // os mesmos 3 primeiros lugares a mais em Erro; piso de 10: as mesmas 85 linhas fora do Main Event passam a Correto (o Dia Final sem posição, 10 × 1,29 = 12,9, não muda)
+    expect(aud.resumo).toMatchObject({ total: 554, CORRETO: 60 + 85, CORRETO_SITE: 0, ERRO: 359 + 135 - 85, PENDENTE_REGRA: 0 });
     const final = aud.linhas.filter((l) => l.torneio.includes("Dia Final") && l.situacao === "ERRO" && l.registrado !== 10);
     expect(final).toHaveLength(64);
     expect(final.every((l) => /328 inscritos/.test(l.causaProvavel ?? ""))).toBe(true);

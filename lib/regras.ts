@@ -1,6 +1,6 @@
 // Única fonte dos parâmetros de regra. Só ficam aqui os parâmetros que não são regra fixa: a tolerância de arredondamento (regra definitiva pendente) e o fator
 // da faixa até R$ 1.000 (os cenários B e D usam 0,9). Confirmadas em 05/11/2026 e portanto fixas no código: fora da premiação vale 10 × fatores
-// e, depois do 18º, todo premiado recebe base 100.
+// (com o mínimo de 10 pontos, PISO_PARTICIPACAO, desde 16/11/2026) e, depois do 18º, todo premiado recebe base 100.
 export type Regras = {
   /** Fator da faixa de buy-in de R$ 0 a R$ 1.000 (seções 3.4 e 6.8). Padrão 1,0 [CONFIRMADO 05/11/2026]. */
   fatorFaixaAte1000: number;
@@ -9,7 +9,15 @@ export type Regras = {
 };
 
 /** Incrementar a cada mudança de regra ou de tabela de pontos. Vai no JSON e nos arquivos. */
-export const VERSAO_REGRAS = "2.11";
+export const VERSAO_REGRAS = "2.12";
+
+/**
+ * Piso dos pontos de participação (fora da premiação, primeiro flight do jogador, Dia Final sem posição), em pontos.
+ * [usuário, 16/11/2026: "A pontuação mínima de participação é 10 cravado. Eu preciso que isso entre na regra e que não faça 'correção' com base em
+ * cálculo com pontuação menor que 10."] Vale em todos os cenários: esperado = maior valor entre 10 e 10 × Fator_Participantes × Fator_Buy-in.
+ * Não vale para linhas que valem 0 nem para linhas pontuadas por posição. Substitui a regra de 05/11/2026 só quando a conta dá menos de 10.
+ */
+export const PISO_PARTICIPACAO = 10;
 
 /**
  * Participantes do Main Event informados pelo usuário, por etapa; valem para todas as linhas do Main Event (flights e Dia Final).

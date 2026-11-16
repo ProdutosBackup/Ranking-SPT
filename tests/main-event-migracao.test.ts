@@ -70,23 +70,49 @@ const deltasDe = (s: string, aud: Awaited<ReturnType<typeof depois>>["aud"]) => 
   return m;
 };
 
+// Piso de 10 nos pontos de participação [usuário, 16/11/2026, VERSAO_REGRAS 2.12], posterior à base ANTES. Conta própria deste teste, em inteiros, a partir
+// dos dados de entrada de cada linha (inscritos, ações e buy-in), sem usar o esperado do motor: em cada linha de participação (base 10, valor não zero),
+// quanto a conta 10 × Fator_Participantes × Fator_Buy-in fica abaixo de 10, por cenário (A e B: inscritos; C e D: ações; B e D: faixa até R$ 1.000 = 0,9).
+const f100Teste = (buyIn: number, faixa: number) => (buyIn <= 1000 ? Math.round(faixa * 100) : buyIn <= 1999 ? 120 : buyIn <= 2999 ? 150 : 250);
+const abaixoDoPiso = (campo: number | null, buyIn: number, faixa: number) =>
+  campo == null ? 0 : Math.max(0, 1000 - Math.floor((10 * (campo * 100 + 5000) * f100Teste(buyIn, faixa) + 5000) / 10000));
+const pisoDe = (aud: Awaited<ReturnType<typeof depois>>["aud"]) => {
+  const m = new Map<string, { A: number; B: number; C: number; D: number }>();
+  for (const l of aud.linhas.filter((x) => x.base === 10 && x.esperadoCent > 0)) {
+    const p = m.get(l.jogador) ?? { A: 0, B: 0, C: 0, D: 0 };
+    p.A += abaixoDoPiso(l.field, l.buyInFator, 1);
+    p.B += abaixoDoPiso(l.field, l.buyInFator, 0.9);
+    p.C += abaixoDoPiso(l.acoesCampo, l.buyInFator, 1);
+    p.D += abaixoDoPiso(l.acoesCampo, l.buyInFator, 0.9);
+    m.set(l.jogador, p);
+  }
+  return m;
+};
+
 describe("Main Event avaliado por linha", () => {
-  it("Etapas 2 e 3: iguais aos de antes, exceto os jogadores das linhas que eram acordo detectado (total = antes + diferença da conta)", async () => {
+  it("Etapas 2 e 3: iguais aos de antes, exceto os jogadores das linhas que eram acordo detectado (total = antes + diferença da conta) e das linhas abaixo do piso de 10", async () => {
     for (const s of [E2, E3]) {
       const { c, r, aud } = await depois(s);
       const antes = ANTES[s].jogadores;
       const delta = deltasDe(s, aud);
+      const piso = pisoDe(aud);
+      // Linhas com a conta A abaixo de 10 (contagem prévia, independente do motor): nenhuma na Etapa 2, 86 na Etapa 3.
+      expect(aud.linhas.filter((l) => l.base === 10 && l.esperadoCent > 0 && abaixoDoPiso(l.field, l.buyInFator, 1) > 0), s).toHaveLength(s === E2 ? 0 : 86);
       expect(c.jogadores).toHaveLength(Object.keys(antes).length);
       for (const j of c.jogadores) {
         const a = antes[j.nome];
         const dd = delta.get(j.nome) ?? 0;
+        const p = piso.get(j.nome) ?? { A: 0, B: 0, C: 0, D: 0 };
         const obtido = { esperado: j.totalCent, A: j.cenarios.A.totalCent, B: j.cenarios.B.totalCent, C: j.cenarios.C.totalCent, D: j.cenarios.D.totalCent };
-        if (dd === 0) expect(obtido, `${s} ${j.nome}`).toEqual({ esperado: a.esperado, A: a.A, B: a.B, C: a.C, D: a.D });
-        else expect([obtido.esperado, obtido.A], `${s} ${j.nome}`).toEqual([a.esperado + dd, a.A + dd]); // B, C e D também mudam (fator da faixa e campo), sem conta própria aqui
+        const mais = (v: number | null, d: number) => (v == null ? null : v + d);
+        if (dd === 0) expect(obtido, `${s} ${j.nome}`).toEqual({ esperado: a.esperado + p.A, A: a.A + p.A, B: mais(a.B, p.B), C: mais(a.C, p.C), D: mais(a.D, p.D) });
+        else expect([obtido.esperado, obtido.A], `${s} ${j.nome}`).toEqual([a.esperado + dd + p.A, a.A + dd + p.A]); // B, C e D também mudam (fator da faixa e campo), sem conta própria aqui
       }
       // Corretos e erros: cada linha que passa de Correto a Erro tira 1 dos corretos. Etapa 2: Dia Final 1º, 2º e 3º e EV #6 1º = 4 (o 1º do EV #2 já era Erro). Etapa 3: 3 primeiros lugares.
+      // Piso de 10 na Etapa 3: as 85 linhas com conta abaixo de 10 e registrado 10 passam de Erro a Correto (a 86ª, HORSE 4º com 414 registrados, continua Erro).
       const n = s === E2 ? 4 : 3;
-      expect([r.painel.indicadores.corretos, r.painel.indicadores.erros], s).toEqual([ANTES[s].corretos - n, ANTES[s].erros + n]);
+      const pisoCorretos = s === E2 ? 0 : 85;
+      expect([r.painel.indicadores.corretos, r.painel.indicadores.erros], s).toEqual([ANTES[s].corretos - n + pisoCorretos, ANTES[s].erros + n - pisoCorretos]);
     }
     expect([ANTES[E2].corretos, ANTES[E2].erros, ANTES[E3].corretos, ANTES[E3].erros]).toEqual([121, 149, 127, 427]);
     const { aud } = await depois(E2);
