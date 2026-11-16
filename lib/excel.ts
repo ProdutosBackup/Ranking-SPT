@@ -162,7 +162,8 @@ function tabela(ws: ExcelJS.Worksheet, cols: Col[], linhas: Linha[], rodape: str
 
 const conta = (l: LinhaAud) =>
   (l.acordo != null ? `${ACORDO.conta(l.acordo)}: ` : "") +
-  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${n(l.esperado)}` : l.conta);
+  // Com o piso de participação, a conta do motor já termina em "= 9,36; vale o mínimo de 10": mantém esse final em vez do esperado.
+  (l.conta.includes("×") ? `${n(l.base)} × ${n(l.fatorParticipantes, 4)} × ${n(l.fatorBuyIn, 4)} = ${/= (.+)$/.exec(l.conta)?.[1] ?? n(l.esperado)}` : l.conta);
 const aguarda = (l: LinhaAud) => l.classe === "aguarda";
 
 /** Texto da célula de um cenário sem dados (o parcial nunca aparece). */

@@ -141,7 +141,9 @@ describe("Relatório: aba Consolidado", () => {
     const lr = linhaDeRotulos(ws);
     const por = (nome: string) => { for (let i = lr + 1; i <= ws.rowCount; i++) if (txt(ws.getCell(i, 1).value) === nome) return ws.getRow(i); };
     const rb = por("Rafael Bryan")!;
-    expect([rb.getCell(3).value, rb.getCell(8).value, rb.getCell(13).value]).toEqual([9732.55, 10061.25, 9608.38]); // publicado, A e B
+    // publicado, A e B. Piso de 10 (VERSAO_REGRAS 2.12), Etapa 3: SUPER K.O sem posição (A 8,40, B 7,56) e OMAHA DEALER´S CHOICE 17º (A 7,30, B 6,57)
+    // passam a valer 10. A: 10.061,25 + 1,60 + 2,70 = 10.065,55; B: 9.608,38 + 2,44 + 3,43 = 9.614,25.
+    expect([rb.getCell(3).value, rb.getCell(8).value, rb.getCell(13).value]).toEqual([9732.55, 10065.55, 9614.25]);
     expect(txt(rb.getCell(27).value).split("\n")).toEqual([
       // Etapa 1: 6 linhas, 1 do Main Event (Final Main Event) e 5 comuns; Etapa 2: 4 linhas, 1 do Main Event (Dia Final) e 3 comuns; Etapa 3: só o Dia Final.
       // A ordem é a da primeira linha de cada motivo (a primeira linha dele nas Etapas 1 e 2 é um torneio comum).
@@ -163,7 +165,8 @@ describe("Relatório: aba Consolidado", () => {
     const ad = por("Adrian Moro Moz")!;
     expect(txt(ad.getCell(27).value)).toBe("Etapa 3: reentradas não disponíveis: falta a planilha de participantes do Main Event (1 linha)"); // só jogou o Dia Final da Etapa 3
     expect([ad.getCell(4).value, ad.getCell(5).value, ad.getCell(6).value]).toEqual([null, null, 758]); // só jogou a Etapa 3
-    expect(c.jogadores.find((j) => j.nome === "Adrian Moro Moz")!.cenarios.A.porEtapa.map((x) => x?.cent ?? null)).toEqual([null, null, 99655]);
+    // Piso de 10 (VERSAO_REGRAS 2.12): OMAHA DEALER´S CHOICE 11º, 10 × 0,73 × 1 = 7,30 → 10: 996,55 + 2,70 = 999,25.
+    expect(c.jogadores.find((j) => j.nome === "Adrian Moro Moz")!.cenarios.A.porEtapa.map((x) => x?.cent ?? null)).toEqual([null, null, 99925]);
   });
 
   it("não há texto técnico proibido na aba", async () => {

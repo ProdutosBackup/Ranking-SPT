@@ -1,4 +1,4 @@
-import type { Regras } from "./regras";
+import { PISO_PARTICIPACAO, type Regras } from "./regras";
 
 export type EntradaCalculo = {
   posicao: number | null;
@@ -52,6 +52,10 @@ export function fieldQueReproduz(base: number, fb: number, cent: number): number
   return null;
 }
 
+/** Base de quem pontua por participação (fora da premiação, primeiro flight, Dia Final sem posição). */
+const BASE_PARTICIPACAO = 10;
+const PISO_CENT = PISO_PARTICIPACAO * 100;
+
 /**
  * Buy-in que escolhe o fator: em todo torneio com bounty (K.O e Mystery) vale o total, buy-in + bounty [CONFIRMADO 05/11/2026].
  * Sem bounty (`bountyType` NONE, nulo ou ausente) não soma nada: na Etapa 1 o `buyIn` da API já é o total.
@@ -71,14 +75,17 @@ export function calcular(e: EntradaCalculo, r: Regras): ResultadoCalculo {
   const itm = e.posicao != null && e.posicao <= e.premiados && e.prize != null && e.prize > 0;
   const fp = fatorParticipantes(e.field);
   const fb = fatorBuyIn(e.buyInFator ?? e.buyIn, r);
-  const base = itm ? baseDaPosicao(e.posicao as number) : 10; // fora da premiação: 10 × fatores [CONFIRMADO 05/11/2026]
-  const cent = paraCent(base * fp4(e.field) * fb100(e.buyInFator ?? e.buyIn, r));
+  const base = itm ? baseDaPosicao(e.posicao as number) : BASE_PARTICIPACAO; // fora da premiação: 10 × fatores [CONFIRMADO 05/11/2026]
+  const contaCent = paraCent(base * fp4(e.field) * fb100(e.buyInFator ?? e.buyIn, r));
+  // Piso de participação [usuário, 16/11/2026]: fora da premiação vale no mínimo 10 pontos; não vale para quem pontua por posição.
+  const piso = !itm && contaCent < PISO_CENT;
+  const cent = piso ? PISO_CENT : contaCent;
   return {
     itm,
     base,
     fatorParticipantes: fp,
     fatorBuyIn: fb,
-    conta: `${base} × ${fmt(fp)} × ${fmt(fb)}`,
+    conta: `${base} × ${fmt(fp)} × ${fmt(fb)}${piso ? ` = ${fmt(contaCent / 100)}; vale o mínimo de ${PISO_PARTICIPACAO}` : ""}`,
     esperado: cent / 100,
     esperadoCent: cent,
   };

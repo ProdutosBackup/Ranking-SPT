@@ -43,9 +43,10 @@ const final = (d: DadosSpt) => d.torneios.find((t) => t.role === "FINAL")!;
 const doTorneio = (aud: ReturnType<typeof auditar>, nome: string, pos: number) => aud.linhas.find((l) => l.torneio.startsWith(nome) && l.posicao === pos)!;
 
 describe("sem acordo marcado: pontuação igual em posições diferentes é Erro", () => {
-  it("Etapa 1: 202 erros e 189 corretos (mais 251 corretos com os inscritos do site), igual a antes; nenhuma linha em acordo", async () => {
+  it("Etapa 1: 224 erros e 167 corretos (mais 251 corretos com os inscritos do site); nenhuma linha em acordo", async () => {
     const aud = conferido(await fixture(E1));
-    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 202, CORRETO: 189, CORRETO_SITE: 251, PENDENTE_REGRA: 0 });
+    // Piso de 10 (VERSAO_REGRAS 2.12): antes 202 e 189. As 22 linhas do 50K Cucurucho do 7º ao 28º (10 × 0,78 × 1,2 = 9,36, registrado 9,36 no fixture) passam a esperar 10: 202 + 22 e 189 − 22.
+    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 224, CORRETO: 167, CORRETO_SITE: 251, PENDENTE_REGRA: 0 });
     expect(aud.linhas.filter((l) => l.acordo != null)).toEqual([]);
   });
 
@@ -85,9 +86,10 @@ describe("sem acordo marcado: pontuação igual em posições diferentes é Erro
     expect(dez.every((l) => l.acordo == null && l.base === 250)).toBe(true);
   });
 
-  it("Etapa 3: 430 erros e 124 corretos (antes 427 e 127); o 1º lugar de SUPER K.O, HIGH ROLLER 50K e CHAMPIONSHIP HIGH ROLLER 200K é Erro, o 2º continua Correto", async () => {
+  it("Etapa 3: 345 erros e 209 corretos; o 1º lugar de SUPER K.O, HIGH ROLLER 50K e CHAMPIONSHIP HIGH ROLLER 200K é Erro, o 2º continua Correto", async () => {
     const aud = conferido(await etapa3());
-    expect(aud.resumo).toMatchObject({ total: 554, ERRO: 430, CORRETO: 124, PENDENTE_REGRA: 0 });
+    // Piso de 10 (VERSAO_REGRAS 2.12): antes 430 e 124. As 85 linhas com conta abaixo de 10 e registrado 10 passam a Correto: 430 − 85 e 124 + 85.
+    expect(aud.resumo).toMatchObject({ total: 554, ERRO: 345, CORRETO: 209, PENDENTE_REGRA: 0 });
     expect(aud.linhas.filter((l) => l.acordo != null)).toEqual([]);
     // 1º = 1000 × f e 2º = 800 × f (o site pagou a base do 2º aos dois): 840 e 672; 1.215 e 972; 2.875 e 2.300
     for (const [nome, um, dois] of [["SUPER K.O", 840, 672], ["HIGH ROLLER 50K", 1215, 972], ["CHAMPIONSHIP HIGH ROLLER 200K", 2875, 2300]] as const) {
@@ -124,11 +126,11 @@ describe("com o acordo marcado na mão", () => {
     expect(k3.torneios.find((t) => t.torneioId === final(d).id)).toMatchObject({ acordo: 3 });
   });
 
-  it("Etapa 3, K=2 no SUPER K.O: o 1º passa a valer 800 × 0,84 = 672, igual ao registrado; 429 erros e 125 corretos", async () => {
+  it("Etapa 3, K=2 no SUPER K.O: o 1º passa a valer 800 × 0,84 = 672, igual ao registrado; 344 erros e 210 corretos", async () => {
     const d = await etapa3();
     const t = d.torneios.find((x) => x.name === "SUPER K.O")!;
     const aud = conferido(d, { [t.id]: 2 });
-    expect(aud.resumo).toMatchObject({ ERRO: 429, CORRETO: 125 }); // 430 − 1 e 124 + 1
+    expect(aud.resumo).toMatchObject({ ERRO: 344, CORRETO: 210 }); // 345 − 1 e 209 + 1 (345 e 209: sem acordo, com o piso de 10)
     const um = doTorneio(aud, "SUPER K.O", 1);
     expect([um.registrado, um.esperado, um.situacao, um.acordo]).toEqual([672, 672, "CORRETO", 2]);
   });

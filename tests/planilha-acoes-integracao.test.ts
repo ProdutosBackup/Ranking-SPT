@@ -34,7 +34,7 @@ const auditoria = (stage: string) => executar(new Request(`http://x/api/auditori
 const url = (stage: string) => new Request(`http://x/api/planilha?etapa=${stage}`);
 
 describe.each([
-  ["taua-2026", "1a", 202, 6],
+  ["taua-2026", "1a", 224, 6], // 202 + 22 do piso de 10 (VERSAO_REGRAS 2.12): 50K Cucurucho do 7º ao 28º, conta e registrado 9,36 no fixture
   ["vale-suico-2026", "2a", 153, 8],
 ])("%s com a planilha de ações", (stage, f, erros, torneiosComAcoes) => {
   it("só os cenários C e D mudam", { timeout: 60000 }, async () => {

@@ -104,11 +104,13 @@ describe("etapa 1 (taua-2026), a referência correta", () => {
       ["Second Chance 20K", 95, 100, 95],
     ].sort((a, b) => String(a[0]).localeCompare(String(b[0]))));
   });
-  it("440 corretos (189 + 251 com os inscritos do site); os 202 flights viram Erro, nenhum aguarda regra", () => {
+  it("418 corretos (167 + 251 com os inscritos do site); os 202 flights e as 22 linhas abaixo do piso viram Erro, nenhum aguarda regra", () => {
     // Main Event avaliado por linha [usuário, 06/11/2026], com o campo de 334 buy-ins informado pelo usuário: o primeiro flight é participação
     // (10 × 3,84 × 1,0 = 38,4) e o Dia Final vale pela própria posição; as 135 linhas do Dia Final batem com o site.
-    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 202, SUSPEITO: 0, ARREDONDAMENTO: 0, CORRETO: 189, CORRETO_SITE: 251, PENDENTE_REGRA: 0 });
-    expect(sit(aud).CORRETO + sit(aud).CORRETO_SITE).toBe(440);
+    // Piso de 10 (VERSAO_REGRAS 2.12): antes 202 erros e 189 corretos. O 50K Cucurucho do 7º ao 28º (22 linhas, 10 × 0,78 × 1,2 = 9,36, registrado 9,36
+    // no fixture) passa a esperar 10: 202 + 22 = 224 e 189 − 22 = 167.
+    expect(aud.resumo).toMatchObject({ total: 642, ERRO: 224, SUSPEITO: 0, ARREDONDAMENTO: 0, CORRETO: 167, CORRETO_SITE: 251, PENDENTE_REGRA: 0 });
+    expect(sit(aud).CORRETO + sit(aud).CORRETO_SITE).toBe(418);
     const flights = aud.linhas.filter((l) => /Dia 1[A-E]$/i.test(l.torneio));
     expect(flights).toHaveLength(202);
     expect(flights.every((l) => l.situacao === "ERRO" && l.pendencia == null && l.field === 334)).toBe(true);

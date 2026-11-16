@@ -4,7 +4,7 @@
 import type { DadosSpt } from "./api-spt";
 import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
 import { PREMIADOS_ETAPA3 } from "./premiados-etapa3";
-import { CAMPO_MAIN_EVENT, type Regras } from "./regras";
+import { CAMPO_MAIN_EVENT, PISO_PARTICIPACAO, type Regras } from "./regras";
 
 // Pontos por posição 1..18; 19+ tratado à parte.
 const TABELA: Record<number, number> = {
@@ -26,6 +26,9 @@ const MIN_LINHAS_ACHADO = 3;
 
 /** Centésimos de ponto para base, inscritos e fator de buy-in ×100. Metade arredonda para cima. */
 const centavos = (base: number, inscritos: number, f100: number) => Math.floor((base * (inscritos * 100 + 5000) * f100 + 5000) / 10000);
+/** Pontos de uma linha em centésimos: na base 10 (participação: fora da premiação, primeiro flight, Dia Final sem posição) vale no mínimo o piso
+ * [usuário, 16/11/2026: "A pontuação mínima de participação é 10 cravado"]; nas bases de posição, a conta pura. Reescrito aqui, sem importar o motor. */
+const pontosV = (base: number, inscritos: number, f100: number) => (base === 10 ? Math.max(centavos(base, inscritos, f100), PISO_PARTICIPACAO * 100) : centavos(base, inscritos, f100));
 
 type Linha = {
   jogador: string;
@@ -207,13 +210,13 @@ export function verificar(d: DadosSpt, regras: Regras, linhas: Linha[], torneios
     const explicada = site != null && !b.pendente && !b.fixo;
     const field = explicada ? site : b.field;
     const flightComAcoes = b.particip && !b.pendente;
-    const cent = b.satelite ? 0 : b.acordo ? b.acCent : flightComAcoes ? centavos(10, field, b.f100) : centavos(b.base, field, b.f100);
+    const cent = b.satelite ? 0 : b.acordo ? b.acCent : flightComAcoes ? pontosV(10, field, b.f100) : pontosV(b.base, field, b.f100);
     // Os 4 cenários (A a D), reescritos aqui: só mudam o campo (entradas ou ações) e o fator da faixa até R$ 1.000 (1,0 ou 0,9). C e D: null sem reentradas.
     const cenV = (campo: number | null, faixa: number): number | null => {
       if (b.satelite) return 0;
       if (campo == null) return null;
       const f = fatorBuyIn100(b.bif, faixa);
-      return b.acordo ? centavos(b.base, campo, f) : flightComAcoes ? centavos(10, campo, f) : centavos(b.base, campo, f);
+      return b.acordo ? centavos(b.base, campo, f) : flightComAcoes ? pontosV(10, campo, f) : pontosV(b.base, campo, f);
     };
     const entradasLinha = explicada ? site : b.entradas;
     const cenV4 = { A: cenV(entradasLinha, 1), B: cenV(entradasLinha, 0.9), C: cenV(b.acoes, 1), D: cenV(b.acoes, 0.9) };

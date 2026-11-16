@@ -73,7 +73,7 @@ const jogadoresComTotal = (r: Res, numero: number) => {
 };
 
 describe("campo de C e D do Main Event = total de entradas da planilha de participantes", () => {
-  it("versão das regras 2.11", () => expect(VERSAO_REGRAS).toBe("2.11"));
+  it("versão das regras 2.12 (piso de 10 na participação, 16/11/2026)", () => expect(VERSAO_REGRAS).toBe("2.12"));
 
   it("Etapa 2: A e B iguais (153 erros, 117 corretos), C e D com 576; 190 linhas mudam, todas do Dia Final", async () => {
     await removerParticipantes();
@@ -112,12 +112,13 @@ describe("campo de C e D do Main Event = total de entradas da planilha de partic
     expect([cent(l.cenarios.A), cent(l.cenarios.C), cent(l.cenarios.D)]).toEqual([1524, 2504, 2253.6]);
   });
 
-  it("Etapa 3: A e B iguais (430 erros, 124 corretos); Dia Final sem posição A = 37,8, C = 60,7, D = 54,63; 214 linhas mudam", async () => {
+  it("Etapa 3: A e B iguais (345 erros, 209 corretos); Dia Final sem posição A = 37,8, C = 60,7, D = 54,63; 214 linhas mudam", async () => {
     const sem = await auditoria(E3);
     await salvarParticipantes(TOTAIS);
     const com = await auditoria(E3);
-    expect([resumo(sem).ERRO, resumo(sem).CORRETO]).toEqual([430, 124]);
-    expect([resumo(com).ERRO, resumo(com).CORRETO]).toEqual([430, 124]);
+    // Piso de 10 (VERSAO_REGRAS 2.12): antes 430 e 124; as 85 linhas com conta abaixo de 10 e registrado 10 passam a Correto.
+    expect([resumo(sem).ERRO, resumo(sem).CORRETO]).toEqual([345, 209]);
+    expect([resumo(com).ERRO, resumo(com).CORRETO]).toEqual([345, 209]);
     expect(com.aud.linhas.map(semCD)).toEqual(sem.aud.linhas.map(semCD));
     const mudou = com.aud.linhas.filter((l, i) => JSON.stringify(l.cenarios) !== JSON.stringify(sem.aud.linhas[i].cenarios));
     expect(mudou.every(ehFinal)).toBe(true);
@@ -128,10 +129,11 @@ describe("campo de C e D do Main Event = total de entradas da planilha de partic
     expect([cent(l.cenarios.A), cent(l.cenarios.C), cent(l.cenarios.D)]).toEqual([37.8, 60.7, 54.63]);
   });
 
-  it("Etapa 1: 202 erros e 189 corretos; C e D continuam nulos no Main Event, mesmo com total guardado para a Etapa 1", async () => {
+  it("Etapa 1: 224 erros e 167 corretos; C e D continuam nulos no Main Event, mesmo com total guardado para a Etapa 1", async () => {
     await salvarParticipantes(TOTAIS);
     const r = await auditoria(E1);
-    expect([resumo(r).ERRO, resumo(r).CORRETO]).toEqual([202, 189]);
+    // Piso de 10 (VERSAO_REGRAS 2.12): antes 202 e 189; 22 linhas do 50K Cucurucho (conta e registrado 9,36 no fixture) passam a esperar 10.
+    expect([resumo(r).ERRO, resumo(r).CORRETO]).toEqual([224, 167]);
     expect(r.dados.acoesMainEvent).toBeUndefined();
     const main = r.aud.linhas.filter(doMain);
     expect(main.length).toBeGreaterThan(0);

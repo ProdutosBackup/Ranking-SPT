@@ -1,4 +1,4 @@
-import { ErroExtracao, type Torneio } from "./api-spt";
+import { ErroExtracao, urlApi, type Torneio } from "./api-spt";
 import { armazenamento, ETAPA_PLANILHA, MSG_SEM_ARMAZENAMENTO, sha256, type Registro } from "./armazenamento-planilha";
 import { casar, lerAcoes } from "./planilha-acoes";
 import { TORNEIOS_COM_BOUNTY_ETAPA3 } from "./bounty-etapa3";
@@ -7,7 +7,6 @@ import { lerPlanilha, LIMITE_BYTES, MSG_GRANDE, MSG_NAO_XLSX, type DadosPlanilha
 
 /** Número da etapa (do título da planilha) → slug da etapa na API. */
 export const ETAPA_POR_NUMERO: Record<number, string> = { 1: "taua-2026", 2: "vale-suico-2026", 3: ETAPA_PLANILHA };
-const API = "https://supremapokertour.com/api/spt";
 
 /** De onde vieram os inscritos do Dia Final usados na auditoria. */
 export type FonteInscritos = { fonte: "flights" | "informado" | "planilha"; valor: number; texto: string };
@@ -55,7 +54,7 @@ export async function enviarPlanilha(bytes: Uint8Array, arquivo: string, inscrit
 export async function torneiosDoSite(stage = ETAPA_PLANILHA): Promise<Torneio[]> {
   for (let i = 0; i < 2; i++) {
     try {
-      const r = await fetch(`${API}/tournaments?stage=${encodeURIComponent(stage)}`, { cache: "no-store", signal: AbortSignal.timeout(10000) });
+      const r = await fetch(urlApi("/tournaments", { stage }), { cache: "no-store", signal: AbortSignal.timeout(10000) });
       if (!r.ok) continue;
       const lista = ((await r.json()) as { tournaments?: Torneio[] }).tournaments;
       if (!Array.isArray(lista)) continue;

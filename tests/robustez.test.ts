@@ -255,17 +255,20 @@ describe("painel: indicadores e grupos das duas etapas", () => {
   it("Etapa 1", async () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
+    // Piso de 10 (VERSAO_REGRAS 2.12): o 50K Cucurucho do 7º ao 28º (22 linhas, conta e registrado 9,36 no fixture) passa a esperar 10. Erros 202 + 22;
+    // corretos 440 − 22; pontos 4.193 + 22 × 0,64 = 4.207,08; jogadores 158 + 9 (dos 22, 13 já tinham erro num flight).
     expect(r.painel.indicadores).toMatchObject({
-      auditados: 642, corretos: 440, divergenciasInscritos: { torneios: 4, resultadosExplicados: 251 }, erros: 202,
-      pontosEmDiscordancia: 4193, jogadoresAfetados: 158, aguardando: 0, arredondamento: 0,
+      auditados: 642, corretos: 418, divergenciasInscritos: { torneios: 4, resultadosExplicados: 251 }, erros: 224,
+      pontosEmDiscordancia: 4207.08, jogadoresAfetados: 167, aguardando: 0, arredondamento: 0,
     });
     // Main Event avaliado por linha (2.9): o primeiro flight de cada jogador vale 10 × 3,84 × 1,0 = 38,4 (campo de 334 buy-ins, informado pelo usuário),
     // chegando ou não ao Dia Final (158); 44 flights valem 0 (já pontuou em outro flight); as 135 linhas do Dia Final valem pela própria posição.
     expect(r.painel.grupos.map((g) => [g.indices.length, g.titulo])).toEqual([
       [158, "Participação de flight com pontos diferentes de 10 × fatores"],
       [44, "Jogou mais de um flight: vale só o primeiro"],
+      [22, "Diferença sem causa identificada"], // 50K Cucurucho: 9,36 registrado, mínimo de 10
     ]);
-    expect(r.painel.impacto).toHaveLength(158);
+    expect(r.painel.impacto).toHaveLength(167);
     expect(r.painel.divergencias).toHaveLength(4);
     expect(r.painel.divergencias[0].texto).toContain("não prova que o site esteja certo");
     expect(r.painel.aguardando).toEqual([]);
@@ -335,11 +338,12 @@ describe("painel: dados entregues à tela", () => {
     expect(superKo.every((l) => l.buyInParaFator === "buy-in para o fator: R$ 1.000 (500 + 500 K.O)" && l.faixaBuyIn === "de R$ 0 a R$ 1.000")).toBe(true);
     expect(r.linhas.filter((l) => !/OMAHA MYSTERY|EV #2|SUPER K\.O/.test(l.torneio)).every((l) => l.buyInParaFator == null)).toBe(true);
   });
-  it("Etapa 1: veredito com os 253 resultados em erro e as 5 divergências", async () => {
+  it("Etapa 1: veredito com os 224 resultados em erro e as 4 divergências", async () => {
     const d = await carregar(E1);
     const r = montarResposta(E1, d, REGRAS_PADRAO, auditar(d, REGRAS_PADRAO), identificador(d));
-    expect(r.painel.veredito).toBe("Etapa 1: 202 resultados com pontuação diferente da regra, afetando 158 jogadores (4.193 pontos em discordância). 4 torneios têm inscritos diferentes da API (251 resultados explicados).");
-    expect(r.painel.indicadores.percentualCorretos).toBe(68.5);
+    // Piso de 10 (VERSAO_REGRAS 2.12): 22 linhas do 50K Cucurucho a mais em erro (ver o teste dos indicadores); 418 / 642 = 65,1%.
+    expect(r.painel.veredito).toBe("Etapa 1: 224 resultados com pontuação diferente da regra, afetando 167 jogadores (4.207,08 pontos em discordância). 4 torneios têm inscritos diferentes da API (251 resultados explicados).");
+    expect(r.painel.indicadores.percentualCorretos).toBe(65.1);
     expect(r.painel.torneios.filter((t) => t.estado === "divergencia")).toHaveLength(4); // o Final Main Event usa os 334 informados: sem divergência de inscritos
     expect(r.painel.divergencias.every((x) => x.torneioId)).toBe(true);
   });

@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buscarDados, type DadosSpt } from "../lib/api-spt";
 import { auditar } from "../lib/auditoria";
-import { conferir } from "../lib/integridade";
+import { conferir, identificador } from "../lib/integridade";
+import { montarResposta } from "../lib/painel";
 import { dadosDaPlanilha } from "../lib/planilha-guardada";
 import { BOUNTY_API } from "./bounty-mock";
 import { REGRAS_PADRAO } from "../lib/regras";
@@ -78,6 +79,35 @@ describe("Dia Final sem posição: 10 × fatores, uma vez", () => {
     expect(sem).toHaveLength(135);
     expect(sem.every((l) => l.field === 328 && l.fatorParticipantes === 3.78 && l.esperado === 37.8 && l.registrado === 10 && l.situacao === "ERRO")).toBe(true);
     expect(aud.linhas.filter((l) => l.situacao === "PENDENTE_REGRA")).toHaveLength(0);
+  });
+});
+
+describe("Etapa 1: flight que vale 0 diz todos os flights jogados e onde a pontuação contou (bloco Hipótese da causa)", () => {
+  const hip = async (jogador: string, torneio: string) => {
+    const d = await fixture("taua-2026");
+    const aud = auditado(d);
+    const r = montarResposta("taua-2026", d, REGRAS_PADRAO, aud, identificador(d));
+    return r.linhas.find((l) => l.jogador === jogador && l.torneio === torneio)!;
+  };
+  it("Marco Antonio De Moraes, Dia 1D 3º: jogou 1C e 1D; contou no 1C e no Dia Final", async () => {
+    const l = await hip("Marco Antonio De Moraes", "Main Event 400k Dia 1D");
+    expect([l.posicao, l.esperado, l.causaCodigo]).toEqual([3, 0, "FLIGHT_ZERO"]);
+    expect(l.hipotese!.texto).toContain("Jogou os flights 1C e 1D. A pontuação contou no 1C e no Dia Final. Neste flight (1D) vale 0");
+  });
+  it("Rodrigo Akira, Dia 1C 3º: jogou 1A e 1C, sem Dia Final", async () => {
+    const l = await hip("Rodrigo Akira", "Main Event 400K Dia 1C");
+    expect(l.hipotese!.texto).toContain("Jogou os flights 1A e 1C. A pontuação contou no 1A. Neste flight (1C) vale 0");
+  });
+  it("Gabriel Turati, 3 flights: a lista completa nas duas linhas que valem 0", async () => {
+    for (const [t, este] of [["Main Event 400K Dia 1C", "1C"], ["Main Event 400k Dia 1D", "1D"]])
+      expect((await hip("Gabriel Turati", t)).hipotese!.texto).toContain(`Jogou os flights 1A, 1C e 1D. A pontuação contou no 1A e no Dia Final. Neste flight (${este}) vale 0`);
+  });
+  it("todas as 44 linhas 'jogou mais de um flight' têm o texto; nenhuma outra linha ganha", async () => {
+    const d = await fixture("taua-2026");
+    const r = montarResposta("taua-2026", d, REGRAS_PADRAO, auditado(d), identificador(d));
+    const com = r.linhas.filter((l) => l.hipotese?.texto.includes("Jogou os flights"));
+    expect(com).toHaveLength(44);
+    expect(com.every((l) => l.causaCodigo === "FLIGHT_ZERO" && l.esperado === 0)).toBe(true);
   });
 });
 
